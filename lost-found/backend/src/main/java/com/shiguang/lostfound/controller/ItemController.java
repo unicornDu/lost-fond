@@ -3,6 +3,7 @@ package com.shiguang.lostfound.controller;
 import com.shiguang.lostfound.common.PageResult;
 import com.shiguang.lostfound.common.Result;
 import com.shiguang.lostfound.context.UserContext;
+import com.shiguang.lostfound.dto.DmReq;
 import com.shiguang.lostfound.dto.ItemForm;
 import com.shiguang.lostfound.service.ItemService;
 import com.shiguang.lostfound.service.SearchService;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * M2 发布 + M4 检索 + 2.7 私信 + 2.26 相似推荐。
@@ -72,10 +72,10 @@ public class ItemController {
         return Result.ok();
     }
 
-    /** 审查 2.7：私信接真——给启事发布者发站内消息。 */
+    /** 审查 2.7：私信接真——给启事发布者发站内消息。修复 B-10：入参改 DmReq 并 @Valid。 */
     @PostMapping("/{id}/dm")
-    public Result<Void> dm(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        itemService.sendDm(id, UserContext.requireUserId(), body == null ? null : body.get("content"));
+    public Result<Void> dm(@PathVariable Long id, @RequestBody @Valid DmReq req) {
+        itemService.sendDm(id, UserContext.requireUserId(), req == null ? null : req.getContent());
         return Result.ok();
     }
 }

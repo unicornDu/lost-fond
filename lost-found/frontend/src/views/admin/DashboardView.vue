@@ -1,6 +1,11 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import * as echarts from 'echarts'
+// 修复 F-06：echarts 按需引入（仅折线+环形图及所用组件），全量引入曾打出 1.1MB 单 chunk
+import * as echarts from 'echarts/core'
+import { LineChart, PieChart } from 'echarts/charts'
+import { TooltipComponent, GridComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+echarts.use([LineChart, PieChart, TooltipComponent, GridComponent, LegendComponent, CanvasRenderer])
 import { ElMessage } from 'element-plus'
 import { api } from '../../api'
 

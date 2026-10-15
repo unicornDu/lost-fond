@@ -40,7 +40,7 @@ const brands = [
 const features = [
   { emoji: '📷', title: '以图搜图', desc: '基于 pHash 感知哈希算法，上传一张照片就能匹配全校"长得一样"的启事——不用绞尽脑汁想关键词。', tag: '核心亮点' },
   { emoji: '🔄', title: '全流程跟踪', desc: '发布 → 智能匹配 → 认领审核 → 线下交接，每一步状态清晰可见，再也不用翻几十条聊天记录。', tag: '' },
-  { emoji: '🛡️', title: '实名与信用', desc: '校园账号实名注册，信用分约束爽约与冒领，认领需要发布者审核凭证，安全不靠运气。', tag: '' },
+  { emoji: '🛡️', title: '审核与凭证', desc: '校园学号注册，启事经管理员审核后才上墙；认领要填只有失主知道的凭证并由发布者确认，全程站内消息留痕。', tag: '' },
 ]
 
 const steps = [
@@ -88,16 +88,18 @@ const steps = [
             <span>🦊</span><span>🐰</span><span>🐻</span><span>🐱</span><span>🦉</span>
           </div>
           <div class="social-txt">
-            <b>全校同学</b> 正在使用拾光 <span class="stars">★★★★★</span>
-            <small>已帮 {{ stats.reunited }} 件失物找到主人 · 在找 {{ stats.lostCount + stats.foundCount }} 件</small>
+            <!-- 修复 F-08：删除编造的五星好评，只保留 /api/stats 真实指标 -->
+            <b>{{ stats.reunited }}</b> 件失物已找到主人
+            <small>在找 {{ stats.lostCount + stats.foundCount }} 件 · 学号注册 + 凭证认领 + 站内通知</small>
           </div>
         </div>
       </div>
 
       <div class="hero-right fade-up" style="--i:2">
-        <div class="polaroid p1"><img src="https://picsum.photos/seed/lf-p1/420/320" alt="" /><i>_lost & found_</i></div>
-        <div class="polaroid p2"><img src="https://picsum.photos/seed/lf-p2/420/320" alt="" /><i>reunited ♥</i></div>
-        <div class="polaroid p3"><img src="https://picsum.photos/seed/lf-p3/420/320" alt="" /><i>thank you!</i></div>
+        <!-- 修复 F-07：外网 picsum 图换成本项目自有演示素材（:src 运行时绑定，构建期不解析；/uploads 由 vite 代理/生产 Nginx alias 提供，内网不破图） -->
+        <div class="polaroid p1"><img :src="'/uploads/seed/cup-1.jpg'" alt="" /><i>_lost & found_</i></div>
+        <div class="polaroid p2"><img :src="'/uploads/seed/scarf-1.jpg'" alt="" /><i>reunited ♥</i></div>
+        <div class="polaroid p3"><img :src="'/uploads/seed/earbuds-1.jpg'" alt="" /><i>thank you!</i></div>
         <div class="stat-card paper-card">
           <b>64 位</b>
           <span>pHash 感知指纹</span>
@@ -109,7 +111,7 @@ const steps = [
 
     <!-- ③ 品牌跑马灯（BrandSlider） -->
     <section class="brands" id="join">
-      <p class="brands-label">已有这些院系与组织加入</p>
+      <p class="brands-label">面向全校院系与组织（演示数据，非合作背书）</p>
       <div class="marquee">
         <div class="marquee-track">
           <span v-for="(b, i) in [...brands, ...brands]" :key="i" class="brand-chip paper-card">

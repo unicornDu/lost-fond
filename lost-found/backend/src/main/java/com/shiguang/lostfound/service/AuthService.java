@@ -62,6 +62,9 @@ public class AuthService {
         long[] st = loginFail.get(acc);
         if (st != null && st[1] > System.currentTimeMillis())
             throw new BusinessException("错误次数过多，账号已临时锁定，请 10 分钟后再试");
+        // 修复 B-04：锁定期已过则清零计数——否则旧计数留着，锁定期过后只要再错 1 次
+        // 就立刻重新锁 10 分钟，等于账号被无限期锁死（攻击者每次只需错一次）
+        if (st != null && st[1] != 0) loginFail.remove(acc);
 
         User u = userMapper.selectOne(new QueryWrapper<User>().eq("account", acc));
         if (u == null || !passwordEncoder.matches(req.getPassword(), u.getPassword())) {

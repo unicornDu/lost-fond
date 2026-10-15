@@ -3,8 +3,8 @@ import axios from 'axios'
 /**
  * 接口层（真实后端）。统一响应 {code,msg,data}；拦截器剥壳返回 data。
  * 审查 2.14：401 时清登录态并整页跳回 /auth（整页刷新重建 Pinia，规避 store 残留旧 token）。
+ * 修复 F-09：删除无人引用的 USE_MOCK 开关（mock 时代遗留）。
  */
-export const USE_MOCK = false
 
 export const http = axios.create({
   baseURL: '/api',

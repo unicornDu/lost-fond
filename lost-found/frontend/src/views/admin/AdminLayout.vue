@@ -7,6 +7,7 @@ const links = [
   { to: '/admin/audit', label: '🛂 启事审核' },
   { to: '/admin/users', label: '👥 用户管理' },
   { to: '/admin/logs', label: '📜 操作日志' },
+  { to: '/admin/tools', label: '🧰 运维工具' },   // 修复 F-10
 ]
 </script>
 

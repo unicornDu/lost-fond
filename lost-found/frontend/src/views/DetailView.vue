@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { catEmoji } from '../mock/data'
+import { catEmoji } from '../constants/catalog'
 import { api } from '../api'
 import ItemCard from '../components/ItemCard.vue'
 

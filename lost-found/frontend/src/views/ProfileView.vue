@@ -36,6 +36,7 @@ async function loadAll() {
     myClaims.value = mine
     received.value = recv
     messages.value = msgs
+    markAllReadIfNeeded()   // 修复 F-02：数据加载完成后再判断"进入即已读"
   } catch (e) {
     ElMessage.error(e.message || '加载个人中心失败')
   } finally {
@@ -43,16 +44,25 @@ async function loadAll() {
   }
 }
 
-// 进入消息 tab 即全部已读（清红点）
-watch(tab, async (t) => {
-  if (t === 'msg' && unreadCount.value > 0) {
-    try { await api.readAll(); messages.value.forEach((m) => (m.isRead = 1)) } catch (e) { /* ignore */ }
-  }
-})
+// 修复 F-02：进入消息 tab 即全部已读（清红点）。
+// 原实现 watch 无 immediate 且早于 loadAll 完成 → 从铃铛直达 /profile?tab=msg 时 watcher 不触发、
+// 或触发时 unreadCount 还是 0。现改为：immediate + loadAll 完成后复检，并通知 NavBar 立即刷新铃铛。
+async function markAllReadIfNeeded() {
+  if (tab.value !== 'msg' || unreadCount.value === 0) return
+  try {
+    await api.readAll()
+    messages.value.forEach((m) => (m.isRead = 1))
+    window.dispatchEvent(new Event('shiguang-unread-changed'))
+  } catch (e) { /* 非关键路径：标已读失败不阻断浏览 */ }
+}
+watch(tab, markAllReadIfNeeded, { immediate: true })
 
 async function readOne(m) {
   if (m.isRead === 1) return
-  try { await api.readOne(m.id); m.isRead = 1 } catch (e) { /* ignore */ }
+  try {
+    await api.readOne(m.id); m.isRead = 1
+    window.dispatchEvent(new Event('shiguang-unread-changed'))
+  } catch (e) { /* 非关键路径：单条已读失败静默 */ }
 }
 
 async function markFound(item) {

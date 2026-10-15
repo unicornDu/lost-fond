@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shiguang.lostfound.common.BusinessException;
 import com.shiguang.lostfound.common.PageResult;
+import com.shiguang.lostfound.context.UserContext;
 import com.shiguang.lostfound.dto.ItemForm;
 import com.shiguang.lostfound.entity.Item;
 import com.shiguang.lostfound.entity.ItemImage;
@@ -45,7 +46,11 @@ public class ItemService {
     private final PHashUtil pHashUtil;
 
     private static final DateTimeFormatter OUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    /** 修复 B-01：彻底不可见状态（详情/相似推荐对非本人非管理员返回 404）。 */
     private static final Set<String> HIDDEN = Set.of("已下架", "已关闭");
+    /** 修复 B-02：墙页只展示"仍在流转"的启事——与 StatsService 的 CLOSED 口径统一，
+     *  已找回/已认领不再上墙（首页统计与墙页 total 从此恒等）。 */
+    private static final Set<String> WALL_HIDDEN = Set.of("已下架", "已关闭", "已找回", "已认领");
     private static final long MAX_PAGE_SIZE = 100;      // 审查 2.31⑤ 分页上限
     private static final long VIEW_DEDUP_MS = 30 * 60 * 1000L; // 审查 2.33 浏览去重窗口
 
@@ -58,6 +63,9 @@ public class ItemService {
         // 审查 2.23：以图搜图是核心卖点，无图启事进不了索引 → 强制至少一张可读图片
         if (files == null || files.length == 0)
             throw new BusinessException("请至少上传一张物品图片（以图搜图依赖图片指纹）");
+        // 修复 B-10：图片数量上限与 SRS FR2.1 对齐（1–3 张）；放在读字节之前，避免无效 IO
+        if (files.length > 3)
+            throw new BusinessException("最多上传 3 张图片");
 
         Item item = new Item();
         item.setType("found".equals(form.getType()) ? "found" : "lost");
@@ -75,35 +83,45 @@ public class ItemService {
         String cover = null;
         int stored = 0;
         int sort = 0;
-        for (MultipartFile f : files) {
-            if (f == null || f.isEmpty()) continue;
-            byte[] bytes;
-            try {
-                bytes = f.getBytes();
-            } catch (Exception e) {
-                log.warn("读取上传图片失败，跳过", e);
-                continue;
+        // 修复 B-11：磁盘写入不在数据库事务保护内——收集本事务已落盘的 URL，
+        // 后续任何一步抛异常回滚时逐个补偿删除，避免孤儿文件
+        List<String> storedUrls = new ArrayList<>();
+        try {
+            for (MultipartFile f : files) {
+                if (f == null || f.isEmpty()) continue;
+                byte[] bytes;
+                try {
+                    bytes = f.getBytes();
+                } catch (Exception e) {
+                    log.warn("读取上传图片失败，跳过", e);
+                    continue;
+                }
+                String url = fileStorage.store(bytes, f.getOriginalFilename());
+                storedUrls.add(url);
+                if (cover == null) cover = url;
+                Long phash = null;
+                try {
+                    phash = pHashUtil.hash(bytes);
+                } catch (Exception e) {
+                    log.warn("图片 pHash 计算失败，跳过该图索引: {}", url, e);
+                }
+                ItemImage img = new ItemImage();
+                img.setItemId(item.getId());
+                img.setImgUrl(url);
+                img.setPhash(phash);
+                img.setSort(sort++);
+                itemImageMapper.insert(img);
+                stored++;
             }
-            String url = fileStorage.store(bytes, f.getOriginalFilename());
-            if (cover == null) cover = url;
-            Long phash = null;
-            try {
-                phash = pHashUtil.hash(bytes);
-            } catch (Exception e) {
-                log.warn("图片 pHash 计算失败，跳过该图索引: {}", url, e);
-            }
-            ItemImage img = new ItemImage();
-            img.setItemId(item.getId());
-            img.setImgUrl(url);
-            img.setPhash(phash);
-            img.setSort(sort++);
-            itemImageMapper.insert(img);
-            stored++;
-        }
-        if (stored == 0) throw new BusinessException("请至少上传一张有效的物品图片");
+            // 语义说明（修复 B-11 明确）：坏图"跳过"、好图保留；仅当一张都没存下才整体失败
+            if (stored == 0) throw new BusinessException("请至少上传一张有效的物品图片");
 
-        item.setCoverImg(cover);
-        itemMapper.updateById(item);
+            item.setCoverImg(cover);
+            itemMapper.updateById(item);
+        } catch (RuntimeException e) {
+            storedUrls.forEach(fileStorage::deleteQuietly);   // 补偿：回滚磁盘副作用
+            throw e;
+        }
 
         Map<Long, String> nick = loadNicknames(Set.of(userId));
         ItemVO vo = toVO(item, nick, null);
@@ -120,7 +138,7 @@ public class ItemService {
 
         QueryWrapper<Item> qw = new QueryWrapper<>();
         qw.eq("audit_status", 1);
-        qw.notIn("status", HIDDEN);
+        qw.notIn("status", WALL_HIDDEN);   // 修复 B-02：与首页统计同口径，已团聚启事不上墙
         if (type != null && !type.isBlank()) qw.eq("type", type);
         if (category != null && !category.isBlank()) qw.eq("category", category);
         if (location != null && !location.isBlank()) qw.eq("location", location);
@@ -145,8 +163,21 @@ public class ItemService {
         Item item = itemMapper.selectById(id);
         if (item == null) throw new BusinessException(404, "启事不存在或已被删除");
 
+        // 修复 B-01：详情可见性判定——待审核/已下架/已关闭的启事，仅发布者本人与管理员可见；
+        // 其他人一律 404（不用 403，避免用状态码泄露"该启事存在但未过审"）。
+        boolean selfOrAdmin = (currentUserId != null && currentUserId.equals(item.getUserId()))
+                || UserContext.isAdmin();
+        if (!selfOrAdmin) {
+            if (item.getAuditStatus() == null || item.getAuditStatus() != 1
+                    || HIDDEN.contains(item.getStatus()))
+                throw new BusinessException(404, "启事不存在或已被删除");
+        }
+
         String dedupKey = id + "|" + (clientKey == null ? "_" : clientKey);
         long now = System.currentTimeMillis();
+        // 修复 B-07：去重表只增不减会慢性吃内存——超阈值时惰性清理过期条目（不引新依赖的简单方案）
+        if (viewDedup.size() > 10000)
+            viewDedup.entrySet().removeIf(e -> now - e.getValue() > VIEW_DEDUP_MS);
         Long last = viewDedup.get(dedupKey);
         if (last == null || now - last > VIEW_DEDUP_MS) {
             viewDedup.put(dedupKey, now);
@@ -178,11 +209,14 @@ public class ItemService {
         if (item.getUserId().equals(fromUserId)) throw new BusinessException("不能给自己私信");
         if (content == null || content.isBlank()) throw new BusinessException("私信内容不能为空");
         User from = userMapper.selectById(fromUserId);
+        String full = (from == null ? "同学" : from.getNickname()) + " 就「" + item.getTitle() + "」给你留言：" + content.trim();
+        // 修复 B-10：message.content 列宽 VARCHAR(300)，拼前缀后的总长也要兜底校验，避免撞库约束
+        if (full.length() > 300) throw new BusinessException(400, "私信太长（含引用标题后最多 300 字），请精简后重试");
         Message m = new Message();
         m.setUserId(item.getUserId());
         m.setType("dm");
         m.setTitle("收到新私信");
-        m.setContent((from == null ? "同学" : from.getNickname()) + " 就「" + item.getTitle() + "」给你留言：" + content.trim());
+        m.setContent(full);
         m.setRefId(itemId);
         m.setIsRead(0);
         messageMapper.insert(m);

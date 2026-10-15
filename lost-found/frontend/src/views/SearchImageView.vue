@@ -1,7 +1,10 @@
 <script setup>
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '../api'
+import { useTransferStore } from '../stores/transfer'
+
+const transfer = useTransferStore()
 
 /**
  * 以图搜图（核心亮点页）：上传照片 → POST /api/search/image（multipart）
@@ -15,6 +18,7 @@ const step = ref(0)            // 0 未开始 1-3 处理中 4 完成
 const results = ref([])
 const totalImgs = ref(0)
 const elapsed = ref(0)
+const threshold = ref(10)   // 03 T-03：服务端生效阈值（indexed-count 下发），文案同步用
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -47,6 +51,7 @@ async function runPipeline() {
   try {
     const [res, cnt] = await Promise.all([req, cntReq])
     totalImgs.value = cnt.count || 0
+    if (cnt.threshold) threshold.value = cnt.threshold   // 03 T-03：文案与配置同步
     elapsed.value = ((performance.now() - t0) / 1000).toFixed(2)
     await sleep(250)
     results.value = res || []
@@ -65,11 +70,23 @@ function reset() {
 
 onBeforeUnmount(() => { if (fileUrl.value) URL.revokeObjectURL(fileUrl.value) })
 
-const steps = [
-  { n: 1, label: '读取图片', detail: '压缩至 32×32 灰度图' },
-  { n: 2, label: '提取感知哈希', detail: 'DCT 变换 → 64 位 pHash 指纹' },
-  { n: 3, label: '汉明距离匹配', detail: '与库内启事逐条比对，阈值 ≤ 10' },
-]
+// 修复 F-03：接收首页搜图卡拖入暂存的图片，落地即开搜
+onMounted(() => {
+  const f = transfer.takeFile()
+  if (f) {
+    fileUrl.value = URL.createObjectURL(f)
+    fileName.value = f.name
+    fileRaw.value = f
+    runPipeline()
+  }
+})
+
+const steps = computed(() => [
+  { n: 1, label: '读取图片', detail: '灰度化并压缩至 32×32（与 JImageHash PerceptiveHash 实现一致）' },
+  { n: 2, label: '提取感知哈希', detail: 'DCT 变换 → 取 8×8 低频 → 二值化 64 位 pHash 指纹' },
+  // 03 T-03：阈值文案不再硬编码，与 /api/search/indexed-count 返回的生效阈值同步
+  { n: 3, label: '汉明距离匹配', detail: `与库内启事逐条比对，阈值 ≤ ${threshold.value}` },
+])
 </script>
 
 <template>
@@ -135,7 +152,7 @@ const steps = [
         <div v-else-if="step === 4 && !results.length" class="res-empty paper-card">
           <span class="cam">🤔</span>
           <p>没有匹配到相似的启事</p>
-          <small>库内暂无与该照片足够相似的物品（汉明距离均 &gt; 阈值 10）。<br />试试拍得更清晰、更接近物品主体，或直接去发布一条启事。</small>
+          <small>库内暂无与该照片足够相似的物品（汉明距离均 &gt; 阈值 {{ threshold }}）。<br />试试拍得更清晰、更接近物品主体，或直接去发布一条启事。</small>
         </div>
 
         <div v-else-if="step > 0" class="res-empty paper-card">

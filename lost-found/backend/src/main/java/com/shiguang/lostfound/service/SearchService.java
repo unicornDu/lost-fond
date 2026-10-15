@@ -3,6 +3,7 @@ package com.shiguang.lostfound.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.shiguang.lostfound.common.BusinessException;
 import com.shiguang.lostfound.config.ImageSearchProperties;
+import com.shiguang.lostfound.context.UserContext;
 import com.shiguang.lostfound.dto.ImageMatch;
 import com.shiguang.lostfound.entity.Item;
 import com.shiguang.lostfound.entity.ItemImage;
@@ -37,18 +38,39 @@ public class SearchService {
     private final FileStorageService fileStorage;
 
     public List<ItemVO> searchByImage(MultipartFile file) {
+        return searchByImage(file, null, null);
+    }
+
+    /**
+     * 修复 T-04：哈希计算前先做扩展名+魔数前置校验（复用 FileStorageService 的白名单，避免两处不一致）。
+     * 03 T-02：threshold/topN 允许请求参数临时覆盖（eval_recall.py 网格扫描用），不传则用 application.yml 配置值。
+     */
+    public List<ItemVO> searchByImage(MultipartFile file, Integer threshold, Integer topN) {
         if (file == null || file.isEmpty()) throw new BusinessException("请上传查询图片");
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (Exception e) {
+            throw new BusinessException("图片读取失败");
+        }
+        fileStorage.validateImage(file.getOriginalFilename(), bytes);
         long q;
         try {
-            q = pHashUtil.hash(file.getBytes());
+            q = pHashUtil.hash(bytes);
         } catch (Exception e) {
             throw new BusinessException("图片解析失败，请上传 JPG/PNG");
         }
-        return searchByHash(q);
+        int th = threshold != null ? threshold : props.getHammingThreshold();
+        int tn = topN != null ? topN : props.getTopN();
+        return searchByHash(q, th, tn);
     }
 
     public List<ItemVO> searchByHash(long q) {
-        List<ImageMatch> matches = itemImageMapper.searchByHash(q, props.getHammingThreshold(), props.getTopN());
+        return searchByHash(q, props.getHammingThreshold(), props.getTopN());
+    }
+
+    public List<ItemVO> searchByHash(long q, int threshold, int topN) {
+        List<ImageMatch> matches = itemImageMapper.searchByHash(q, threshold, topN);
         if (matches.isEmpty()) return List.of();
 
         List<Long> ids = matches.stream().map(ImageMatch::getItemId).collect(Collectors.toList());
@@ -108,6 +130,18 @@ public class SearchService {
      * 查最近邻，排除自身后返回 Top-n。详情页"以图搜图联想"改调本方法（有接口出处）。
      */
     public List<ItemVO> similarTo(Long itemId, int n) {
+        // 修复 T-04：n<=0 语义为"不要推荐"，返回空列表（原 limit(max(1,n)) 会把 0 变成 1）
+        if (n <= 0) return List.of();
+        // 修复 B-01：相似推荐先校验"源启事"可见性——不可见时返回空列表而不是抛错，
+        // 避免待审核启事借相似推荐把库内其他启事漏出去，也不影响详情页主流程。
+        Item src = itemMapper.selectById(itemId);
+        if (src == null) return List.of();
+        Long uid = UserContext.getUserId();
+        boolean selfOrAdmin = (uid != null && uid.equals(src.getUserId())) || UserContext.isAdmin();
+        if (!selfOrAdmin && (src.getAuditStatus() == null || src.getAuditStatus() != 1
+                || isHidden(src.getStatus())))
+            return List.of();
+
         List<ItemImage> imgs = itemImageMapper.selectList(new QueryWrapper<ItemImage>()
                 .eq("item_id", itemId).isNotNull("phash").orderByAsc("sort"));
         if (imgs.isEmpty()) return List.of();
@@ -115,7 +149,7 @@ public class SearchService {
         List<ItemVO> hits = searchByHash(q);
         return hits.stream()
                 .filter(v -> !v.getId().equals(itemId))
-                .limit(Math.max(1, n))
+                .limit(n)
                 .collect(Collectors.toList());
     }
 

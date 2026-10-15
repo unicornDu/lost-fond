@@ -41,9 +41,9 @@ public class ClaimController {
         return Result.ok(claimService.receivedClaims(UserContext.requireUserId()));
     }
 
-    /** 发布者审核认领申请。 */
+    /** 发布者审核认领申请。修复 B-10：补 @Valid 使 reply 的 @Size 生效。 */
     @PostMapping("/claims/{claimId}/audit")
-    public Result<Void> audit(@PathVariable Long claimId, @RequestBody ClaimAuditReq req) {
+    public Result<Void> audit(@PathVariable Long claimId, @RequestBody @Valid ClaimAuditReq req) {
         claimService.audit(claimId, UserContext.requireUserId(), req);
         return Result.ok();
     }

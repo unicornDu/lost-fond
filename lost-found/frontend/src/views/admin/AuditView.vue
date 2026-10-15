@@ -17,7 +17,10 @@ async function load() {
     const res = await api.adminItems({ page: page.value, size: size.value, auditStatus: tab.value === '' ? undefined : tab.value })
     list.value = res.records
     total.value = res.total
-  } catch (e) { ElMessage.error(e.message || '加载失败') }
+  } catch (e) {
+    list.value = []   // 修复 F-11：失败时清空旧列表，避免"报错后仍显示上一次数据"的错觉
+    ElMessage.error(e.message || '加载失败')
+  }
   finally { loading.value = false }
 }
 
@@ -25,27 +28,31 @@ function changeTab(t) { tab.value = t; page.value = 1; load() }
 
 async function audit(row, approve) {
   try {
+    // 修复 F-01（方案 B）：不再索要会被丢弃的"驳回理由"——改为纯确认弹窗，避免误导性交互
+    // （理由落库的方案 A 涉及后端接口变更，留作后续增强）
     if (!approve) {
-      const r = await ElMessageBox.prompt('驳回理由（选填）', '驳回启事', { confirmButtonText: '确定驳回', cancelButtonText: '取消' })
-      await api.adminAudit(row.id, false); void r
-    } else {
-      await api.adminAudit(row.id, true)
+      await ElMessageBox.confirm(`确定驳回「${row.title}」？驳回后前台不可见，可稍后在「已驳回」页签重新通过。`,
+        '驳回启事', { type: 'warning', confirmButtonText: '确定驳回', cancelButtonText: '取消' })
     }
+    await api.adminAudit(row.id, approve)
     ElMessage.success(approve ? '已通过审核' : '已驳回')
     load()
   } catch (e) { if (e !== 'cancel') ElMessage.error(e.message || '操作失败') }
 }
 
 async function offline(row) {
-  await ElMessageBox.confirm(`确定下架「${row.title}」？`, '违规下架', { type: 'warning' })
-    .then(async () => { await api.adminOffline(row.id); ElMessage.success('已下架'); load() })
-    .catch(() => {})
+  // 修复 F-05：区分"用户取消"与"接口失败"，失败必须提示
+  try { await ElMessageBox.confirm(`确定下架「${row.title}」？`, '违规下架', { type: 'warning' }) }
+  catch { return }
+  try { await api.adminOffline(row.id); ElMessage.success('已下架'); load() }
+  catch (e) { ElMessage.error(e.message || '下架失败') }
 }
 
 async function del(row) {
-  await ElMessageBox.confirm(`删除「${row.title}」将同时清理图片与认领记录，不可恢复。继续？`, '删除启事', { type: 'error' })
-    .then(async () => { await api.adminDelete(row.id); ElMessage.success('已删除'); load() })
-    .catch(() => {})
+  try { await ElMessageBox.confirm(`删除「${row.title}」将同时清理图片与认领记录，不可恢复。继续？`, '删除启事', { type: 'error' }) }
+  catch { return }
+  try { await api.adminDelete(row.id); ElMessage.success('已删除'); load() }
+  catch (e) { ElMessage.error(e.message || '删除失败') }
 }
 
 onMounted(load)
@@ -82,6 +89,8 @@ onMounted(load)
         <template #default="{ row }">
           <el-button v-if="row.auditStatus === 0" size="small" type="primary" @click="audit(row, true)">通过</el-button>
           <el-button v-if="row.auditStatus === 0" size="small" @click="audit(row, false)">驳回</el-button>
+          <!-- 修复 F-01/B-03 联动：已驳回启事可"重新通过"（后端 B-03 已支持恢复可见） -->
+          <el-button v-if="row.auditStatus === 2" size="small" type="success" plain @click="audit(row, true)">重新通过</el-button>
           <el-button v-if="row.auditStatus === 1" size="small" type="warning" plain @click="offline(row)">下架</el-button>
           <el-button size="small" type="danger" plain @click="del(row)">删除</el-button>
         </template>

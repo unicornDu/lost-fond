@@ -45,7 +45,7 @@ lost-found/
     ├── vite.config.js                 已配 /api 与 /uploads 代理 → :8080
     └── src/
         ├── api/ stores/ router/ components/ directives/ styles/ mock/
-        └── views/                     9 个用户页 + admin/ 后台五页面（Layout/Dashboard/Audit/Users/Logs）
+        └── views/                     9 个用户页 + admin/ 后台六页面（Layout/Dashboard/Audit/Users/Logs/Tools）
 ```
 
 ---
@@ -86,7 +86,7 @@ mysql -u root -p < backend/src/main/resources/db/schema.sql     # 建库建表
 # 演示数据二选一：
 #   a) 直接导入：  mysql -u root -p lost_found < backend/src/main/resources/db/data.sql
 #   b) 自动生成（推荐）：先跑 scripts/gen_seed_images.py（离线，读 uploads/_src），
-#      再启动后端由 DataInitializer 播种 60 条启事/120 图/认领三态/消息 并重算 pHash
+#      再启动后端由 DataInitializer 播种 60 条启事/120 条图片引用（30 个去重文件）/认领三态/消息 并重算 pHash
 ```
 
 ### 2) 后端（:8080）
@@ -119,7 +119,14 @@ npm run dev        # http://localhost:5173 （/api、/uploads 已代理到 :8080
 | 自建账号 | 前端注册任意 6-12 位学号 | 自设 ≥6 位 | BCrypt 入库，JWT 登录 |
 
 启动日志会打印当次生效的演示账号与口令。
-- **以图搜图演示**：上传 `backend/uploads/_query/q-cup.jpg`（或 q-keys/q-earbuds/q-card/q-umbrella/q-scarf）→ 命中该物品的多条 lost/found 启事，相似度 ~100%。
+- **以图搜图演示**（top-n=10、阈值 12，2026-10-15 标定，实测见 `backend/scripts/recall_results.csv` 与 docs/11 §2.4）：
+  - `q-cup.jpg` → 命中 8/8 条同物启事，最低相似度 81.3%
+  - `q-keys.jpg` → 8/8，最低 82.8%
+  - `q-earbuds.jpg` → 10/10，最低 85.9%
+  - `q-umbrella.jpg` → 10/10，最低 81.3%
+  - `q-scarf.jpg` → 8/10，最低 89.1%
+  - `q-card.jpg` → 4/10（卡套反光变体汉明距离偏大，属 pHash 能力边界，见 docs/11 §2.4）
+  - 整体召回 48/56 = 85.7%，误检 0；单张平均耗时约 54ms。
 - **管理后台**：管理员登录后 NavBar 出现「🛡️ 后台管理」→ 看板（ECharts 趋势+分类环形）/ 审核页签 / 用户封禁⇄解封 / 操作日志。
 - **审核流演示**：新注册账号发布一条启事 → 个人中心显示「待审核」标签；管理员在后台审核通过后才在墙页可见、可被搜图命中。
 

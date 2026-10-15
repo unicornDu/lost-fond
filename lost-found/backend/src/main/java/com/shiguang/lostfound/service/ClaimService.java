@@ -47,8 +47,10 @@ public class ClaimService {
         Item item = itemMapper.selectById(itemId);
         if (item == null) throw new BusinessException(404, "启事不存在");
         if (item.getUserId().equals(claimantId)) throw new BusinessException("不能认领自己发布的启事");
-        // 审查 2.6：白名单守卫（替换原来只挡"已认领/已找回"的窄守卫）
-        if (!"寻找中".equals(item.getStatus()) && !"待认领".equals(item.getStatus()))
+        // 审查 2.6 白名单守卫 + 05 修正：「认领申请中」必须放行——竞争状态机（附录 D4：通过一条自动关闭
+        // 其余在审申请）依赖同一物品存在多条"审核中"；原白名单漏了它，第二个申请人永远进不来（TC-竞争-01 无法成立）
+        if (!"寻找中".equals(item.getStatus()) && !"待认领".equals(item.getStatus())
+                && !"认领申请中".equals(item.getStatus()))
             throw new BusinessException("该启事当前状态不可申请认领");
 
         Long dup = claimMapper.selectCount(new QueryWrapper<ClaimRecord>()

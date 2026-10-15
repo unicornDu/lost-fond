@@ -1,5 +1,6 @@
 # UML 建模全套 v1.0
 
+> **交付形态说明（05 B-08）**：五张图以 Mermaid 源码形式交付（可在支持 Mermaid 的阅读器/VSCode 插件中渲染）；类图为核心域模型，为可读性省略时间戳等次要字段；未附导出 PNG/SVG。
 > 交付物编号 02（成员B）。全部图与真实代码一一对应（类名/方法名/接口路径可检索）。Mermaid 渲染：VSCode 装 Markdown Preview Mermaid 插件或 GitHub 在线预览。
 
 ## 1. 用例图

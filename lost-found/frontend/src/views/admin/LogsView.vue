@@ -16,7 +16,10 @@ async function load() {
     const res = await api.adminLogs({ page: page.value, size: size.value })
     list.value = res.records
     total.value = res.total
-  } catch (e) { ElMessage.error(e.message || '加载失败') }
+  } catch (e) {
+    list.value = []   // 修复 F-11：失败时清空旧列表
+    ElMessage.error(e.message || '加载失败')
+  }
   finally { loading.value = false }
 }
 

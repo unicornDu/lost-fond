@@ -1,5 +1,5 @@
 <script setup>
-import { catEmoji } from '../mock/data'
+import { catEmoji } from '../constants/catalog'
 
 /**
  * 物品卡片：图片 + 贴纸分类标签 + 状态角标 + Spotlight 光晕

@@ -34,11 +34,12 @@ public class AuthController {
         return Result.ok(authService.login(req));
     }
 
-    /** 用令牌换取当前登录用户信息。 */
+    /** 用令牌换取当前登录用户信息。修复 B-12：用户已被删除时返回 401 而非 NPE→500。 */
     @GetMapping("/me")
     public Result<UserVO> me() {
         Long uid = UserContext.requireUserId();
         User u = userMapper.selectById(uid);
+        if (u == null) throw new com.shiguang.lostfound.common.BusinessException(401, "请先登录");
         UserVO vo = new UserVO();
         vo.setId(u.getId());
         vo.setAccount(u.getAccount());

@@ -17,18 +17,23 @@ async function load() {
     const res = await api.adminUsers({ page: page.value, size: size.value, keyword: keyword.value || undefined })
     list.value = res.records
     total.value = res.total
-  } catch (e) { ElMessage.error(e.message || '加载失败') }
+  } catch (e) {
+    list.value = []   // 修复 F-11：失败时清空旧列表，避免误以为还是最新数据
+    ElMessage.error(e.message || '加载失败')
+  }
   finally { loading.value = false }
 }
 
 async function toggleBan(row) {
   const ban = row.status === 1
-  await ElMessageBox.confirm(`${ban ? '封禁' : '解封'}用户「${row.nickname}」？`, '确认', { type: 'warning' })
-    .then(async () => {
-      await api.adminSetUserStatus(row.id, ban)
-      ElMessage.success(ban ? '已封禁' : '已解封')
-      load()
-    }).catch(() => {})
+  // 修复 F-05：区分"用户取消"与"接口失败"，失败必须提示
+  try { await ElMessageBox.confirm(`${ban ? '封禁' : '解封'}用户「${row.nickname}」？`, '确认', { type: 'warning' }) }
+  catch { return }
+  try {
+    await api.adminSetUserStatus(row.id, ban)
+    ElMessage.success(ban ? '已封禁' : '已解封')
+    load()
+  } catch (e) { ElMessage.error(e.message || '操作失败') }
 }
 
 onMounted(load)

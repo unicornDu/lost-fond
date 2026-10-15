@@ -75,12 +75,20 @@ public class FileStorageService {
             Path dir = root().resolve(sub);
             Files.createDirectories(dir);
             Files.write(dir.resolve(name + "." + ext), data);
-            writeThumb(data, dir, name, ext);   // 审查 2.17 缩略图
+            boolean thumbed = writeThumb(data, dir, name, ext);   // 审查 2.17 缩略图
+            if (thumbed) thumbCache.put("/uploads/" + sub + "/" + name + "_thumb." + ext, true);
             return "/uploads/" + sub + "/" + name + "." + ext;
         } catch (IOException e) {
             log.error("保存上传文件失败", e);
             throw new BusinessException("图片保存失败");
         }
+    }
+
+    /** 修复 T-04：对外暴露的图片前置校验（扩展名白名单 + 魔数），供搜图等"不落盘"场景复用，避免两处白名单不一致。 */
+    public void validateImage(String filename, byte[] data) {
+        String ext = extOf(filename);
+        if (!ALLOWED.contains(ext)) throw new BusinessException("仅支持 jpg/png/gif/bmp/webp 图片");
+        checkMagic(data, ext);
     }
 
     /** 魔数校验：内容必须是真图片（审查 2.16）。webp 单独处理 RIFF....WEBP。 */
@@ -100,52 +108,84 @@ public class FileStorageService {
         }
     }
 
-    /** 生成宽 480 缩略图 uuid_thumb.ext；失败仅记日志不阻断主流程。 */
-    private void writeThumb(byte[] data, Path dir, String name, String ext) {
+    /** 生成宽 480 缩略图 uuid_thumb.ext；失败仅记日志不阻断主流程。返回是否真的写出了缩略图。 */
+    private boolean writeThumb(byte[] data, Path dir, String name, String ext) {
         try {
             BufferedImage src = ImgUtil.read(new ByteArrayInputStream(data));
-            if (src == null) return;
+            if (src == null) return false;
             float scale = (float) THUMB_WIDTH / src.getWidth();
-            if (scale >= 1) return; // 原图已够小，不另存缩略图（thumbUrl 回退原图）
+            if (scale >= 1) return false; // 原图已够小，不另存缩略图（thumbUrl 回退原图）
             ImgUtil.write(ImgUtil.scale(src, scale), dir.resolve(name + "_thumb." + ext).toFile());
+            return true;
         } catch (Exception e) {
             log.warn("生成缩略图失败（忽略）: {}", name, e);
+            return false;
         }
     }
 
-    /** 由原图 URL 推导缩略图 URL（不存在时前端回退原图）。 */
+    /** 由原图 URL 推导缩略图 URL（不存在时前端回退原图）。
+     *  修复 B-08：存在性判定加内存缓存，消除列表页逐条 stat 的 N+1 磁盘 IO；缓存超上限整体清空重建。 */
+    private final java.util.concurrent.ConcurrentHashMap<String, Boolean> thumbCache =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     public String thumbUrl(String url) {
         if (url == null) return null;
         int dot = url.lastIndexOf('.');
         if (dot < 0) return url;
         String candidate = url.substring(0, dot) + "_thumb" + url.substring(dot);
-        File f = resolve(candidate);
-        return (f != null && f.exists()) ? candidate : url;
+        if (thumbCache.size() > 20000) thumbCache.clear();
+        Boolean exists = thumbCache.computeIfAbsent(candidate, c -> {
+            File f = resolve(c);
+            return f != null && f.exists();
+        });
+        return Boolean.TRUE.equals(exists) ? candidate : url;
     }
 
-    /** 为历史数据补缩略图（审查 2.17 的 regen-thumbs 用）。返回补生成数量。 */
+    /** 启动/播种后调用：扫 seed/ 与 yyyy/MM/ 补生成缺失缩略图（修复 B-08：不扫 _src/_query/_exp）。 */
     public int ensureThumbs() {
+        return ensureThumbs(true);
+    }
+
+    /** 管理端 regen-thumbs 调用：修复 B-08 收敛写入范围——只写用户上传目录 yyyy/MM，不碰 seed 等已提交目录。 */
+    public int regenUserUploadThumbs() {
+        return ensureThumbs(false);
+    }
+
+    private int ensureThumbs(boolean includeSeed) {
         java.util.concurrent.atomic.AtomicInteger n = new java.util.concurrent.atomic.AtomicInteger(0);
-        try {
-            Files.walk(root()).filter(p -> {
-                String fn = p.getFileName().toString();
-                return !fn.contains("_thumb") && fn.matches("(?i).*\\.(jpg|jpeg|png|gif|bmp|webp)");
-            }).forEach(p -> {
-                try {
-                    String fn = p.getFileName().toString();
-                    int dot = fn.lastIndexOf('.');
-                    Path thumb = p.resolveSibling(fn.substring(0, dot) + "_thumb" + fn.substring(dot));
-                    if (Files.exists(thumb)) return;
-                    BufferedImage src = ImgUtil.read(p.toFile());
-                    if (src == null) return;
-                    float scale = (float) THUMB_WIDTH / src.getWidth();
-                    if (scale >= 1) return;
-                    ImgUtil.write(ImgUtil.scale(src, scale), thumb.toFile());
-                    n.incrementAndGet();
-                } catch (Exception ignored) { }
+        java.util.List<Path> dirs = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<Path> stream = Files.list(root())) {
+            stream.filter(Files::isDirectory).forEach(p -> {
+                String name = p.getFileName().toString();
+                if (name.matches("\\d{4}")) dirs.add(p);
+                else if (includeSeed && "seed".equals(name)) dirs.add(p);
             });
         } catch (IOException e) {
             log.warn("遍历上传目录失败", e);
+            return 0;
+        }
+        for (Path dir : dirs) {
+            try (java.util.stream.Stream<Path> files = Files.list(dir)) {
+                files.filter(p -> {
+                    String fn = p.getFileName().toString();
+                    return !fn.contains("_thumb") && fn.matches("(?i).*\\.(jpg|jpeg|png|gif|bmp|webp)");
+                }).forEach(p -> {
+                    try {
+                        String fn = p.getFileName().toString();
+                        int dot = fn.lastIndexOf('.');
+                        Path thumb = p.resolveSibling(fn.substring(0, dot) + "_thumb" + fn.substring(dot));
+                        if (Files.exists(thumb)) return;
+                        BufferedImage src = ImgUtil.read(p.toFile());
+                        if (src == null) return;
+                        float scale = (float) THUMB_WIDTH / src.getWidth();
+                        if (scale >= 1) return;
+                        ImgUtil.write(ImgUtil.scale(src, scale), thumb.toFile());
+                        thumbCache.put("/uploads/" + dir.getFileName() + "/" + fn.substring(0, dot)
+                                + "_thumb" + fn.substring(dot), true);
+                        n.incrementAndGet();
+                    } catch (Exception ignored) { }
+                });
+            } catch (IOException ignored) { }
         }
         return n.get();
     }
@@ -168,12 +208,14 @@ public class FileStorageService {
         }
     }
 
-    /** 删除磁盘文件（审查 2.20 删除启事清理孤儿图片）；失败仅记日志。 */
+    /** 删除磁盘文件（审查 2.20 删除启事清理孤儿图片）；失败仅记日志。修复 B-08：同步失效缩略图缓存。 */
     public void deleteQuietly(String relativeUrl) {
         try {
             File f = resolve(relativeUrl);
             if (f != null && f.exists()) Files.deleteIfExists(f.toPath());
-            File t = resolve(thumbUrl(relativeUrl));
+            String thumb = thumbUrl(relativeUrl);
+            thumbCache.remove(thumb);
+            File t = resolve(thumb);
             if (t != null && t.exists() && !t.equals(f)) Files.deleteIfExists(t.toPath());
         } catch (Exception e) {
             log.warn("删除磁盘图片失败（忽略）: {}", relativeUrl, e);

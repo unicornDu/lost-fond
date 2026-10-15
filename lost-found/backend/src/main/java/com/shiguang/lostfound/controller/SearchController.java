@@ -20,16 +20,23 @@ import java.util.Map;
 public class SearchController {
 
     private final SearchService searchService;
+    private final com.shiguang.lostfound.config.ImageSearchProperties imageSearchProperties;
 
+    /** 03 T-02：threshold/topN 可选覆盖（eval_recall.py 网格扫描用）；不传用 application.yml 配置值。 */
     @PostMapping(value = "/image", consumes = {"multipart/form-data"})
-    public Result<List<ItemVO>> searchByImage(@RequestPart("file") MultipartFile file) {
-        return Result.ok(searchService.searchByImage(file));
+    public Result<List<ItemVO>> searchByImage(@RequestPart("file") MultipartFile file,
+                                              @RequestParam(required = false) Integer threshold,
+                                              @RequestParam(required = false) Integer topN) {
+        return Result.ok(searchService.searchByImage(file, threshold, topN));
     }
 
-    /** 已建立 pHash 索引的图片数量（前端展示「已在 N 张图片中比对」）。 */
+    /** 已建立 pHash 索引的图片数量 + 当前生效阈值/Top-N（前端文案同步用，03 T-03）。 */
     @GetMapping("/indexed-count")
     public Result<Map<String, Object>> indexedCount() {
-        return Result.ok(Map.of("count", searchService.indexedCount()));
+        return Result.ok(Map.of(
+                "count", searchService.indexedCount(),
+                "threshold", imageSearchProperties.getHammingThreshold(),
+                "topN", imageSearchProperties.getTopN()));
     }
 
     /** 管理/调试：为漏算 pHash 的图片补算指纹。审查 2.19：必须管理员（匿名可触发全表重算）。 */

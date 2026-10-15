@@ -21,22 +21,18 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup 
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '65ac3525-7aa4-11f1-8f80-00ff8b714b91:1-1528';
 
 --
 -- Dumping data for table `admin_log`
 --
 
-LOCK TABLES `admin_log` WRITE;
 /*!40000 ALTER TABLE `admin_log` DISABLE KEYS */;
 /*!40000 ALTER TABLE `admin_log` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Dumping data for table `claim_record`
 --
 
-LOCK TABLES `claim_record` WRITE;
 /*!40000 ALTER TABLE `claim_record` DISABLE KEYS */;
 INSERT INTO `claim_record` (`id`, `item_id`, `claimant_id`, `proof`, `contact`, `status`, `reply`, `create_time`, `update_time`) VALUES (1,1,2,'演示凭证1：物品内侧有我的姓名贴/划痕特征','13800000000','审核中',NULL,'2026-10-14 21:58:45','2026-10-14 21:58:45');
 INSERT INTO `claim_record` (`id`, `item_id`, `claimant_id`, `proof`, `contact`, `status`, `reply`, `create_time`, `update_time`) VALUES (2,1,4,'演示凭证2：物品内侧有我的姓名贴/划痕特征','13800000001','已通过','确认是失主，已通过','2026-10-14 21:58:45','2026-10-14 21:58:45');
@@ -51,13 +47,11 @@ INSERT INTO `claim_record` (`id`, `item_id`, `claimant_id`, `proof`, `contact`, 
 INSERT INTO `claim_record` (`id`, `item_id`, `claimant_id`, `proof`, `contact`, `status`, `reply`, `create_time`, `update_time`) VALUES (11,5,2,'演示凭证：只有失主知道的细节特征',NULL,'审核中',NULL,'2026-10-14 21:58:45','2026-10-14 21:58:45');
 INSERT INTO `claim_record` (`id`, `item_id`, `claimant_id`, `proof`, `contact`, `status`, `reply`, `create_time`, `update_time`) VALUES (12,6,2,'演示凭证：只有失主知道的细节特征',NULL,'审核中',NULL,'2026-10-14 21:58:45','2026-10-14 21:58:45');
 /*!40000 ALTER TABLE `claim_record` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Dumping data for table `item`
 --
 
-LOCK TABLES `item` WRITE;
 /*!40000 ALTER TABLE `item` DISABLE KEYS */;
 INSERT INTO `item` (`id`, `type`, `title`, `category`, `location`, `happen_time`, `description`, `status`, `cover_img`, `views`, `user_id`, `audit_status`, `create_time`, `update_time`) VALUES (1,'lost','蓝色保温杯，杯身有小熊贴纸','其他','第一教学楼','2026-09-20 08:00:00','物品特征详见照片；如有线索请在详情页申请认领或私信联系，感谢！（演示数据）','已找回','/uploads/seed/cup-0.jpg',40,9,1,'2026-10-14 21:58:43','2026-10-14 21:58:45');
 INSERT INTO `item` (`id`, `type`, `title`, `category`, `location`, `happen_time`, `description`, `status`, `cover_img`, `views`, `user_id`, `audit_status`, `create_time`, `update_time`) VALUES (2,'found','捡到蓝色保温杯（小熊贴纸）','其他','图书馆','2026-09-21 09:07:00','物品特征详见照片；如有线索请在详情页申请认领或私信联系，感谢！（演示数据）','已认领','/uploads/seed/cup-1.jpg',57,7,1,'2026-10-14 21:58:43','2026-10-14 21:58:45');
@@ -120,13 +114,11 @@ INSERT INTO `item` (`id`, `type`, `title`, `category`, `location`, `happen_time`
 INSERT INTO `item` (`id`, `type`, `title`, `category`, `location`, `happen_time`, `description`, `status`, `cover_img`, `views`, `user_id`, `audit_status`, `create_time`, `update_time`) VALUES (59,'lost','操场主席台捡到灰围巾','衣物饰品','实验楼','2026-09-20 16:56:00','物品特征详见照片；如有线索请在详情页申请认领或私信联系，感谢！（演示数据）','已找回','/uploads/seed/scarf-3.jpg',201,18,1,'2026-10-14 21:58:45','2026-10-14 21:58:45');
 INSERT INTO `item` (`id`, `type`, `title`, `category`, `location`, `happen_time`, `description`, `status`, `cover_img`, `views`, `user_id`, `audit_status`, `create_time`, `update_time`) VALUES (60,'found','招领：灰色格纹围巾','衣物饰品','校车站','2026-09-21 17:03:00','物品特征详见照片；如有线索请在详情页申请认领或私信联系，感谢！（演示数据）','已认领','/uploads/seed/scarf-4.jpg',218,16,1,'2026-10-14 21:58:45','2026-10-14 21:58:45');
 /*!40000 ALTER TABLE `item` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Dumping data for table `item_image`
 --
 
-LOCK TABLES `item_image` WRITE;
 /*!40000 ALTER TABLE `item_image` DISABLE KEYS */;
 INSERT INTO `item_image` (`id`, `item_id`, `img_url`, `phash`, `sort`, `create_time`) VALUES (1,1,'/uploads/seed/cup-0.jpg',-1176191252217113454,0,'2026-10-14 21:58:43');
 INSERT INTO `item_image` (`id`, `item_id`, `img_url`, `phash`, `sort`, `create_time`) VALUES (2,1,'/uploads/seed/cup-1.jpg',-5782780244652083046,1,'2026-10-14 21:58:43');
@@ -249,13 +241,11 @@ INSERT INTO `item_image` (`id`, `item_id`, `img_url`, `phash`, `sort`, `create_t
 INSERT INTO `item_image` (`id`, `item_id`, `img_url`, `phash`, `sort`, `create_time`) VALUES (119,60,'/uploads/seed/scarf-4.jpg',-3567561875551432581,0,'2026-10-14 21:58:45');
 INSERT INTO `item_image` (`id`, `item_id`, `img_url`, `phash`, `sort`, `create_time`) VALUES (120,60,'/uploads/seed/scarf-0.jpg',-4139411156097305509,1,'2026-10-14 21:58:45');
 /*!40000 ALTER TABLE `item_image` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Dumping data for table `message`
 --
 
-LOCK TABLES `message` WRITE;
 /*!40000 ALTER TABLE `message` DISABLE KEYS */;
 INSERT INTO `message` (`id`, `user_id`, `type`, `title`, `content`, `ref_id`, `is_read`, `create_time`) VALUES (1,9,'claim','收到新的认领申请','有人申请认领「蓝色保温杯，杯身有小熊贴纸」，请查看凭证并审核。',1,0,'2026-10-14 21:58:45');
 INSERT INTO `message` (`id`, `user_id`, `type`, `title`, `content`, `ref_id`, `is_read`, `create_time`) VALUES (2,9,'claim','收到新的认领申请','有人申请认领「蓝色保温杯，杯身有小熊贴纸」，请查看凭证并审核。',1,0,'2026-10-14 21:58:45');
@@ -270,13 +260,11 @@ INSERT INTO `message` (`id`, `user_id`, `type`, `title`, `content`, `ref_id`, `i
 INSERT INTO `message` (`id`, `user_id`, `type`, `title`, `content`, `ref_id`, `is_read`, `create_time`) VALUES (11,16,'claim','收到新的认领申请','有人申请认领「保温杯（杯盖米色）遗落」，请查看凭证并审核。',5,0,'2026-10-14 21:58:45');
 INSERT INTO `message` (`id`, `user_id`, `type`, `title`, `content`, `ref_id`, `is_read`, `create_time`) VALUES (12,14,'claim','收到新的认领申请','有人申请认领「捡到蓝色保温杯一只」，请查看凭证并审核。',6,0,'2026-10-14 21:58:45');
 /*!40000 ALTER TABLE `message` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Dumping data for table `user`
 --
 
-LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
 INSERT INTO `user` (`id`, `account`, `password`, `nickname`, `avatar`, `phone`, `role`, `status`, `create_time`, `update_time`) VALUES (1,'10000001','$2a$10$6/U25DCi/0YyJs04il4bxuXxwnwK9Wrv0a9j1oLpBUSDi5DMR0Z6G','管理员','🛡️',NULL,1,1,'2026-10-14 21:58:42','2026-10-14 21:58:42');
 INSERT INTO `user` (`id`, `account`, `password`, `nickname`, `avatar`, `phone`, `role`, `status`, `create_time`, `update_time`) VALUES (2,'20240009','$2a$10$7O.KnaTqteBkGo6Eip/87O/fIBhvYvvJmPjxA/8sqeuDjGED78j7m','郑同学','🐸',NULL,0,1,'2026-10-14 21:58:42','2026-10-14 21:58:42');
@@ -300,7 +288,6 @@ INSERT INTO `user` (`id`, `account`, `password`, `nickname`, `avatar`, `phone`, 
 INSERT INTO `user` (`id`, `account`, `password`, `nickname`, `avatar`, `phone`, `role`, `status`, `create_time`, `update_time`) VALUES (20,'20240010','$2a$10$Hds1vAXazOJSNJL/pqQprOsR8YWiBikhfqtwEb4shRNRl3iKHyxnC','钱同学','🐰',NULL,0,1,'2026-10-14 21:58:43','2026-10-14 21:58:43');
 INSERT INTO `user` (`id`, `account`, `password`, `nickname`, `avatar`, `phone`, `role`, `status`, `create_time`, `update_time`) VALUES (21,'20240020','$2a$10$Q0HhuEN4LpTiFQ2VVOQ7QuoZ.DXSWdP6oDvX4GMzUXhTVYuAYyhnO','许同学','🦁',NULL,0,1,'2026-10-14 21:58:43','2026-10-14 21:58:43');
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
-UNLOCK TABLES;
 SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 

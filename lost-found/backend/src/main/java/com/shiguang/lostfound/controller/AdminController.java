@@ -75,6 +75,13 @@ public class AdminController {
         return Result.ok(statsService.dashboard());
     }
 
+    /** 05 A-01：六表行数（仅管理员），供 test_api.py 幂等自检与运维核对。 */
+    @GetMapping("/db-counts")
+    public Result<Map<String, Long>> dbCounts() {
+        UserContext.requireAdmin();
+        return Result.ok(adminService.dbCounts());
+    }
+
     /** 审查 2.29③：操作日志分页（admin_log 只写不读的问题）。 */
     @GetMapping("/logs")
     public Result<PageResult<AdminLog>> logs(@RequestParam(defaultValue = "1") long page,

@@ -1,5 +1,8 @@
 server:
   port: 8080
+  # 修复 B-07：反向代理（Nginx）后按 X-Forwarded-For 重写 remoteAddr，
+  # 否则匿名访客浏览量去重会退化成"全站共用一把 key"（配合 docs/12 的 proxy_set_header）
+  forward-headers-strategy: native
   servlet:
     encoding:
       charset: UTF-8
@@ -51,8 +54,11 @@ jwt:
 # 以图搜图算法参数
 image-search:
   bit-resolution: 64
-  hamming-threshold: 10       # 汉明距离阈值（实验标定后回填，审查 1.3）
-  top-n: 6
+  # 03 T-02 标定（2026-10-15 网格扫描，见 scripts/recall_results.csv 与 docs/11 §2.4）：
+  # 真实种子库端到端召回 top-n=6→53.6%（截断）、top-n=10/th=12→85.7% 且误检 0；
+  # th=12 同时是 docs/11 mild 组 pHash F1 峰值；更高阈值召回略升但留误检余量不足，弃用
+  hamming-threshold: 12
+  top-n: 10
 
 # 演示账号口令外置在 application-local.yml；为空则回退随机口令并打印警告（审查 2.3）
 seed:

@@ -85,8 +85,14 @@ public class AdminService {
     public void auditItem(Long adminId, Long itemId, boolean approve) {
         Item it = itemMapper.selectById(itemId);
         if (it == null) throw new BusinessException(404, "启事不存在");
+        // 修复 B-03：业务已完成（已认领/已找回）的启事不允许再被审核改状态，避免把已团聚数据改坏
+        if ("已认领".equals(it.getStatus()) || "已找回".equals(it.getStatus()))
+            throw new BusinessException("该启事已完成认领流程，不允许再审核修改");
         it.setAuditStatus(approve ? 1 : 2);
-        if (!approve) it.setStatus("已关闭");
+        // 修复 B-03：审核维度与业务维度解耦——驳回只改 audit_status，不再写「已关闭」；
+        // 通过时若历史驳回曾把 status 写成「已关闭」，恢复业务初始状态，否则通过后前台永远看不到
+        if (approve && "已关闭".equals(it.getStatus()))
+            it.setStatus("lost".equals(it.getType()) ? "寻找中" : "待认领");
         itemMapper.updateById(it);
         log(adminId, "audit", "item", itemId, "审核=" + (approve ? "通过" : "驳回"));
     }
@@ -101,7 +107,9 @@ public class AdminService {
         log(adminId, "offline", "item", itemId, "违规下架");
     }
 
-    /** 审查 2.20：删除启事同时清理图片记录、磁盘文件、关联认领与消息。 */
+    /** 审查 2.20：删除启事同时清理图片记录、磁盘文件、关联认领与消息。
+     *  修复 B-11 取舍说明：先删库再删文件，删文件失败仅记日志——宁可留孤儿文件也不能丢库记录
+     *  （库记录没了文件就是纯垃圾，反之文件还在尚可人工巡检）。 */
     @Transactional
     public void deleteItem(Long adminId, Long itemId) {
         Item it = itemMapper.selectById(itemId);
@@ -110,7 +118,9 @@ public class AdminService {
                 new QueryWrapper<ItemImage>().eq("item_id", itemId));
         itemImageMapper.delete(new QueryWrapper<ItemImage>().eq("item_id", itemId));
         claimMapper.delete(new QueryWrapper<ClaimRecord>().eq("item_id", itemId));
-        messageMapper.delete(new QueryWrapper<Message>().eq("ref_id", itemId).eq("type", "claim"));
+        // 修复 B-05：不再限制 type——claim 与 dm（以及任何以 itemId 为 refId 的消息）一并清理，
+        // 否则删除启事后私信仍留在收件人消息中心，点"查看启事"跳 404（悬挂数据）
+        messageMapper.delete(new QueryWrapper<Message>().eq("ref_id", itemId));
         itemMapper.deleteById(itemId);
         for (ItemImage img : imgs) fileStorage.deleteQuietly(img.getImgUrl());
         log(adminId, "delete", "item", itemId, "删除启事（含图片与关联数据）");
@@ -125,11 +135,24 @@ public class AdminService {
         return PageResult.of(p.getRecords(), p.getTotal(), p.getCurrent(), p.getSize());
     }
 
-    /** 审查 2.17：为历史图片补生成缩略图。 */
+    /** 审查 2.17：为历史图片补生成缩略图。修复 B-08：写入范围收敛到用户上传目录 yyyy/MM，不碰 seed 等已提交目录。 */
     public int regenThumbs(Long adminId) {
-        int n = fileStorage.ensureThumbs();
+        int n = fileStorage.regenUserUploadThumbs();
         log(adminId, "regen-thumbs", "item", null, "补生成缩略图 " + n + " 张");
         return n;
+    }
+
+    /** 05 A-01：六表行数（仅管理员）。供 test_api.py 幂等自检与运维核对——
+     *  此前自检只有 stats/item_image 两个口径，message 与 admin_log 的残留永远测不出来。 */
+    public Map<String, Long> dbCounts() {
+        Map<String, Long> m = new java.util.LinkedHashMap<>();
+        m.put("user", userMapper.selectCount(null));
+        m.put("item", itemMapper.selectCount(null));
+        m.put("item_image", itemImageMapper.selectCount(null));
+        m.put("claim_record", claimMapper.selectCount(null));
+        m.put("message", messageMapper.selectCount(null));
+        m.put("admin_log", adminLogMapper.selectCount(null));
+        return m;
     }
 
     private void log(Long adminId, String action, String targetType, Long targetId, String detail) {

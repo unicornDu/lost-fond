@@ -41,6 +41,7 @@ const routes = [
       { path: 'audit', name: 'adminAudit', component: () => import('../views/admin/AuditView.vue'), meta: { title: '启事审核', roles: ['admin'] } },
       { path: 'users', name: 'adminUsers', component: () => import('../views/admin/UsersView.vue'), meta: { title: '用户管理', roles: ['admin'] } },
       { path: 'logs', name: 'adminLogs', component: () => import('../views/admin/LogsView.vue'), meta: { title: '操作日志', roles: ['admin'] } },
+      { path: 'tools', name: 'adminTools', component: () => import('../views/admin/ToolsView.vue'), meta: { title: '运维工具', roles: ['admin'] } },   // 修复 F-10
     ],
   },
 

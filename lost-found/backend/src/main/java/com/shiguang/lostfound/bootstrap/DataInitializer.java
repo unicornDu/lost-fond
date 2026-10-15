@@ -69,6 +69,14 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        // 修复 B-08：每次启动先补生成缺失缩略图（幂等：已存在即跳过；只扫 seed 与 yyyy/MM），
+        // 保证列表页 thumb 字段指向真实文件（老库/新克隆都能自愈）
+        try {
+            int thumbs = fileStorage.ensureThumbs();
+            if (thumbs > 0) log.info("补生成缩略图 {} 张", thumbs);
+        } catch (Exception e) {
+            log.warn("补生成缩略图失败（忽略）", e);
+        }
         Long cnt = itemMapper.selectCount(null);
         if (cnt != null && cnt > 0) {
             log.info("数据库已有 {} 条启事，跳过初始化", cnt);
@@ -152,10 +160,15 @@ public class DataInitializer implements CommandLineRunner {
             item.setLocation(it.path("location").asText(""));
             item.setHappenTime(parseTime(it.path("happenTime").asText(null)));
             item.setDescription(it.path("desc").asText(""));
-            item.setStatus(it.path("status").asText("寻找中"));
+            int audit = it.path("auditStatus").asInt(1);
+            // 修复 B-09：待审核/已驳回启事的业务状态一律为初始状态（lost→寻找中 / found→待认领），
+            // 杜绝"还没过审却已团聚"的脏数据（它曾让首页 reunited 与墙页可见数对不上）
+            item.setStatus(audit != 1
+                    ? ("found".equals(item.getType()) ? "待认领" : "寻找中")
+                    : it.path("status").asText("寻找中"));
             item.setViews(it.path("views").asInt(0));
             item.setUserId(accountToId.get(it.path("account").asText()));
-            item.setAuditStatus(it.path("auditStatus").asInt(1)); // 审查 2.4：种子可带待审核
+            item.setAuditStatus(audit); // 审查 2.4：种子可带待审核
             itemMapper.insert(item);
             itemCount++;
             insertedItems.add(item);
@@ -208,13 +221,16 @@ public class DataInitializer implements CommandLineRunner {
         for (int i = 0; i < 3 && i < items.size(); i++) {
             Item item = items.get(i);
             Long owner = item.getUserId();
-            // 选两个非发布人作为申请人
-            Long c1 = userIds.stream().filter(u -> !u.equals(owner)).findFirst().orElse(null);
-            Long c2 = userIds.stream().filter(u -> !u.equals(owner) && !u.equals(c1)).skip(1).findFirst().orElse(c1);
-            if (c1 == null) continue;
+            // 修复 B-09：三条认领记录必须用互不相同的申请人（原实现 c1 复用两次，
+            // 违反 ClaimService.apply 自己的"同人同物仅一条审核中"不变量）
+            List<Long> candidates = userIds.stream().filter(u -> !u.equals(owner)).toList();
+            if (candidates.size() < 3) continue;
+            Long c1 = candidates.get(0);
+            Long c2 = candidates.get(1);
+            Long c3 = candidates.get(2);
 
             String[] statuses = {"审核中", "已通过", "已拒绝"};
-            Long[] claimants = {c1, c2, c1};
+            Long[] claimants = {c1, c2, c3};
             for (int k = 0; k < 3; k++) {
                 ClaimRecord c = new ClaimRecord();
                 c.setItemId(item.getId());

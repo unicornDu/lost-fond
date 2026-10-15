@@ -4,6 +4,7 @@ import dev.brachtendorf.jimagehash.hashAlgorithms.AverageHash;
 import dev.brachtendorf.jimagehash.hashAlgorithms.DifferenceHash;
 import dev.brachtendorf.jimagehash.hashAlgorithms.HashingAlgorithm;
 import dev.brachtendorf.jimagehash.hashAlgorithms.PerceptiveHash;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import javax.imageio.ImageIO;
@@ -16,6 +17,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 审查 1.3：以图搜图准确率实验。
@@ -40,7 +44,14 @@ public class HashExperimentTest {
 
     @Test
     public void runExperiment() throws Exception {
+        // 05 A-04：工作目录校验——相对路径依赖 backend/ cwd，跑错目录要明确报错而不是静默写错位置
+        Path scripts = Paths.get("scripts").toAbsolutePath();
+        assertTrue(Files.isDirectory(scripts),
+                "请在 backend 目录下运行本实验（未找到 scripts/ 目录）：cd backend && mvn test -Dtest=HashExperimentTest");
         Path exp = Paths.get("uploads/_exp").toAbsolutePath();
+        // 05 A-04：实验图集缺失时跳过而不是失败（新克隆未生成图集的场景）
+        Assumptions.assumeTrue(Files.isDirectory(exp), "uploads/_exp 实验图集缺失，跳过实验（可先按 docs/11 生成）");
+
         Map<String, HashingAlgorithm> algs = new LinkedHashMap<>();
         algs.put("pHash", new PerceptiveHash(BITS));
         algs.put("aHash", new AverageHash(BITS));
@@ -59,8 +70,12 @@ public class HashExperimentTest {
         List<String> perTransform = new ArrayList<>();
         perTransform.add("transform,group,pHash@10,aHash@10,dHash@10,n");
 
+        Map<String, Integer> gcount = new LinkedHashMap<>();
         for (String group : List.of("mild", "strong")) {
             String prefix = group.equals("mild") ? "mild_" : "pos_";
+            int qn = 0;
+            for (String o : OBJS) qn += filesWithPrefix(exp.resolve(o), prefix).size();
+            gcount.put(group, qn);
             for (Map.Entry<String, HashingAlgorithm> ae : algs.entrySet()) {
                 String alg = ae.getKey();
                 for (int t : THRESHOLDS) {
@@ -104,6 +119,18 @@ public class HashExperimentTest {
                 perTransform.add(sb.toString());
             }
         }
+
+        // 05 A-04：真断言——数据集规模、组合完整性、pHash 在 jpeg30 上召回=1.00（与 docs/11 D-01 复核一致）
+        assertEquals(30, gcount.getOrDefault("mild", 0), "mild 查询图应为 30 张（5 变换 × 6 物体）");
+        assertEquals(42, gcount.getOrDefault("strong", 0), "strong 查询图应为 42 张（7 变换 × 6 物体）");
+        assertEquals(1 + 2 * 3 * THRESHOLDS.length, rows.size(), "每个 (组,算法,阈值) 组合应输出一行");
+        String jpeg30 = perTransform.stream().filter(l -> l.startsWith("jpeg30,")).findFirst().orElse("");
+        assertTrue(jpeg30.split(",")[2].equals("1.00"), "pHash 在 jpeg30 变换上召回应为 1.00");
+
+        // 05 A-04：默认拒绝覆盖已提交的实验数据；确需重生成加 -Dexp.overwrite=true
+        if (!Boolean.getBoolean("exp.overwrite") && Files.exists(scripts.resolve("exp_results.csv")))
+            Assumptions.assumeTrue(false,
+                    "scripts/exp_results.csv 已存在，默认不覆盖已提交数据；如需重生成加 -Dexp.overwrite=true");
 
         try (PrintWriter w = new PrintWriter("scripts/exp_results.csv", StandardCharsets.UTF_8)) {
             rows.forEach(r -> w.println(r[0]));

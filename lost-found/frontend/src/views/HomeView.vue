@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import SplitText from '../components/SplitText.vue'
 import SearchUploadCard from '../components/SearchUploadCard.vue'
 import ItemCard from '../components/ItemCard.vue'
-import { CATEGORIES } from '../mock/data'
+import { CATEGORIES } from '../constants/catalog'
 import { api } from '../api'
 
 const latestLost = ref([])

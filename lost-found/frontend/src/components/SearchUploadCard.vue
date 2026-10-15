@@ -1,28 +1,44 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useTransferStore } from '../stores/transfer'
 
 /**
  * 以图搜图入口卡：首页 C 位入口，贴纸质感 + 虚线上传区。
- * 点击/拖入图片后跳转 /search-image，真正的上传与匹配在该页完成。
+ * 修复 F-03：拖入的图片不再被丢弃——经 transfer store 带到 /search-image 直接开搜；
+ * 点击则仅跳转（文案与行为一致）。
  */
 const router = useRouter()
+const transfer = useTransferStore()
 const dragging = ref(false)
 
 function go() {
   router.push('/search-image')
+}
+
+function onDrop(e) {
+  dragging.value = false
+  const f = e.dataTransfer?.files?.[0]
+  if (!f) return go()
+  if (!f.type.startsWith('image/')) {
+    ElMessage.error('请拖入图片文件')
+    return
+  }
+  transfer.setFile(f)
+  go()
 }
 </script>
 
 <template>
   <div class="search-card paper-card" :class="{ dragging }" @click="go"
     @dragover.prevent="dragging = true" @dragleave="dragging = false"
-    @drop.prevent="dragging = false; go()">
+    @drop.prevent="onDrop">
     <div class="inner">
       <div class="cam">📷</div>
       <p class="t1">一张照片，全校帮你找</p>
       <p class="t2">上传物品照片，感知哈希秒级匹配失物招领启事</p>
-      <span class="try-btn">拖入图片 或 点击开始搜图 →</span>
+      <span class="try-btn">拖入图片直接搜 或 点击进入以图搜图 →</span>
     </div>
     <span class="sticker corner">AI 以图搜图 · 核心功能</span>
   </div>

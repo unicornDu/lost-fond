@@ -67,7 +67,7 @@
   "D:\Visual_Stdio_Code\Claude_Code\MysqL\mysql-9.7.0-winx64\bin\mysql" -u root -p < backend\src\main\resources\db\schema.sql
   ```
 
-- [ ] 演示数据：**不用手动导入**。第一次启动后端时 `DataInitializer` 自动播种 60 条启事 / 120 张图 / 认领与消息种子并重算 pHash。
+- [ ] 演示数据：**不用手动导入**。第一次启动后端时 `DataInitializer` 自动播种 60 条启事 / 120 条图片引用（30 个去重文件）/ 认领与消息种子并重算 pHash。
   （备选方案：`mysql -u root -p lost_found < backend/src/main/resources/db/data.sql`）
 
 - [ ] 验证库表存在

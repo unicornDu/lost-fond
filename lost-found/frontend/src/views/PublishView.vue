@@ -2,7 +2,7 @@
 import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { CATEGORIES, LOCATIONS } from '../mock/data'
+import { CATEGORIES, LOCATIONS } from '../constants/catalog'
 import { api } from '../api'
 
 const router = useRouter()
@@ -15,10 +15,14 @@ const form = reactive({
 const fileList = ref([])
 const submitting = ref(false)
 
+// 修复 F-04：长度上限与后端 ItemForm / schema.sql 对齐（60/500/50/20），避免"前端能输、后端 400"
 const rules = {
-  title: [{ required: true, message: '请填写物品名称', trigger: 'blur' }],
-  category: [{ required: true, message: '请选择分类', trigger: 'change' }],
-  location: [{ required: true, message: '请填写地点', trigger: 'blur' }],
+  title: [{ required: true, message: '请填写物品名称', trigger: 'blur' },
+    { max: 60, message: '标题最多 60 字', trigger: 'blur' }],
+  category: [{ required: true, message: '请选择分类', trigger: 'change' },
+    { max: 20, message: '分类最多 20 字', trigger: 'change' }],
+  location: [{ required: true, message: '请填写地点', trigger: 'blur' },
+    { max: 50, message: '地点最多 50 字', trigger: 'blur' }],
   time: [{ required: true, message: '请选择时间', trigger: 'change' }],
 }
 
@@ -37,6 +41,11 @@ function beforeUpload(file) {
 
 function onSubmit() {
   if (submitting.value) return // 审查 2.27②：防重复提交守卫
+  // 修复 F-04：图片必填前端也校验（SRS FR2.1 图片 1–3 张），不发无效请求
+  if (fileList.value.length < 1) {
+    ElMessage.warning('请至少上传一张物品图片（以图搜图依赖图片）')
+    return
+  }
   formRef.value.validate(async (ok) => {
     if (!ok) return
     const fd = new FormData()
@@ -84,7 +93,7 @@ function onSubmit() {
     <div class="form-wrap paper-card">
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" size="large">
         <el-form-item label="物品名称" prop="title">
-          <el-input v-model="form.title" maxlength="30" show-word-limit placeholder="例：蓝色保温杯，杯身有小熊贴纸" />
+          <el-input v-model="form.title" maxlength="60" show-word-limit placeholder="例：蓝色保温杯，杯身有小熊贴纸" />
         </el-form-item>
 
         <div class="row">
@@ -105,7 +114,7 @@ function onSubmit() {
         </div>
 
         <el-form-item label="详细描述">
-          <el-input v-model="form.desc" type="textarea" :rows="4" maxlength="300" show-word-limit
+          <el-input v-model="form.desc" type="textarea" :rows="4" maxlength="500" show-word-limit
             placeholder="物品特征、颜色、贴纸/划痕等细节，越详细越容易被认出（不必写联系方式，平台会转接）" />
         </el-form-item>
 

@@ -16,8 +16,10 @@ import java.util.Map;
 
 /**
  * 统计服务。
- * 审查 2.30 修正：首页 lostCount/foundCount 只统计"仍在寻找/待认领"的（排除已找回/已认领），
- * 使"寻找中"计数与墙上条数对得上；reunited 仍为累计已找回/已认领。
+ * 审查 2.30 修正：首页 lostCount/foundCount 只统计"仍在寻找/待认领"的（排除已找回/已认领）。
+ * 修复 B-02：墙页（ItemService.list）已同步改为排除已团聚启事，二者口径恒等——
+ * stats.lostCount == list(type=lost).total、stats.foundCount == list(type=found).total；
+ * reunited 走 ItemMapper.countReunited()，已加 audit_status=1 过滤。
  * 审查 2.8/附录E5：dashboard 补 userCount 与近 30 天 dailyTrend。
  */
 @Service

@@ -14,8 +14,10 @@ const user = useUserStore()
 const unread = ref(0)
 const drawer = ref(false)
 let timer = null
+let lastPoll = 0
 
 async function pollUnread() {
+  lastPoll = Date.now()
   if (!user.token) { unread.value = 0; return }
   try {
     const r = await api.unread()
@@ -31,9 +33,18 @@ function goMessages() {
 onMounted(() => {
   pollUnread()
   timer = setInterval(pollUnread, 30000) // 30s 轮询未读
+  // 修复 F-02：消息页标已读后主动通知铃铛刷新（不用等 30s 轮询）
+  window.addEventListener('shiguang-unread-changed', pollUnread)
 })
-onBeforeUnmount(() => clearInterval(timer))
-watch(() => route.fullPath, pollUnread) // 切换页面时刷新未读
+onBeforeUnmount(() => {
+  clearInterval(timer)
+  window.removeEventListener('shiguang-unread-changed', pollUnread)
+})
+// 修复 F-11：切页刷新未读加 5 秒节流，避免频繁路由切换时请求过多
+watch(() => route.fullPath, () => {
+  if (Date.now() - lastPoll < 5000) return
+  pollUnread()
+})
 </script>
 
 <template>

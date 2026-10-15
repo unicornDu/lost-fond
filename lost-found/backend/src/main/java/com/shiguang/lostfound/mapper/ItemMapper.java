@@ -27,7 +27,8 @@ public interface ItemMapper extends BaseMapper<Item> {
             "WHERE create_time >= #{since} GROUP BY DATE(create_time) ORDER BY date")
     List<Map<String, Object>> dailyTrend(@Param("since") LocalDateTime since);
 
-    /** 已找回/已认领总数（首页统计）。 */
-    @Select("SELECT COUNT(*) FROM item WHERE status IN ('已找回','已认领')")
+    /** 已找回/已认领总数（首页统计）。修复 B-02：必须过滤 audit_status=1，
+     *  否则未过审数据会混进首页"已团聚"数字（实测曾多出 4 条待审核）。 */
+    @Select("SELECT COUNT(*) FROM item WHERE audit_status = 1 AND status IN ('已找回','已认领')")
     long countReunited();
 }

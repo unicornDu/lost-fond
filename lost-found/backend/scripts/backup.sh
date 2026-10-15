@@ -13,6 +13,11 @@ LOCAL="application-local.yml"
 DB_USER="$(sed -nE 's/^[[:space:]]*username:[[:space:]]*//p' "$LOCAL" | head -1)"
 DB_PASS="$(sed -nE 's/^[[:space:]]*password:[[:space:]]*//p' "$LOCAL" | head -1)"
 DB_USER="${DB_USER:-root}"
+# 修复 05 C-03：取不到口令必须报错退出——静默空口令会让 mysqldump 交互式卡住（无人值守表现为挂死）
+if [ -z "$DB_PASS" ]; then
+  echo "错误：无法从 $LOCAL 读取数据库口令（spring.datasource.password）。请确认文件存在且格式正确。" >&2
+  exit 1
+fi
 
 echo ">> 导出数据库 lost_found -> backup/lost_found_${TS}.sql"
 mysqldump -u "$DB_USER" -p"$DB_PASS" --single-transaction --set-gtid-purged=OFF \
@@ -23,4 +28,4 @@ tar czf "backup/uploads_${TS}.tar.gz" uploads/
 
 echo ">> 完成："
 ls -lh backup/ | tail -3
-echo "提示：演示前与每周各跑一次；backup/ 目录请勿进 git（已在 .gitignore 之外可自行追加）。"
+echo "提示：演示前与每周各跑一次；backup/ 已进 .gitignore（05 C-01），不会进 git。"

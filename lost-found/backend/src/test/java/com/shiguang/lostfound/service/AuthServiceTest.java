@@ -100,4 +100,64 @@ class AuthServiceTest {
         authService.login(req);
         org.mockito.Mockito.verify(jwtUtil).generate(1L, "20260005", 0, 43200L);
     }
+
+    // ---------- 修复 B-04：登录限流锁定期过后必须重置计数 ----------
+
+    /** 把 loginFail 里某账号的锁定截止时间改到过去，模拟"锁定期已过"。 */
+    @SuppressWarnings("unchecked")
+    private void expireLock(String account) {
+        java.util.concurrent.ConcurrentHashMap<String, long[]> map =
+                (java.util.concurrent.ConcurrentHashMap<String, long[]>)
+                        org.springframework.test.util.ReflectionTestUtils.getField(authService, "loginFail");
+        long[] st = map.get(account);
+        assertNotNull(st, "限流状态应存在");
+        st[1] = System.currentTimeMillis() - 1;
+    }
+
+    @Test
+    @DisplayName("修复B-04：连错 5 次后第 6 次提示锁定")
+    void loginLocksAfterFiveFails() {
+        User u = new User(); u.setId(1L); u.setAccount("20260006"); u.setPassword("hash"); u.setStatus(1);
+        when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(u);
+        when(passwordEncoder.matches(any(), any())).thenReturn(false);
+        LoginReq req = new LoginReq(); req.setAccount("20260006"); req.setPassword("bad");
+        for (int i = 0; i < 5; i++)
+            assertEquals("学号或密码错误", assertThrows(BusinessException.class, () -> authService.login(req)).getMessage());
+        assertTrue(assertThrows(BusinessException.class, () -> authService.login(req))
+                .getMessage().contains("临时锁定"));
+    }
+
+    @Test
+    @DisplayName("修复B-04：锁定期过后再错 1 次是普通错误，不立刻二次锁定")
+    void loginLockExpiryResetsCounter() {
+        User u = new User(); u.setId(1L); u.setAccount("20260007"); u.setPassword("hash"); u.setStatus(1);
+        when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(u);
+        when(passwordEncoder.matches(any(), any())).thenReturn(false);
+        LoginReq req = new LoginReq(); req.setAccount("20260007"); req.setPassword("bad");
+        for (int i = 0; i < 5; i++) assertThrows(BusinessException.class, () -> authService.login(req));
+        assertTrue(assertThrows(BusinessException.class, () -> authService.login(req))
+                .getMessage().contains("临时锁定"));
+        expireLock("20260007");
+        // 锁定期过：再错 2 次都应是普通"学号或密码错误"（修复前第 1 次就会再次锁定）
+        for (int i = 0; i < 2; i++)
+            assertEquals("学号或密码错误", assertThrows(BusinessException.class, () -> authService.login(req)).getMessage());
+    }
+
+    @Test
+    @DisplayName("修复B-04：登录成功清零失败计数")
+    void loginSuccessClearsFailCounter() {
+        User u = new User(); u.setId(1L); u.setAccount("20260008"); u.setPassword("hash"); u.setStatus(1); u.setRole(0);
+        when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(u);
+        when(passwordEncoder.matches(any(), any())).thenReturn(false, false, true,
+                false, false, false, false);
+        when(jwtUtil.generate(anyLong(), any(), any(), org.mockito.ArgumentMatchers.anyLong())).thenReturn("tok");
+        LoginReq bad = new LoginReq(); bad.setAccount("20260008"); bad.setPassword("bad");
+        LoginReq good = new LoginReq(); good.setAccount("20260008"); good.setPassword("ok");
+        assertThrows(BusinessException.class, () -> authService.login(bad));
+        assertThrows(BusinessException.class, () -> authService.login(bad));
+        authService.login(good);                       // 成功 → 计数清零
+        // 再连错 4 次（累计若没清零将达 6 次）都不应触发锁定
+        for (int i = 0; i < 4; i++)
+            assertEquals("学号或密码错误", assertThrows(BusinessException.class, () -> authService.login(bad)).getMessage());
+    }
 }

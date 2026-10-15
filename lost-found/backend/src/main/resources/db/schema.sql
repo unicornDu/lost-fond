@@ -64,8 +64,9 @@ CREATE TABLE `item_image` (
   `sort`        INT          NOT NULL DEFAULT 0 COMMENT '图片顺序',
   `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
-  KEY `idx_item` (`item_id`),
-  KEY `idx_phash` (`phash`)
+  KEY `idx_item` (`item_id`)
+  -- 修复 05 B-05：phash 不建普通索引（检索条件是函数 BIT_COUNT(phash ^ q)，B+Tree 永远不命中，
+  -- 建了只是写放大；理由与 EXPLAIN 见 docs/06 §索引取舍）。原 KEY idx_phash 与文档矛盾，已删除。
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='启事图片表（存 pHash 指纹，以图搜图核心）';
 
 -- ---------- 认领申请表 ----------

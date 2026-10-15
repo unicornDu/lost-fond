@@ -2,7 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ItemCard from '../components/ItemCard.vue'
-import { CATEGORIES, LOCATIONS } from '../mock/data'
+import { CATEGORIES, LOCATIONS } from '../constants/catalog'
 import { api } from '../api'
 
 const route = useRoute()
@@ -48,7 +48,12 @@ async function load() {
   }
 }
 
-function onPage(p) { page.value = p; load() }
+// 修复 F-11：翻页后回到页顶，避免用户停在页尾以为没翻页
+function onPage(p) {
+  page.value = p
+  load()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 let kwTimer = null
 watch(keyword, () => { clearTimeout(kwTimer); kwTimer = setTimeout(() => { page.value = 1; load() }, 300) })

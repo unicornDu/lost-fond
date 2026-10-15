@@ -35,11 +35,12 @@ public class JwtInterceptor implements HandlerInterceptor {
                 Long uid = Long.valueOf(claims.getSubject());
                 // 审查 2.24①：封禁实时性——带 token 请求查一次 status，被封禁则等同匿名（不写入上下文）
                 User u = userMapper.selectById(uid);
-                if (u != null && u.getStatus() != null && u.getStatus() == 0) {
+                // 修复 B-12：用户已被删除（u==null）时同样等同匿名——不能把 token 里的 role 写进上下文，
+                // 否则旧 token 在有效期内继续可用（若曾提权为管理员后果更严重）；语义=删除即令牌失效
+                if (u == null || (u.getStatus() != null && u.getStatus() == 0)) {
                     return true; // 放行但视为未登录，业务层 requireUserId 会抛 401
                 }
-                Integer role = (u != null ? u.getRole() : claims.get("role", Integer.class));
-                UserContext.set(uid, role == null ? 0 : role);
+                UserContext.set(uid, u.getRole() == null ? 0 : u.getRole());
             }
         }
         return true;
