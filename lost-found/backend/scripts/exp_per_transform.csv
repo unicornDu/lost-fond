@@ -1,0 +1,13 @@
+transform,group,pHash@10,aHash@10,dHash@10,n
+bright112,mild,1.00,1.00,1.00,6
+contrast110,mild,1.00,1.00,1.00,6
+crop85,mild,0.00,0.33,0.17,6
+grayblur,mild,1.00,1.00,1.00,6
+scale75,mild,1.00,1.00,0.67,6
+blur2,strong,1.00,1.00,1.00,6
+bright13,strong,1.00,0.83,1.00,6
+crop70,strong,0.00,0.00,0.00,6
+jpeg30,strong,1.00,1.00,1.00,6
+rot10,strong,0.00,0.33,0.17,6
+rot5,strong,0.33,0.83,0.33,6
+scale50,strong,1.00,1.00,1.00,6

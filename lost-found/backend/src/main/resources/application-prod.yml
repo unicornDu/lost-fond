@@ -1,0 +1,14 @@
+# 生产 profile：关闭接口文档暴露（审查 2.42 ①）
+# 启动方式：java -jar xxx.jar --spring.profiles.active=prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+knife4j:
+  enable: false
+  production: true   # 屏蔽 /doc.html
+
+logging:
+  level:
+    com.shiguang.lostfound: warn

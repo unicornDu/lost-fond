@@ -1,0 +1,257 @@
+package com.shiguang.lostfound.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.shiguang.lostfound.common.BusinessException;
+import com.shiguang.lostfound.common.PageResult;
+import com.shiguang.lostfound.dto.ItemForm;
+import com.shiguang.lostfound.entity.Item;
+import com.shiguang.lostfound.entity.ItemImage;
+import com.shiguang.lostfound.entity.Message;
+import com.shiguang.lostfound.entity.User;
+import com.shiguang.lostfound.mapper.ItemImageMapper;
+import com.shiguang.lostfound.mapper.ItemMapper;
+import com.shiguang.lostfound.mapper.MessageMapper;
+import com.shiguang.lostfound.mapper.UserMapper;
+import com.shiguang.lostfound.util.PHashUtil;
+import com.shiguang.lostfound.vo.ItemVO;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+/**
+ * M2 发布 + M4 检索。
+ * 审查修正：2.23 图片必填；2.17 VO 带 thumbUrl；2.8 VO 带 auditStatus；
+ * 2.25 分页参数上限；2.32 浏览量原子自增；2.33 同访客 30 分钟去重；2.7 私信 sendDm。
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ItemService {
+
+    private final ItemMapper itemMapper;
+    private final ItemImageMapper itemImageMapper;
+    private final UserMapper userMapper;
+    private final MessageMapper messageMapper;
+    private final FileStorageService fileStorage;
+    private final PHashUtil pHashUtil;
+
+    private static final DateTimeFormatter OUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final Set<String> HIDDEN = Set.of("已下架", "已关闭");
+    private static final long MAX_PAGE_SIZE = 100;      // 审查 2.31⑤ 分页上限
+    private static final long VIEW_DEDUP_MS = 30 * 60 * 1000L; // 审查 2.33 浏览去重窗口
+
+    /** 浏览去重：key=itemId|clientKey → 上次计数时间（审查 2.33）。 */
+    private final ConcurrentHashMap<String, Long> viewDedup = new ConcurrentHashMap<>();
+
+    // ---------------- M2 发布 ----------------
+    @Transactional
+    public ItemVO publish(Long userId, ItemForm form, MultipartFile[] files) {
+        // 审查 2.23：以图搜图是核心卖点，无图启事进不了索引 → 强制至少一张可读图片
+        if (files == null || files.length == 0)
+            throw new BusinessException("请至少上传一张物品图片（以图搜图依赖图片指纹）");
+
+        Item item = new Item();
+        item.setType("found".equals(form.getType()) ? "found" : "lost");
+        item.setTitle(form.getTitle().trim());
+        item.setCategory(blankTo(form.getCategory(), "其他"));
+        item.setLocation(blankTo(form.getLocation(), ""));
+        item.setHappenTime(parseTime(form.getHappenTime()));
+        item.setDescription(blankTo(form.getDescription(), ""));
+        item.setStatus("found".equals(item.getType()) ? "待认领" : "寻找中");
+        item.setViews(0);
+        item.setUserId(userId);
+        item.setAuditStatus(0); // 审查 2.4：真审核流，待管理员通过
+        itemMapper.insert(item);
+
+        String cover = null;
+        int stored = 0;
+        int sort = 0;
+        for (MultipartFile f : files) {
+            if (f == null || f.isEmpty()) continue;
+            byte[] bytes;
+            try {
+                bytes = f.getBytes();
+            } catch (Exception e) {
+                log.warn("读取上传图片失败，跳过", e);
+                continue;
+            }
+            String url = fileStorage.store(bytes, f.getOriginalFilename());
+            if (cover == null) cover = url;
+            Long phash = null;
+            try {
+                phash = pHashUtil.hash(bytes);
+            } catch (Exception e) {
+                log.warn("图片 pHash 计算失败，跳过该图索引: {}", url, e);
+            }
+            ItemImage img = new ItemImage();
+            img.setItemId(item.getId());
+            img.setImgUrl(url);
+            img.setPhash(phash);
+            img.setSort(sort++);
+            itemImageMapper.insert(img);
+            stored++;
+        }
+        if (stored == 0) throw new BusinessException("请至少上传一张有效的物品图片");
+
+        item.setCoverImg(cover);
+        itemMapper.updateById(item);
+
+        Map<Long, String> nick = loadNicknames(Set.of(userId));
+        ItemVO vo = toVO(item, nick, null);
+        vo.setImages(loadImageUrls(item.getId()));
+        return vo;
+    }
+
+    // ---------------- M4 列表检索 ----------------
+    public PageResult<ItemVO> list(String type, String category, String location,
+                                   String keyword, String sort, long page, long size) {
+        // 审查 2.25/2.31⑤：分页参数校验与上限
+        page = Math.max(1, page);
+        size = Math.min(MAX_PAGE_SIZE, Math.max(1, size));
+
+        QueryWrapper<Item> qw = new QueryWrapper<>();
+        qw.eq("audit_status", 1);
+        qw.notIn("status", HIDDEN);
+        if (type != null && !type.isBlank()) qw.eq("type", type);
+        if (category != null && !category.isBlank()) qw.eq("category", category);
+        if (location != null && !location.isBlank()) qw.eq("location", location);
+        if (keyword != null && !keyword.isBlank()) {
+            String k = keyword.trim();
+            qw.and(w -> w.like("title", k).or().like("description", k));
+        }
+        if ("hot".equals(sort)) qw.orderByDesc("views");
+        else qw.orderByDesc("create_time");
+
+        Page<Item> p = itemMapper.selectPage(new Page<>(page, size), qw);
+        Map<Long, String> nick = loadNicknames(p.getRecords().stream()
+                .map(Item::getUserId).collect(Collectors.toSet()));
+        List<ItemVO> records = p.getRecords().stream()
+                .map(it -> toVO(it, nick, null)).collect(Collectors.toList());
+        return PageResult.of(records, p.getTotal(), p.getCurrent(), p.getSize());
+    }
+
+    // ---------------- 详情（审查 2.32 原子自增 + 2.33 去重） ----------------
+    @Transactional
+    public ItemVO detail(Long id, Long currentUserId, String clientKey) {
+        Item item = itemMapper.selectById(id);
+        if (item == null) throw new BusinessException(404, "启事不存在或已被删除");
+
+        String dedupKey = id + "|" + (clientKey == null ? "_" : clientKey);
+        long now = System.currentTimeMillis();
+        Long last = viewDedup.get(dedupKey);
+        if (last == null || now - last > VIEW_DEDUP_MS) {
+            viewDedup.put(dedupKey, now);
+            itemMapper.incrementViews(id);   // UPDATE item SET views = views + 1
+            item.setViews((item.getViews() == null ? 0 : item.getViews()) + 1);
+        }
+
+        List<ItemImage> imgs = itemImageMapper.selectList(
+                new QueryWrapper<ItemImage>().eq("item_id", id).orderByAsc("sort"));
+        Map<Long, String> nick = loadNicknames(Set.of(item.getUserId()));
+        ItemVO vo = toVO(item, nick, currentUserId);
+        vo.setImages(imgs.stream().map(ItemImage::getImgUrl).collect(Collectors.toList()));
+        return vo;
+    }
+
+    public void markFound(Long id, Long userId) {
+        Item item = itemMapper.selectById(id);
+        if (item == null) throw new BusinessException(404, "启事不存在");
+        if (!item.getUserId().equals(userId)) throw new BusinessException(403, "只能操作自己发布的启事");
+        item.setStatus("lost".equals(item.getType()) ? "已找回" : "已认领");
+        itemMapper.updateById(item);
+    }
+
+    /** 审查 2.7：私信接真——给启事发布者发一条站内消息。 */
+    @Transactional
+    public void sendDm(Long itemId, Long fromUserId, String content) {
+        Item item = itemMapper.selectById(itemId);
+        if (item == null) throw new BusinessException(404, "启事不存在");
+        if (item.getUserId().equals(fromUserId)) throw new BusinessException("不能给自己私信");
+        if (content == null || content.isBlank()) throw new BusinessException("私信内容不能为空");
+        User from = userMapper.selectById(fromUserId);
+        Message m = new Message();
+        m.setUserId(item.getUserId());
+        m.setType("dm");
+        m.setTitle("收到新私信");
+        m.setContent((from == null ? "同学" : from.getNickname()) + " 就「" + item.getTitle() + "」给你留言：" + content.trim());
+        m.setRefId(itemId);
+        m.setIsRead(0);
+        messageMapper.insert(m);
+    }
+
+    public List<ItemVO> myPublishes(Long userId) {
+        List<Item> items = itemMapper.selectList(new QueryWrapper<Item>()
+                .eq("user_id", userId).orderByDesc("create_time"));
+        Map<Long, String> nick = loadNicknames(Set.of(userId));
+        return items.stream().map(it -> {
+            ItemVO vo = toVO(it, nick, userId);
+            vo.setImages(loadImageUrls(it.getId()));
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    // ---------------- 组装工具 ----------------
+    public ItemVO toVO(Item it, Map<Long, String> nick, Long currentUserId) {
+        ItemVO vo = new ItemVO();
+        vo.setId(it.getId());
+        vo.setType(it.getType());
+        vo.setTitle(it.getTitle());
+        vo.setCategory(it.getCategory());
+        vo.setLocation(it.getLocation());
+        vo.setTime(it.getHappenTime() != null ? it.getHappenTime().format(OUT)
+                : (it.getCreateTime() != null ? it.getCreateTime().format(OUT) : ""));
+        vo.setStatus(it.getStatus());
+        vo.setOwner(nick.getOrDefault(it.getUserId(), "同学"));
+        vo.setViews(it.getViews() == null ? 0 : it.getViews());
+        vo.setDesc(it.getDescription());
+        vo.setImg(it.getCoverImg());
+        vo.setThumb(fileStorage.thumbUrl(it.getCoverImg()));   // 审查 2.17
+        vo.setAuditStatus(it.getAuditStatus());                // 审查 2.8
+        vo.setUserId(it.getUserId());
+        vo.setMine(currentUserId != null && currentUserId.equals(it.getUserId()));
+        return vo;
+    }
+
+    public Map<Long, String> loadNicknames(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) return Map.of();
+        Set<Long> ids = userIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
+        if (ids.isEmpty()) return Map.of();
+        List<User> users = userMapper.selectBatchIds(ids);
+        return users.stream().collect(Collectors.toMap(User::getId, User::getNickname, (a, b) -> a));
+    }
+
+    private List<String> loadImageUrls(Long itemId) {
+        return itemImageMapper.selectList(new QueryWrapper<ItemImage>()
+                        .eq("item_id", itemId).orderByAsc("sort"))
+                .stream().map(ItemImage::getImgUrl).collect(Collectors.toList());
+    }
+
+    /** 审查 2.28：时间解析失败抛业务异常，不再静默改当前时间。 */
+    private LocalDateTime parseTime(String s) {
+        if (s == null || s.isBlank()) throw new BusinessException("请选择丢失/捡到时间");
+        String v = s.trim().replace("T", " ");
+        for (String pat : List.of("yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm")) {
+            try {
+                return LocalDateTime.parse(v, DateTimeFormatter.ofPattern(pat));
+            } catch (Exception ignored) { }
+        }
+        try {
+            return LocalDateTime.parse(v, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        } catch (Exception e) {
+            throw new BusinessException("时间格式不正确");
+        }
+    }
+
+    private String blankTo(String s, String def) {
+        return (s == null || s.isBlank()) ? def : s.trim();
+    }
+}

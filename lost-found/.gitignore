@@ -1,0 +1,20 @@
+# 依赖与构建产物
+node_modules/
+dist/
+target/
+
+# 运行时生成的上传图片（保留 seed/ 与 _query/ 演示素材、_src/ 底图）
+backend/uploads/20*/
+
+# 日志与本地敏感配置
+*.log
+application-local.yml
+
+# IDE / 工具 / 系统
+.idea/
+.vscode/
+.claude/
+*.iml
+.DS_Store
+Thumbs.db
+hs_err_pid*

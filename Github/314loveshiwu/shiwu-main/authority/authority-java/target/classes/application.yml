@@ -1,0 +1,39 @@
+server:
+  port: 8888
+  max-http-header-size: 100MB
+
+# DataSource Config
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3307/authority?useUnicode=true&useSSL=false&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+
+
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**Mapper.xml
+authority:
+  jwt:
+    header: Authorization
+    expire: 10000 #7?????
+    secret: qwndneansnanxnakxmanakanakxldlaids
+#文件上传路径
+files:
+  path: D:/files/
+  staticAccessPath: /files/**
+
+
+
+
+codegenerator:
+  #数据库配置
+  url: jdbc:mysql://localhost:3307/authority?useUnicode=true&useSSL=false&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+  username: root
+  password: root
+  author: ren
+
+  database: authority
+
+
