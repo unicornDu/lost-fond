@@ -42,9 +42,16 @@ application-local.yml
 .idea/
 .vscode/
 .claude/
+.zcodeignore
+.workbuddy/
 *.iml
 .DS_Store
 Thumbs.db
 hs_err_pid*
 *.hprof
 heapdump*
+
+# --- 项目运行软件：二进制走 GitHub Releases，仓库只留台账 README ---
+# 下载页：https://github.com/unicornDu/lost-fond/releases
+Project_operation_software/*/*.exe
+Project_operation_software/*/*.zip

@@ -1,0 +1,42 @@
+# ============================================================
+# 拾光 · 校园失物招领平台 —— 本地敏感配置【模板】
+#
+# 用法（30 秒）：
+#   1. 复制本文件为同目录下的 application-local.yml
+#        Windows:  copy application-local.yml.example application-local.yml
+#        macOS/Linux:  cp application-local.yml.example application-local.yml
+#   2. 把下面 2 个 CHANGE_ME 换成你自己的值（数据库口令、JWT 密钥）
+#      seed 段两个演示口令有默认值，不改也能直接登录
+#   3. 直接启动，不用再传任何 -D 参数
+#
+# 为什么要有这个文件：
+#   后端 application.yml 默认激活 local profile，启动时会读工作目录下的
+#   application-local.yml。该文件被 .gitignore 排除（里面是明文口令），
+#   所以克隆仓库后必须由你自己从本模板生成一份。
+#   缺失它 → 启动会因数据库连不上 / JWT 密钥为空而明确报错，不会静默降级。
+#
+# 也可以用环境变量代替（优先级更高，适合服务器/CI）：
+#   DB_USERNAME  DB_PASSWORD  JWT_SECRET  SEED_ADMIN_PASSWORD  SEED_USER_PASSWORD
+# ============================================================
+
+spring:
+  datasource:
+    # MySQL 账号，通常就是 root
+    username: root
+    # ← CHANGE_ME：你本机 MySQL 的 root 口令（装 MySQL 时设的那个）
+    password: CHANGE_ME
+
+
+jwt:
+  # ← CHANGE_ME：签发 token 用的密钥，随便一串 32 位以上字符即可
+  #   生成一个：openssl rand -base64 48
+  #   注意：换掉这个值 = 所有已登录用户的 token 立即失效（重新登录即可）
+  secret: CHANGE_ME_a_random_string_at_least_32_chars_long
+
+
+seed:
+  # 首次启动自动播种的演示账号口令（管理员 10000001 / 普通用户 20240001~20240020）
+  # ← CHANGE_ME：仅本地演示用，别用真实口令，也别暴露到公网
+  #   启动日志里也会打印当次生效的账号口令
+  admin-password: admin123
+  user-password: user123
