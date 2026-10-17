@@ -14,4 +14,6 @@ public class ImageSearchProperties {
     private int hammingThreshold = 10;
     /** 返回 Top-N */
     private int topN = 6;
+    /** 修复 Z-08：是否允许 /api/search/image 的 threshold/topN 入参覆盖配置（local 评测用；prod 关闭） */
+    private boolean allowOverride = true;
 }

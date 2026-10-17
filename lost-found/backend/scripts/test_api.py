@@ -218,6 +218,7 @@ try:
     s.post(BASE + "/admin/items/%d/audit" % lostId, headers=hD, params={"approve": True})
     ok(s.post(BASE + "/items/%d/mark-found" % lostId, headers=hA).json()["code"] == 200, "mark-found → 200（补漏测端点）")
     ok(s.get(BASE + "/items/%d" % lostId, headers=hA).json()["data"]["status"] == "已找回", "mark-found 后状态=已找回")
+    ok(s.post(BASE + "/items/%d/mark-found" % lostId, headers=hA).json()["code"] == 400, "Z-02：已找回再标记 → 400（状态白名单守卫）")
     ok(s.post(BASE + "/items/%d/dm" % newId, headers=hB, json={"content": "你好，请问还在吗"}).json()["code"] == 200, "B 私信 A（审查 2.7 接真）")
     ok(any(m["type"] == "dm" for m in s.get(BASE + "/user/messages", headers=hA).json()["data"]), "A 收到私信")
 
@@ -241,8 +242,13 @@ try:
     else:
         ok(False, "未找到 20240017 用于封禁测试")
     ok(s.get(BASE + "/admin/users", headers=hA).json()["code"] == 403, "非管理员访问 admin → 403")
-    ok(s.post(BASE + "/admin/items/%d/offline" % lostId, headers=hD).json()["code"] == 200, "违规下架 → 200（补漏测端点，TC-M6-04）")
-    ok(not any(i["id"] == lostId for i in s.get(BASE + "/items", params={"size": 100}).json()["data"]["records"]), "下架后前台列表不可见（TC-M6-04）")
+    # 修复 Z-10：已团聚启事（lostId 已 mark-found=已找回）下架被守卫拒绝——与 auditItem 的 B-03 对齐
+    ok(s.post(BASE + "/admin/items/%d/offline" % lostId, headers=hD).json()["code"] == 400, "Z-10：已找回启事下架 → 400（守卫拒绝）")
+    # TC-M6-04 原覆盖保留：对仍在流转的启事违规下架 → 200 且前台不可见
+    r = publish("自测下架-%d" % int(time.time()), typ="lost")
+    offlineId = r.json()["data"]["id"]; CREATED.append(offlineId)
+    ok(s.post(BASE + "/admin/items/%d/offline" % offlineId, headers=hD).json()["code"] == 200, "违规下架 → 200（补漏测端点，TC-M6-04）")
+    ok(not any(i["id"] == offlineId for i in s.get(BASE + "/items", params={"size": 100}).json()["data"]["records"]), "下架后前台列表不可见（TC-M6-04）")
 
 finally:
     # ---------- 清理（05 A-01：finally 保证失败时也清理） ----------

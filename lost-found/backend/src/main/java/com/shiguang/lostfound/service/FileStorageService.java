@@ -141,7 +141,10 @@ public class FileStorageService {
         return Boolean.TRUE.equals(exists) ? candidate : url;
     }
 
-    /** 启动/播种后调用：扫 seed/ 与 yyyy/MM/ 补生成缺失缩略图（修复 B-08：不扫 _src/_query/_exp）。 */
+    /**
+     * 启动/播种后调用：扫 seed/ 与 yyyy/MM/ 补生成缺失缩略图（修复 B-08：不扫 _src/_query/_exp）。
+     * 幂等自愈：手工删掉某张 _thumb 后，下次启动/regen-thumbs 会重新生成该张，属预期行为。
+     */
     public int ensureThumbs() {
         return ensureThumbs(true);
     }
@@ -165,8 +168,10 @@ public class FileStorageService {
             return 0;
         }
         for (Path dir : dirs) {
-            try (java.util.stream.Stream<Path> files = Files.list(dir)) {
-                files.filter(p -> {
+            // 修复 Z-07：恢复递归（深度 2 覆盖 yyyy/MM/*.jpg 与 seed/*.jpg 两层）。
+            // B-08 改成 Files.list 后丢了下钻，文件在第三层（uploads/2026/10/x.jpg）永远扫不到，regen-thumbs 对用户历史图空操作
+            try (java.util.stream.Stream<Path> files = Files.walk(dir, 2)) {
+                files.filter(Files::isRegularFile).filter(p -> {
                     String fn = p.getFileName().toString();
                     return !fn.contains("_thumb") && fn.matches("(?i).*\\.(jpg|jpeg|png|gif|bmp|webp)");
                 }).forEach(p -> {
@@ -180,8 +185,9 @@ public class FileStorageService {
                         float scale = (float) THUMB_WIDTH / src.getWidth();
                         if (scale >= 1) return;
                         ImgUtil.write(ImgUtil.scale(src, scale), thumb.toFile());
-                        thumbCache.put("/uploads/" + dir.getFileName() + "/" + fn.substring(0, dot)
-                                + "_thumb" + fn.substring(dot), true);
+                        // 修复 Z-07：缓存 key 必须是相对 root 的完整路径（含 yyyy/MM 两层），只拼一层目录会导致 thumbUrl 判重错配
+                        String rel = root().relativize(thumb).toString().replace('\\', '/');
+                        thumbCache.put("/uploads/" + rel, true);
                         n.incrementAndGet();
                     } catch (Exception ignored) { }
                 });

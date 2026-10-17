@@ -6,10 +6,12 @@ import com.shiguang.lostfound.common.BusinessException;
 import com.shiguang.lostfound.common.PageResult;
 import com.shiguang.lostfound.context.UserContext;
 import com.shiguang.lostfound.dto.ItemForm;
+import com.shiguang.lostfound.entity.ClaimRecord;
 import com.shiguang.lostfound.entity.Item;
 import com.shiguang.lostfound.entity.ItemImage;
 import com.shiguang.lostfound.entity.Message;
 import com.shiguang.lostfound.entity.User;
+import com.shiguang.lostfound.mapper.ClaimRecordMapper;
 import com.shiguang.lostfound.mapper.ItemImageMapper;
 import com.shiguang.lostfound.mapper.ItemMapper;
 import com.shiguang.lostfound.mapper.MessageMapper;
@@ -42,6 +44,7 @@ public class ItemService {
     private final ItemImageMapper itemImageMapper;
     private final UserMapper userMapper;
     private final MessageMapper messageMapper;
+    private final ClaimRecordMapper claimRecordMapper;
     private final FileStorageService fileStorage;
     private final PHashUtil pHashUtil;
 
@@ -193,12 +196,40 @@ public class ItemService {
         return vo;
     }
 
+    /**
+     * 失主标记完成（修复 Z-02：补状态白名单守卫 + 批量关闭悬挂在审申请 + 事务）。
+     * 白名单与 ClaimService.apply 一致；待审核启事（audit=0、status 恰在白名单内）本人可标记——
+     * 其对他人不可见（B-01），标记无外部影响，属有意放行，勿加 auditStatus 判断。
+     */
+    @Transactional
     public void markFound(Long id, Long userId) {
         Item item = itemMapper.selectById(id);
         if (item == null) throw new BusinessException(404, "启事不存在");
         if (!item.getUserId().equals(userId)) throw new BusinessException(403, "只能操作自己发布的启事");
-        item.setStatus("lost".equals(item.getType()) ? "已找回" : "已认领");
+        if (!"寻找中".equals(item.getStatus()) && !"待认领".equals(item.getStatus())
+                && !"认领申请中".equals(item.getStatus()))
+            throw new BusinessException(400, "该启事当前状态不允许标记完成");
+        String done = "lost".equals(item.getType()) ? "已找回" : "已认领";
+        item.setStatus(done);
         itemMapper.updateById(item);
+        // "认领申请中"下仍有在审申请：直接写终态会让它们悬挂（ClaimService.audit 的已完成守卫拒绝再处理），
+        // 批量关闭并逐个通知，与 ClaimService.audit 通过分支的自动关闭语义对齐（refId=itemId 口径）
+        List<ClaimRecord> pending = claimRecordMapper.selectList(new QueryWrapper<ClaimRecord>()
+                .eq("item_id", id).eq("status", "审核中"));
+        for (ClaimRecord c : pending) {
+            String reply = "失主已将物品标记为「" + done + "」，申请自动关闭";
+            c.setStatus("已拒绝");
+            c.setReply(reply);
+            claimRecordMapper.updateById(c);
+            Message m = new Message();
+            m.setUserId(c.getClaimantId());
+            m.setType("claim");
+            m.setTitle("认领申请未通过");
+            m.setContent("你对「" + item.getTitle() + "」的申请未通过：" + reply);
+            m.setRefId(id);
+            m.setIsRead(0);
+            messageMapper.insert(m);
+        }
     }
 
     /** 审查 2.7：私信接真——给启事发布者发一条站内消息。 */

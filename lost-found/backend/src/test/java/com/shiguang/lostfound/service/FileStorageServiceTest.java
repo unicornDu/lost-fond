@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -66,5 +67,26 @@ class FileStorageServiceTest {
         FileStorageService svc = newService(dir);
         assertTrue(assertThrows(BusinessException.class, () -> svc.resolve("../application-local.yml"))
                 .getMessage().contains("非法文件路径"));
+    }
+
+    @Test
+    @DisplayName("regenUserUploadThumbs：yyyy/MM 双层结构可下钻，seed 不被触碰（修复 Z-07）")
+    void regenThumbsDescendsIntoMonthDirs(@TempDir Path dir) throws Exception {
+        // 原图需 >480px 宽才会生成缩略图（小于等于则跳过，属预期）
+        java.awt.image.BufferedImage big = new java.awt.image.BufferedImage(600, 400, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        Path month = dir.resolve("2026/10");
+        Files.createDirectories(month);
+        javax.imageio.ImageIO.write(big, "jpg", month.resolve("aaa.jpg").toFile());
+        Path seed = dir.resolve("seed");
+        Files.createDirectories(seed);
+        javax.imageio.ImageIO.write(big, "jpg", seed.resolve("s.jpg").toFile());
+
+        FileStorageService svc = newService(dir);
+        int n = svc.regenUserUploadThumbs();
+
+        assertEquals(1, n);
+        assertTrue(java.nio.file.Files.exists(month.resolve("aaa_thumb.jpg")), "缩略图应出现在 MM 子目录");
+        assertFalse(java.nio.file.Files.exists(seed.resolve("s_thumb.jpg")), "regen 不得触碰 seed");
+        assertEquals(0, svc.regenUserUploadThumbs());   // 幂等：缺口已填，二次调用不再生成
     }
 }

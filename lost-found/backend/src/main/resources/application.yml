@@ -59,6 +59,15 @@ image-search:
   # th=12 同时是 docs/11 mild 组 pHash F1 峰值；更高阈值召回略升但留误检余量不足，弃用
   hamming-threshold: 12
   top-n: 10
+  # 修复 Z-08：是否允许 /api/search/image 的 threshold/topN 入参覆盖配置（eval_recall.py 网格扫描用）；
+  # 开启时入参 clamp 到 topN∈[1,50]、threshold∈[0,64]；prod profile 关闭（见 application-prod.yml）
+  allow-override: true
+
+# CORS（修复 Z-03）：开发期前端走 Vite 代理本就是同源；通配 "*" + allowCredentials(true) 已移除
+# （Bearer 鉴权无 Cookie，凭证放行无收益纯风险面）。确有跨域来源时在此显式列出。
+web:
+  cors:
+    allowed-origins: ${WEB_CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
 # 演示账号口令外置在 application-local.yml；为空则回退随机口令并打印警告（审查 2.3）
 seed:

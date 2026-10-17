@@ -101,6 +101,9 @@ public class AdminService {
     public void offlineItem(Long adminId, Long itemId) {
         Item it = itemMapper.selectById(itemId);
         if (it == null) throw new BusinessException(404, "启事不存在");
+        // 修复 Z-10：与 auditItem 的 B-03 守卫对齐——已团聚（已认领/已找回）启事不允许下架改坏业务状态
+        if ("已认领".equals(it.getStatus()) || "已找回".equals(it.getStatus()))
+            throw new BusinessException("该启事已完成认领流程，不允许下架");
         it.setStatus("已下架");
         it.setAuditStatus(2);
         itemMapper.updateById(it);

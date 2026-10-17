@@ -2,7 +2,8 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ItemCard from '../components/ItemCard.vue'
-import { CATEGORIES, LOCATIONS } from '../constants/catalog'
+import GradientSearchBar from '../components/GradientSearchBar.vue'
+import { CATEGORIES } from '../constants/catalog'
 import { api } from '../api'
 
 const route = useRoute()
@@ -59,6 +60,13 @@ let kwTimer = null
 watch(keyword, () => { clearTimeout(kwTimer); kwTimer = setTimeout(() => { page.value = 1; load() }, 300) })
 watch([type, category, location, sort], () => { page.value = 1; load() })
 
+// 渐变搜索栏的立即搜索（回车/点按钮）：跳过 300ms 防抖直接查
+function onSearchNow() {
+  clearTimeout(kwTimer)
+  page.value = 1
+  load()
+}
+
 watch(() => route.query, (q) => {
   if (q.type) type.value = q.type
   category.value = q.cat || ''
@@ -85,19 +93,13 @@ function switchType(t) {
       <button :class="{ on: type === 'found', mint: true }" @click="switchType('found')">🎁 我捡到东西</button>
     </div>
 
-    <!-- 工具栏 -->
-    <div class="toolbar paper-card">
-      <el-input v-model="keyword" placeholder="搜索标题 / 描述关键词" clearable class="kw">
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
-      <el-select v-model="location" placeholder="地点" clearable class="loc">
-        <el-option v-for="l in LOCATIONS" :key="l" :label="l" :value="l" />
-      </el-select>
-      <el-select v-model="sort" class="sort">
-        <el-option label="最新发布" value="new" />
-        <el-option label="最多浏览" value="hot" />
-      </el-select>
-    </div>
+    <!-- 搜索栏（2026-10-17 重设计：渐变光晕胶囊搜索条，见 Prompt/前端prompt/搜索框.md） -->
+    <GradientSearchBar
+      v-model:keyword="keyword"
+      v-model:location="location"
+      v-model:sort="sort"
+      @search="onSearchNow"
+    />
 
     <!-- 分类 chips -->
     <div class="cats">
@@ -152,14 +154,6 @@ function switchType(t) {
   box-shadow: 0 10px 22px rgba(63, 174, 131, .35);
   transform: rotate(1deg);
 }
-
-.toolbar {
-  display: flex; gap: 12px; padding: 12px;
-  margin-bottom: 16px; align-items: center;
-}
-.toolbar .kw { flex: 1; }
-.toolbar .loc { width: 150px; }
-.toolbar .sort { width: 130px; }
 
 .cats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
 .count { color: var(--ink-faint); font-size: 13px; margin-bottom: 14px; }

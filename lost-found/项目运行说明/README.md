@@ -32,7 +32,7 @@ lost-found/
 │   ├── src/main/resources/
 │   │   ├── application.yml            占位符配置（数据源/JWT/上传目录/搜图参数）
 │   │   ├── application-prod.yml       生产 profile（关闭 doc.html 等调试入口）
-│   │   └── db/schema.sql 建库建表      db/data.sql 初始化数据
+│   │   └── db/schema.sql 建库建表      （data.sql 已删除，见 Z-06：演示数据由 DataInitializer 播种）
 │   ├── src/test/java/                 单元测试 PHashUtilTest / AuthServiceTest
 │   │                                  + 哈希准确率实验 HashExperimentTest（输出 scripts/exp_*.csv）
 │   ├── scripts/
@@ -83,10 +83,9 @@ seed:
 ### 1) 数据库
 ```bash
 mysql -u root -p < backend/src/main/resources/db/schema.sql     # 建库建表
-# 演示数据二选一：
-#   a) 直接导入：  mysql -u root -p lost_found < backend/src/main/resources/db/data.sql
-#   b) 自动生成（推荐）：先跑 scripts/gen_seed_images.py（离线，读 uploads/_src），
-#      再启动后端由 DataInitializer 播种 60 条启事/120 条图片引用（30 个去重文件）/认领三态/消息 并重算 pHash
+# 演示数据：不用手动导入。先跑 scripts/gen_seed_images.py（离线，读 uploads/_src），
+# 再启动后端由 DataInitializer 播种 60 条启事/120 条图片引用（30 个去重文件）/认领三态/消息 并重算 pHash
+# （Z-06：data.sql 已删除——历史 dump 与种子逻辑失同步会带回脏数据，离线备份统一走 scripts/backup.sh）
 ```
 
 ### 2) 后端（:8080）
@@ -151,7 +150,7 @@ bash scripts/backup.sh        # 数据库 + uploads 备份（见 scripts/backup.
 | 现象 | 原因 / 处理 |
 |---|---|
 | MySQL 时区报错 | 连接串已含 `serverTimezone=Asia/Shanghai&useSSL=false`，勿删 |
-| 跨域报错 | 后端 CorsConfig 已全局放行；前端走代理，勿用浏览器插件绕 |
+| 跨域报错 | 前端走 Vite 代理本就是同源，不应出现；CorsConfig 仅放行 `web.cors.allowed-origins` 显式来源（Z-03：已移除通配+凭证放行），确有跨域需求在配置里加来源 |
 | 启动报连不上数据库 | `backend/application-local.yml` 缺失或口令不对——该文件为本地必需（见三.0） |
 | 以图搜图全 100% 或全空 | 检查 `ItemImageMapper` 用 `^`（按位异或）而非 `XOR`（逻辑异或）；检查 phash 是否已入库（`/api/search/indexed-count`） |
 | 发布后搜不到自己 | ① 发布需管理员审核通过后才可被搜到（搜图 SQL 已 JOIN item 过滤待审/下架）；② 若 pHash 漏算可用 `POST /api/search/reindex` 补 |

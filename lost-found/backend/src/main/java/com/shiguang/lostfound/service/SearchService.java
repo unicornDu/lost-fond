@@ -44,6 +44,8 @@ public class SearchService {
     /**
      * 修复 T-04：哈希计算前先做扩展名+魔数前置校验（复用 FileStorageService 的白名单，避免两处不一致）。
      * 03 T-02：threshold/topN 允许请求参数临时覆盖（eval_recall.py 网格扫描用），不传则用 application.yml 配置值。
+     * 修复 Z-08：覆盖开关关闭（prod）时忽略入参；开启时 clamp 到 topN∈[1,50]、threshold∈[0,64]
+     * ——上界 50 为 eval_recall.py 网格的 topN=50，设小会打断复现；越界不抛 400，避免评测被边界值打断。
      */
     public List<ItemVO> searchByImage(MultipartFile file, Integer threshold, Integer topN) {
         if (file == null || file.isEmpty()) throw new BusinessException("请上传查询图片");
@@ -60,8 +62,11 @@ public class SearchService {
         } catch (Exception e) {
             throw new BusinessException("图片解析失败，请上传 JPG/PNG");
         }
-        int th = threshold != null ? threshold : props.getHammingThreshold();
-        int tn = topN != null ? topN : props.getTopN();
+        boolean overridable = props.isAllowOverride();
+        int th = overridable && threshold != null
+                ? Math.min(64, Math.max(0, threshold)) : props.getHammingThreshold();
+        int tn = overridable && topN != null
+                ? Math.min(50, Math.max(1, topN)) : props.getTopN();
         return searchByHash(q, th, tn);
     }
 

@@ -68,7 +68,7 @@
   ```
 
 - [ ] 演示数据：**不用手动导入**。第一次启动后端时 `DataInitializer` 自动播种 60 条启事 / 120 条图片引用（30 个去重文件）/ 认领与消息种子并重算 pHash。
-  （备选方案：`mysql -u root -p lost_found < backend/src/main/resources/db/data.sql`）
+  （Z-06：data.sql 已删除——历史 dump 与种子逻辑失同步会带回脏数据，离线备份统一走 scripts/backup.sh）
 
 - [ ] 验证库表存在
   ```bash
