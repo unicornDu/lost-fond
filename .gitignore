@@ -34,12 +34,17 @@ target/
 
 # --- 本地敏感配置 ---
 application-local.yml
+.env
 .env.local
 .env.*.local
 
-# --- 系统 / IDE ---
+# --- 系统 / IDE / 工具 ---
 .idea/
 .vscode/
+.claude/
+*.iml
 .DS_Store
 Thumbs.db
 hs_err_pid*
+*.hprof
+heapdump*
