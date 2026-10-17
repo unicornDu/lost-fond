@@ -1,4 +1,5 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
+import { IS_DESKTOP, IS_NATIVE } from '../utils/desktop'
 
 /**
  * 路由架构：
@@ -29,6 +30,7 @@ const routes = [
   { path: '/item/:id', name: 'detail', component: () => import('../views/DetailView.vue'), meta: { title: '启事详情' } },
   { path: '/search-image', name: 'searchImage', component: () => import('../views/SearchImageView.vue'), meta: { title: '以图搜图' } },
   { path: '/profile', name: 'profile', component: () => import('../views/ProfileView.vue'), meta: { title: '个人中心' } },
+  { path: '/user/:id', name: 'userProfile', component: () => import('../views/UserProfileView.vue'), meta: { title: '用户主页' } },   // E-04
 
   // 管理后台（审查 2.9）：独立布局，角色守卫
   {
@@ -55,7 +57,9 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  // 桌面（file://）与移动原生容器（Capacitor）用 hash 路由：
+  // file:// 无法 history 回退；原生 WebView 无服务器 SPA 回退，冷启动深链会 404
+  history: IS_DESKTOP || IS_NATIVE ? createWebHashHistory() : createWebHistory(),
   routes,
   scrollBehavior: () => ({ top: 0 }),
 })

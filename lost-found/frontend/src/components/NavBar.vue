@@ -98,6 +98,8 @@ watch(() => route.fullPath, () => {
 <style scoped>
 .nav {
   position: sticky; top: 0; z-index: 100;
+  /* F-14：与落地页一致，让开状态栏（Android 15 edge-to-edge / iOS 刘海） */
+  padding-top: var(--safe-top);
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
@@ -145,7 +147,7 @@ watch(() => route.fullPath, () => {
 .drawer-nav a:hover { background: var(--cream-deep); }
 .drawer-nav em { color: var(--orange-deep); font-style: normal; }
 
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
   .nav-links { display: none; }
   .pub-btn { display: none; }
   .burger { display: block; }

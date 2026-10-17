@@ -1,0 +1,5 @@
+{
+  "_comment": "发行版默认配置：npm run dist 时随包烙入。当前为花生壳免费穿透域名（https），装到任何电脑即开箱即连、数据同步。花生壳域名与映射绑定在发行者账号下，电脑端需保持后端+客户端在线。留空则回退 localhost:8080。",
+  "apiBase": "https://131kt2646vt74.vicp.fun",
+  "backendJar": ""
+}

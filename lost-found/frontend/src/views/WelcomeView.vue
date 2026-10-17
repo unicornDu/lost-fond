@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import SplitText from '../components/SplitText.vue'
 import GooeyNav from '../components/GooeyNav.vue'
 import { api } from '../api'
+import { API_ORIGIN, assetUrl } from '../utils/desktop'
 
 /**
  * 简介落地页（复刻 21st.dev hero-01：导航 + Hero + 社交证明 + 品牌跑马灯）
@@ -48,6 +49,42 @@ const steps = [
   { no: '02', title: '系统自动匹配', desc: '感知哈希比对 + 关键词检索，相似的失物与招领自动关联' },
   { no: '03', title: '审核交接找回', desc: '凭"只有失主知道"的特征申请认领，线下交接完成闭环' },
 ]
+
+// M-P1：Android APK 下载入口（后端 uploads/downloads/app-release.apk；未发布时友好提示）
+const apkLoading = ref(false)
+async function downloadApk() {
+  if (apkLoading.value) return
+  apkLoading.value = true
+  try {
+    const blob = await fetch(API_ORIGIN + '/api/file/apk').then((r) => {
+      if (!r.ok) throw new Error(r.status)
+      return r.blob()
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'shiguang-lostfound.apk'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    const { ElMessage } = await import('element-plus')
+    ElMessage.info('Android 版尚未发布，敬请期待')
+  } finally {
+    apkLoading.value = false
+  }
+}
+// M-P2 方案 C：iOS Safari 安装引导浮层（PWA 不弹自定义安装横幅，必须靠引导说明
+// "分享 → 添加到主屏幕"；standalone 时已装，不再打扰；本会话内可关闭）
+const showIosGuide = ref(false)
+if (typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    && !/CriOS|FxiOS|EdgiOS/i.test(navigator.userAgent)
+    && window.navigator.standalone !== true) {
+  showIosGuide.value = sessionStorage.getItem('shiguang_ios_guide_dismissed') !== '1'
+}
+function dismissIosGuide() {
+  showIosGuide.value = false
+  sessionStorage.setItem('shiguang_ios_guide_dismissed', '1')
+}
 </script>
 
 <template>
@@ -97,9 +134,9 @@ const steps = [
 
       <div class="hero-right fade-up" style="--i:2">
         <!-- 修复 F-07：外网 picsum 图换成本项目自有演示素材（:src 运行时绑定，构建期不解析；/uploads 由 vite 代理/生产 Nginx alias 提供，内网不破图） -->
-        <div class="polaroid p1"><img :src="'/uploads/seed/cup-1.jpg'" alt="" /><i>_lost & found_</i></div>
-        <div class="polaroid p2"><img :src="'/uploads/seed/scarf-1.jpg'" alt="" /><i>reunited ♥</i></div>
-        <div class="polaroid p3"><img :src="'/uploads/seed/earbuds-1.jpg'" alt="" /><i>thank you!</i></div>
+        <div class="polaroid p1"><img :src="assetUrl('/uploads/seed/cup-1.jpg')" alt="" /><i>_lost & found_</i></div>
+        <div class="polaroid p2"><img :src="assetUrl('/uploads/seed/scarf-1.jpg')" alt="" /><i>reunited ♥</i></div>
+        <div class="polaroid p3"><img :src="assetUrl('/uploads/seed/earbuds-1.jpg')" alt="" /><i>thank you!</i></div>
         <div class="stat-card paper-card">
           <b>64 位</b>
           <span>pHash 感知指纹</span>
@@ -153,6 +190,10 @@ const steps = [
         <h2>现在注册，让丢掉的东西回家</h2>
         <p>注册只需 30 秒，全校的失物与招领启事都在等你</p>
         <el-button size="large" round @click="toAuth('register')" class="cta-btn">免费注册 →</el-button>
+        <el-button size="large" round plain :loading="apkLoading" @click="downloadApk"
+          style="margin-left: 12px; background: transparent !important; border-color: #FFF7EC !important; color: #FFF7EC !important">
+          📱 下载 Android 版
+        </el-button>
       </div>
     </section>
 
@@ -161,6 +202,12 @@ const steps = [
       <p>校园失物招领平台 · 软件工程课程设计小组项目</p>
       <small>© 2026 拾光 LOST &amp; FOUND</small>
     </footer>
+
+    <!-- M-P2 方案 C：iPhone 安装引导浮层 -->
+    <div v-if="showIosGuide" class="ios-guide">
+      <span>📱 iPhone 安装：点底部 <b>分享</b> 按钮 → 选择 <b>添加到主屏幕</b>，即可像 App 一样全屏使用</span>
+      <button type="button" @click="dismissIosGuide">知道了</button>
+    </div>
   </div>
 </template>
 
@@ -170,6 +217,9 @@ const steps = [
 /* ---- 导航 ---- */
 .w-nav {
   position: sticky; top: 0; z-index: 100;
+  /* F-14：Android 15 强制 edge-to-edge 后，导航会压在状态栏（时间/电量）下面，
+     这里让背景延伸进状态栏、内容整体下移一个安全区高度 */
+  padding-top: var(--safe-top);
   background: color-mix(in srgb, var(--paper) 78%, transparent);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
@@ -336,6 +386,21 @@ const steps = [
 .cta-band p { margin: 10px 0 24px; opacity: .92; font-size: 14.5px; }
 .cta-btn { background: #FFF7EC !important; border-color: #FFF7EC !important; color: var(--orange-deep) !important; font-weight: 700; }
 
+/* M-P2：iPhone 安装引导浮层 */
+.ios-guide {
+  position: fixed; left: 14px; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 50;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: 14px;
+  background: rgba(51, 41, 31, .92); color: #FFF7EC;
+  font-size: 13px; line-height: 1.6;
+  box-shadow: 0 14px 30px rgba(40, 25, 10, .35);
+}
+.ios-guide button {
+  flex-shrink: 0; border: 0; cursor: pointer;
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--orange); color: #FFF7EC; font-weight: 700; font-size: 12.5px;
+}
+
 /* ---- 页脚 ---- */
 .w-footer {
   margin-top: 64px; padding: 30px 0 36px;
@@ -353,11 +418,27 @@ const steps = [
   to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
-@media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; }
-  .hero-right { min-height: 400px; }
+/* F-14：断点从 900 提到 1024——平板/折叠屏（约 980~1080 CSS px）此前仍套桌面双栏布局，
+   看起来"移动端没适配"；1024 以内一律单栏 + 收起中部导航 */
+@media (max-width: 1024px) {
+  .hero { grid-template-columns: 1fr; padding-top: 36px; min-height: 0; }
+  .hero-right { min-height: 400px; width: min(560px, 100%); margin: 0 auto; }
   .w-goo { display: none; }
   .feat-grid, .flow-grid { grid-template-columns: 1fr; }
+  .w-nav-inner { justify-content: space-between; gap: 12px; }
+}
+/* 触屏平板横屏（CSS 宽度可能到 1200+，但仍是"手机/平板"）：单栏而不是桌面双栏。
+   用 pointer:coarse 区分——同宽度的笔记本窗口仍保留双栏。 */
+@media (pointer: coarse) and (max-width: 1366px) {
+  .hero { grid-template-columns: 1fr; padding-top: 36px; min-height: 0; }
+  .hero-right { min-height: 420px; width: min(560px, 100%); margin: 0 auto; }
+}
+@media (max-width: 560px) {
+  .w-nav-inner { height: 60px; }
+  .brand-name small { display: none; }
+  .hero { padding: 26px 0 18px; }
+  .hero-h1 { font-size: clamp(30px, 9vw, 40px); }
+  .w-actions :deep(.el-button) { padding-left: 14px; padding-right: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .fade-up { animation: none; opacity: 1; }

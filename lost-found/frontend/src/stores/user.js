@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { api } from '../api'
+import { persistTokenStorage, clearTokenStorage } from '../utils/token-storage'
 
 const TK = 'shiguang_token'
 const UK = 'shiguang_user'
@@ -22,6 +23,7 @@ export const useUserStore = defineStore('user', {
       this.info = user
       localStorage.setItem(TK, token)
       localStorage.setItem(UK, JSON.stringify(user))
+      persistTokenStorage()   // M-P1：原生端写穿到 Capacitor Preferences（真源）
     },
     async login(form) {
       const data = await api.login(form)
@@ -39,14 +41,29 @@ export const useUserStore = defineStore('user', {
         this.info = u
         localStorage.setItem(UK, JSON.stringify(u))
       } catch (e) {
+        // E-05：封禁（40301）与普通过期分流——封禁要留下提示并回登录页展示，过期静默清态
+        if (e?.code === 40301) {
+          sessionStorage.setItem('shiguang_banned_msg', e.message || '账号已被封禁，如有疑问请联系管理员')
+          this.logout()
+          if (!location.pathname.startsWith('/auth'))
+            location.href = '/auth'
+          return
+        }
         this.logout()
       }
+    },
+    // E-01：资料编辑后局部刷新 store 与导航栏（不动 token）
+    updateInfo(partial) {
+      if (!this.info) return
+      this.info = { ...this.info, ...partial }
+      localStorage.setItem(UK, JSON.stringify(this.info))
     },
     logout() {
       this.token = ''
       this.info = null
       localStorage.removeItem(TK)
       localStorage.removeItem(UK)
+      clearTokenStorage()   // M-P1：原生端同步清 Preferences 真源
     },
   },
 })

@@ -48,17 +48,20 @@ public class AdminController {
         return Result.ok(adminService.listItems(page, size, auditStatus, type));
     }
 
+    /** E-02：reason 为驳回理由（选填，≤200 字），拼入通知与 admin_log；通过时忽略。 */
     @PostMapping("/items/{id}/audit")
-    public Result<Void> audit(@PathVariable Long id, @RequestParam boolean approve) {
+    public Result<Void> audit(@PathVariable Long id, @RequestParam boolean approve,
+                              @RequestParam(required = false) String reason) {
         Long adminId = UserContext.requireAdmin();
-        adminService.auditItem(adminId, id, approve);
+        adminService.auditItem(adminId, id, approve, reason);
         return Result.ok();
     }
 
+    /** E-02：下架也可附理由（选填）。 */
     @PostMapping("/items/{id}/offline")
-    public Result<Void> offline(@PathVariable Long id) {
+    public Result<Void> offline(@PathVariable Long id, @RequestParam(required = false) String reason) {
         Long adminId = UserContext.requireAdmin();
-        adminService.offlineItem(adminId, id);
+        adminService.offlineItem(adminId, id, reason);
         return Result.ok();
     }
 
@@ -95,5 +98,15 @@ public class AdminController {
     public Result<Map<String, Object>> regenThumbs() {
         Long adminId = UserContext.requireAdmin();
         return Result.ok(Map.of("generated", adminService.regenThumbs(adminId)));
+    }
+
+    /** P1：生成启事数据报表（CSV 入 delivery 体系，替代原 /export/items.csv 独立端点）；
+     *  下载走统一受控路由 GET /api/file/download?id=。 */
+    @PostMapping("/report")
+    public Result<Map<String, Object>> report() {
+        Long adminId = UserContext.requireAdmin();
+        com.shiguang.lostfound.entity.Delivery d = adminService.createCsvReport(adminId);
+        return Result.ok(Map.of("deliveryId", d.getId(), "title", d.getTitle(),
+                "fileSize", d.getFileSize()));
     }
 }

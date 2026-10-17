@@ -20,12 +20,21 @@ graph TB
   U --> UC5[申请认领 M5]
   U --> UC6[审核认领申请 M5]
   U --> UC7[私信/查看消息 M5]
+  U --> UC12[收藏启事 E-07]
+  U --> UC13[账号设置/资料编辑 E-01]
+  U --> UC14[查看他人主页 E-04]
+  U --> UC15[下载/打开交付文件 P1]
   A --> UC8[审核启事 M6]
   A --> UC9[下架/删除启事 M6]
   A --> UC10[封禁用户 M6]
-  A --> UC11[查看看板/日志 M6]
+  A --> UC11[查看看板/日志/运维工具 M6]
+  A --> UC16[生成统计报表 P1]
   UC2 -.「上传图片触发」.-> UC3
+  UC6 -.「通过后生成」.-> UC15
 ```
+
+> E/P 批补充：收藏（E-07）、账号设置（E-01）、他人主页（E-04）、交付文件（P1：认领证明/报表/匹配报告）、
+> 管理端统计报表（P1）。M 批多端（桌面壳/Android/PWA）不改变业务用例，属同一用例集合的运行形态。
 
 ## 2. 类图（核心域模型）
 
@@ -77,16 +86,38 @@ classDiagram
     +String action
     +Long targetId
   }
+  class Favorite {
+    +Long id
+    +Long userId
+    +Long itemId
+  }
+  class Delivery {
+    +Long id
+    +Long userId
+    +String bizType
+    +Long bizId
+    +String filePath
+    +String mimeType
+    +Integer status
+  }
   User "1" --> "*" Item : 发布
   Item "1" --> "*" ItemImage : 含图(带pHash)
   Item "1" --> "*" ClaimRecord : 被申请
   User "1" --> "*" ClaimRecord : 发起
   User "1" --> "*" Message : 接收
   User "1" --> "*" AdminLog : 留痕
+  User "1" --> "*" Favorite : 收藏
+  Item "1" --> "*" Favorite : 被收藏
+  User "1" --> "*" Delivery : 接收交付
+  Item "1" --> "*" Delivery : 产出交付
   note for ItemImage "phash: BIGINT 存 64位指纹\n检索: BIT_COUNT(phash^q)"
+  note for Delivery "业务只声明→落 delivery 表→UI 读表\n文件走受控下载/桌面 IPC 原生打开"
 ```
 
-服务层关键类（时序图参与者）：`AuthService` `ItemService` `SearchService` `ClaimService` `AdminService` `FileStorageService` `PHashUtil` `JwtUtil`。
+服务层关键类（时序图参与者）：`AuthService` `ItemService` `SearchService` `ClaimService` `AdminService` `FileStorageService` `PHashUtil` `JwtUtil`；
+E/P 批新增：`FavoriteService` `UserService`（改密/资料）`MessageService`（私信回复）`FileDeliveryService`（交付唯一入口）`PdfService`（认领证明/匹配报告）。
+
+> 说明：E-07 收藏、P1 文件交付（delivery）对应的实体/关系已补入类图；对应的用例图补充见 §1 注记。
 
 ## 3. 以图搜图时序图（核心，M3）
 
@@ -181,6 +212,8 @@ stateDiagram-v2
   寻找中 --> 已下架: 管理员下架
   待认领 --> 已下架: 管理员下架
   已找回 --> [*]
+  note right of 已找回: P1 交付支路：审核通过即生成认领证明 PDF
+交付失主与认领人各一份（随启事删除级联清理）
   已认领 --> [*]
   已下架 --> [*]
   已关闭 --> [*]

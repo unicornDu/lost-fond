@@ -1,0 +1,45 @@
+# ============================================
+# 仓库根级忽略规则（补充 lost-found/.gitignore）
+# 原则：本地工具链、打包产物、签名密钥一律不入库
+# ============================================
+
+# --- 本地 Android SDK 工具链（712MB，各人本机自备）---
+# 用本地 SDK 打包时设 ANDROID_HOME / sdk.dir 指向自己机器上的路径
+lost-found/_android-sdk/
+lost-found/android-sdk/
+
+# --- Electron 打包产物（release/ release2/ release3/ ... 含 win-unpacked 与安装包）---
+lost-found/desktop/release*/
+lost-found/desktop/renderer/
+
+# --- Android / Gradle 构建产物 ---
+lost-found/frontend/android/.gradle/
+lost-found/frontend/android/build/
+lost-found/frontend/android/app/build/
+lost-found/frontend/android/capacitor-cordova-android-plugins/
+.gradle/
+captures/
+
+# --- 签名密钥：绝不入库（公开仓库泄露即可被冒名签名打包）---
+*.keystore
+*.jks
+*.p12
+*.pfx
+
+# --- 通用构建/依赖产物（防御性，子目录已有同名规则）---
+node_modules/
+dist/
+target/
+*.log
+
+# --- 本地敏感配置 ---
+application-local.yml
+.env.local
+.env.*.local
+
+# --- 系统 / IDE ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+hs_err_pid*

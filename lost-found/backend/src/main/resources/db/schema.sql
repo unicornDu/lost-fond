@@ -89,14 +89,15 @@ CREATE TABLE `claim_record` (
 -- ---------- 站内消息表 ----------
 DROP TABLE IF EXISTS `message`;
 CREATE TABLE `message` (
-  `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '消息ID',
-  `user_id`     BIGINT       NOT NULL COMMENT '接收人ID',
-  `type`        VARCHAR(20)  NOT NULL DEFAULT 'system' COMMENT '类型：claim/audit/system',
-  `title`       VARCHAR(100) NOT NULL DEFAULT '' COMMENT '标题',
-  `content`     VARCHAR(300) DEFAULT '' COMMENT '内容',
-  `ref_id`      BIGINT       DEFAULT NULL COMMENT '关联业务ID（item/claim）',
-  `is_read`     TINYINT      NOT NULL DEFAULT 0 COMMENT '是否已读：0未读 1已读',
-  `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '消息ID',
+  `user_id`      BIGINT       NOT NULL COMMENT '接收人ID',
+  `from_user_id` BIGINT       DEFAULT NULL COMMENT '发送者ID（E-03：NULL=系统消息，dm 恒有值，支持双向回复）',
+  `type`         VARCHAR(20)  NOT NULL DEFAULT 'system' COMMENT '类型：claim/audit/dm/system',
+  `title`        VARCHAR(100) NOT NULL DEFAULT '' COMMENT '标题',
+  `content`      VARCHAR(300) DEFAULT '' COMMENT '内容',
+  `ref_id`       BIGINT       DEFAULT NULL COMMENT '关联业务ID（item/claim）',
+  `is_read`      TINYINT      NOT NULL DEFAULT 0 COMMENT '是否已读：0未读 1已读',
+  `create_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   KEY `idx_user_read` (`user_id`, `is_read`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内通知消息表';
@@ -114,3 +115,35 @@ CREATE TABLE `admin_log` (
   PRIMARY KEY (`id`),
   KEY `idx_admin` (`admin_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员操作日志表';
+
+-- ---------- 启事收藏表（E-07） ----------
+DROP TABLE IF EXISTS `favorite`;
+CREATE TABLE `favorite` (
+  `id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '收藏ID',
+  `user_id`     BIGINT      NOT NULL COMMENT '收藏人ID',
+  `item_id`     BIGINT      NOT NULL COMMENT '启事ID',
+  `create_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_item` (`user_id`, `item_id`),
+  KEY `idx_item` (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='启事收藏表（E-07）';
+
+-- ---------- 交付文件表（桌面端 P1，dsh 文件交付三层解耦转译） ----------
+DROP TABLE IF EXISTS `delivery`;
+CREATE TABLE `delivery` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '交付ID',
+  `user_id`     BIGINT       NOT NULL COMMENT '接收人ID（下载/打开仅限本人，管理员豁免）',
+  `biz_type`    VARCHAR(32)  NOT NULL COMMENT '业务类型：CLAIM_CERT认领证明/REPORT_CSV统计报表/MATCH_REPORT匹配报告',
+  `biz_id`      BIGINT       DEFAULT NULL COMMENT '关联业务ID（item/claim；启事删除时级联清理）',
+  `title`       VARCHAR(128) NOT NULL COMMENT '卡片标题：认领证明 #12',
+  `description` VARCHAR(255) DEFAULT NULL COMMENT '卡片副文案',
+  `file_path`   VARCHAR(512) NOT NULL COMMENT '相对 uploads 根的路径：deliveries/yyyy/MM/uuid.pdf（永不下发原始绝对路径，下载/打开由服务端按 id 读回）',
+  `file_name`   VARCHAR(255) NOT NULL COMMENT '下载展示文件名',
+  `mime_type`   VARCHAR(128) NOT NULL COMMENT 'MIME（白名单：application/pdf、text/csv、application/zip）',
+  `file_size`   BIGINT       NOT NULL COMMENT '字节数',
+  `status`      TINYINT      NOT NULL DEFAULT 1 COMMENT '1有效 0失效',
+  `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user` (`user_id`, `create_time`),
+  KEY `idx_biz` (`biz_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交付文件表（P1：业务只声明→持久事件→UI 读表渲染）';

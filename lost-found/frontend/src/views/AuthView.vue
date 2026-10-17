@@ -1,8 +1,9 @@
 <script setup>
-import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { assetUrl } from '../utils/desktop'   // 桌面端 /uploads 转绝对地址
 
 /**
  * 登录 / 注册页（复刻 21st.dev sign-in：左表单 + 右大图评价卡，交错入场动画）
@@ -16,6 +17,9 @@ const tab = ref(route.query.tab === 'register' ? 'register' : 'login')
 const remember = ref(true)
 const loading = ref(false)
 const form = reactive({ account: '', password: '', password2: '', nickname: '' })
+// E-05：被封禁踢出后的专属提示（stores/user.refresh 写入 sessionStorage，登录成功即清除）
+const bannedMsg = ref(sessionStorage.getItem('shiguang_banned_msg') || '')
+onMounted(() => { if (bannedMsg.value) sessionStorage.removeItem('shiguang_banned_msg') })
 
 function switchTab(t) {
   tab.value = t
@@ -49,6 +53,13 @@ async function submit() {
   }
 }
 
+// E-06：忘记密码给出明确指引（后端无自助重置通道，属既定范围，不再用"演示"占位）
+function forgotPwd() {
+  ElMessageBox.alert('平台暂未接入自助找回：请联系管理员重置密码（管理后台可处理）。', '找回密码', {
+    confirmButtonText: '知道了',
+  })
+}
+
 </script>
 
 <template>
@@ -57,6 +68,9 @@ async function submit() {
       <span class="mini-logo">拾</span>
       <span>返回拾光官网</span>
     </RouterLink>
+
+    <!-- E-05：封禁提示条（常驻顶部，直到下次登录成功） -->
+    <div v-if="bannedMsg" class="banned-banner">⛔ {{ bannedMsg }}</div>
 
     <div class="split">
       <!-- 左：表单 -->
@@ -103,7 +117,7 @@ async function submit() {
 
             <div v-if="tab === 'login'" class="row fade-up" style="--i:8">
               <el-checkbox v-model="remember">记住我</el-checkbox>
-              <a class="link" @click.prevent="ElMessage.info('演示环境：请联系管理员重置密码')">忘记密码？<i class="demo-tag">演示</i></a>
+              <a class="link" @click.prevent="forgotPwd">忘记密码？</a>
             </div>
 
             <button type="submit" class="submit fade-up" :disabled="loading" :style="{ '--i': tab === 'login' ? 9 : 10 }">
@@ -111,19 +125,9 @@ async function submit() {
             </button>
           </form>
 
-          <div class="divider fade-up" :style="{ '--i': tab === 'login' ? 10 : 11 }"><span>或者</span></div>
+          <!-- E-06：微信登录占位按钮已删除（无接入计划的占位比明确没有更差） -->
 
-          <button class="wechat fade-up" :style="{ '--i': tab === 'login' ? 11 : 12 }"
-            @click="ElMessage.info('演示环境：微信登录暂未接入')">
-            <svg viewBox="0 0 24 24" class="wx-icon">
-              <path fill="#09BB07" d="M9.5 4C5.9 4 3 6.5 3 9.6c0 1.8 1 3.3 2.5 4.4l-.6 2 2.2-1.1c.7.2 1.4.3 2.1.3h.4a5 5 0 0 1-.2-1.4c0-3 2.9-5.4 6.4-5.4h.3C15.5 5.9 12.8 4 9.5 4zM7.3 7.3c.5 0 .8.4.8.8s-.3.9-.8.9-.9-.4-.9-.9.4-.8.9-.8zm4.4 0c.5 0 .8.4.8.8s-.3.9-.8.9-.9-.4-.9-.9.4-.8.9-.8zM21 13.8c0-2.6-2.5-4.8-5.5-4.8S10 11.2 10 13.8s2.5 4.8 5.5 4.8c.6 0 1.2-.1 1.7-.2l1.9.9-.5-1.7c1.4-.9 2.4-2.3 2.4-3.8zm-7.3-1c-.4 0-.7-.3-.7-.7s.3-.7.7-.7.7.3.7.7-.3.7-.7.7zm3.6 0c-.4 0-.7-.3-.7-.7s.3-.7.7-.7.7.3.7.7-.3.7-.7.7z"/>
-            </svg>
-            微信登录
-            <!-- 修复 F-08：占位功能加"演示"角标视觉弱化，避免评委误以为功能缺失 -->
-            <i class="demo-tag">演示</i>
-          </button>
-
-          <p class="swap fade-up" :style="{ '--i': tab === 'login' ? 12 : 13 }">
+          <p class="swap fade-up" :style="{ '--i': tab === 'login' ? 11 : 12 }">
             {{ tab === 'login' ? '还没有账号？' : '已经有账号了？' }}
             <a @click.prevent="switchTab(tab === 'login' ? 'register' : 'login')">
               {{ tab === 'login' ? '立即注册' : '直接登录' }}
@@ -139,27 +143,13 @@ async function submit() {
       <!-- 右：大图 + 悬浮评价卡 -->
       <section class="pic-side">
         <div class="pic fade-slide-right" style="--i:4">
-          <img :src="'/uploads/seed/umbrella-1.jpg'" alt="" />
+          <img :src="assetUrl('/uploads/seed/umbrella-1.jpg')" alt="" />
           <div class="pic-overlay"></div>
           <div class="pic-cap">
             <b>拾光 · LOST &amp; FOUND</b>
             <span>让每一件失物都能回家</span>
           </div>
-
-          <div class="testi t1">
-            <span class="ta">🦊</span>
-            <div class="tt">
-              <b>林晓 <small>计算机学院 · 大三</small></b>
-              <p>在图书馆丢了校园卡，拍照上传不到 10 分钟就以图搜图匹配到了招领启事，太神了！</p>
-            </div>
-          </div>
-          <div class="testi t2">
-            <span class="ta">🐰</span>
-            <div class="tt">
-              <b>周航 <small>机械学院 · 大二</small></b>
-              <p>捡到耳机发上招领墙，当天就有人凭特征认领成功，流程清楚又有防冒领审核。</p>
-            </div>
-          </div>
+          <!-- E-06：右侧编造的用户评价卡已删除（WelcomeView 同类内容按 F-08 清理，此处为漏网残留） -->
         </div>
       </section>
     </div>
@@ -189,6 +179,15 @@ async function submit() {
 }
 
 .split { display: flex; min-height: calc(100vh - 40px); }
+
+/* E-05：封禁提示条 */
+.banned-banner {
+  position: sticky; top: 10px; z-index: 20;
+  max-width: 560px; margin: 0 auto 4px;
+  padding: 11px 18px; border-radius: 14px;
+  background: #FDECEC; border: 1.5px solid #F5B7B1;
+  color: #B03A2E; font-size: 14px; font-weight: 600; text-align: center;
+}
 
 /* ---- 左侧表单 ---- */
 .form-side { flex: 1; display: grid; place-items: center; padding: 60px 20px; }
@@ -241,12 +240,6 @@ async function submit() {
 .row { display: flex; justify-content: space-between; align-items: center; }
 .link { color: var(--orange-deep); font-size: 13.5px; cursor: pointer; }
 .link:hover { text-decoration: underline; }
-/* 修复 F-08：占位功能（微信登录/忘记密码）的"演示"角标，视觉弱化 */
-.demo-tag {
-  font-style: normal; font-size: 10px; margin-left: 6px; padding: 1px 6px;
-  border: 1px solid var(--line); border-radius: 999px; color: var(--ink-faint);
-  vertical-align: 1px;
-}
 
 .submit {
   width: 100%; border: 0; cursor: pointer;
@@ -260,25 +253,7 @@ async function submit() {
 }
 .submit:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(255, 125, 46, .45); }
 
-.divider {
-  display: flex; align-items: center; margin: 24px 0 16px;
-  color: var(--ink-faint); font-size: 12.5px;
-}
-.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-.divider span { padding: 0 14px; }
-
-.wechat {
-  width: 100%; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 13px; border-radius: 16px;
-  border: 1.5px solid var(--line); background: var(--paper);
-  font-size: 14.5px; color: var(--ink);
-  transition: all .18s;
-}
-.wechat:hover { background: #F0FBF4; border-color: #09BB07; transform: translateY(-1px); }
-.wx-icon { width: 21px; height: 21px; }
-
-.swap { text-align: center; margin: 22px 0 14px; color: var(--ink-soft); font-size: 13.5px; }
+.swap { text-align: center; margin: 26px 0 14px; color: var(--ink-soft); font-size: 13.5px; }
 .swap a { color: var(--orange-deep); font-weight: 700; cursor: pointer; }
 .swap a:hover { text-decoration: underline; }
 
@@ -301,28 +276,6 @@ async function submit() {
 .pic-cap b { font-family: var(--font-display); font-size: 22px; letter-spacing: 1px; }
 .pic-cap span { font-size: 12.5px; opacity: .9; }
 
-.testi {
-  position: absolute;
-  display: flex; gap: 12px; align-items: flex-start;
-  width: 300px; padding: 16px;
-  border-radius: 20px;
-  background: rgba(255, 253, 248, .55);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, .5);
-  box-shadow: 0 14px 34px rgba(40, 25, 10, .25);
-  animation: floaty 6s ease-in-out infinite;
-}
-.testi.t1 { left: 26px; bottom: 30px; }
-.testi.t2 { right: 26px; bottom: 130px; animation-delay: 1.4s; }
-.ta {
-  display: grid; place-items: center; flex-shrink: 0;
-  width: 42px; height: 42px; border-radius: 14px;
-  background: var(--honey-soft); font-size: 22px;
-}
-.tt b { font-size: 13.5px; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.tt b small { color: var(--ink-faint); font-weight: 400; font-size: 11px; }
-.tt p { margin-top: 5px; font-size: 12.5px; line-height: 1.7; color: var(--ink); opacity: .85; }
-
 /* ---- 动画 ---- */
 .fade-up { opacity: 0; animation: fadeUp .65s cubic-bezier(.22, 1, .36, 1) both; animation-delay: calc(var(--i) * 90ms); }
 @keyframes fadeUp {
@@ -336,7 +289,6 @@ async function submit() {
 }
 @media (prefers-reduced-motion: reduce) {
   .fade-up, .fade-slide-right { animation: none; opacity: 1; }
-  .testi { animation: none; }
 }
 
 @media (max-width: 960px) {

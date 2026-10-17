@@ -30,6 +30,11 @@
   --font-display: 'Yuanti SC', 'YouYuan', 'Microsoft YaHei', sans-serif;  /* 修复 Z-11：移除外链字体 ZCOOL KuaiLe，走系统回退 */
   --font-body: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
 
+  /* F-14 安全区：Android 15（targetSdk 35）强制 edge-to-edge / iOS 刘海屏，
+     内容会画进状态栏与手势条下方。缺省 0px，非全面屏不受影响。 */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
   /* Element Plus 主题覆盖（暖橙） */
   --el-color-primary: #FF7D2E;
   --el-color-primary-dark-2: #EA5B0C;
@@ -192,3 +197,11 @@ p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   .float-emoji { animation: none; }
 }
+
+/* ---- M-P0 移动端适配：底部安全区（iPhone Home Indicator / Android 手势条） ---- */
+@media (max-width: 720px) {
+  .page.container { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+}
+
+/* ---- F-14 顶部安全区：公开页（登录/404）没有全局导航，靠主容器让开状态栏 ---- */
+.app-main.safe-top { padding-top: var(--safe-top); }

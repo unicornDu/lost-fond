@@ -245,6 +245,7 @@ public class ItemService {
         if (full.length() > 300) throw new BusinessException(400, "私信太长（含引用标题后最多 300 字），请精简后重试");
         Message m = new Message();
         m.setUserId(item.getUserId());
+        m.setFromUserId(fromUserId);   // E-03：带发送者，收信人可回复
         m.setType("dm");
         m.setTitle("收到新私信");
         m.setContent(full);
@@ -262,6 +263,39 @@ public class ItemService {
             vo.setImages(loadImageUrls(it.getId()));
             return vo;
         }).collect(Collectors.toList());
+    }
+
+    // ---------------- E-04：他人主页（公开口径） ----------------
+
+    /**
+     * 公开可见口径（E-04）：audit_status=1 且 status ∉ HIDDEN（已下架/已关闭不可见），
+     * 已找回/已认领的团聚历史保留可见——与 detail() 的可见性判定同源（复用 HIDDEN），
+     * 不与墙页 WALL_HIDDEN 混用（墙页口径是"仍在流转"，主页是"该用户的公开启事"）。
+     */
+    private QueryWrapper<Item> publicItemWrapper(Long userId) {
+        QueryWrapper<Item> qw = new QueryWrapper<>();
+        qw.eq("user_id", userId);
+        qw.eq("audit_status", 1);
+        qw.notIn("status", HIDDEN);
+        return qw;
+    }
+
+    public long publicItemCount(Long userId) {
+        return itemMapper.selectCount(publicItemWrapper(userId));
+    }
+
+    /** 他人主页的公开启事分页（E-04）。 */
+    public PageResult<ItemVO> listPublicByUser(Long userId, long page, long size) {
+        page = Math.max(1, page);
+        size = Math.min(MAX_PAGE_SIZE, Math.max(1, size));
+        QueryWrapper<Item> qw = publicItemWrapper(userId);
+        qw.orderByDesc("create_time");
+        Page<Item> p = itemMapper.selectPage(new Page<>(page, size), qw);
+        Map<Long, String> nick = loadNicknames(p.getRecords().stream()
+                .map(Item::getUserId).collect(Collectors.toSet()));
+        List<ItemVO> records = p.getRecords().stream()
+                .map(it -> toVO(it, nick, null)).collect(Collectors.toList());
+        return PageResult.of(records, p.getTotal(), p.getCurrent(), p.getSize());
     }
 
     // ---------------- 组装工具 ----------------

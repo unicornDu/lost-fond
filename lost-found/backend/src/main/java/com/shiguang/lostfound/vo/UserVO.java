@@ -9,6 +9,7 @@ public class UserVO {
     private String nickname;
     private String avatar;
     private Integer role;
+    private String phone;        // E-01：/auth/me 与资料编辑回显（本人可见）
     // 审查 2.8/附录E1：后台用户管理需要状态与注册时间
     private Integer status;      // 1正常 0封禁
     private String createTime;   // yyyy-MM-dd HH:mm

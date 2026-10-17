@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../../api'
+import { assetUrl } from '../../utils/desktop'
 
 /** 启事审核（审查 2.9）：待审核/已通过/已驳回 筛选 + 通过/驳回/下架/删除。 */
 const tab = ref('0')   // '0' 待审核 / '1' 已通过 / '2' 已驳回 / '' 全部
@@ -28,23 +29,34 @@ function changeTab(t) { tab.value = t; page.value = 1; load() }
 
 async function audit(row, approve) {
   try {
-    // 修复 F-01（方案 B）：不再索要会被丢弃的"驳回理由"——改为纯确认弹窗，避免误导性交互
-    // （理由落库的方案 A 涉及后端接口变更，留作后续增强）
+    let reason = ''
     if (!approve) {
-      await ElMessageBox.confirm(`确定驳回「${row.title}」？驳回后前台不可见，可稍后在「已驳回」页签重新通过。`,
-        '驳回启事', { type: 'warning', confirmButtonText: '确定驳回', cancelButtonText: '取消' })
+      // E-02：驳回理由选填，落库进 admin_log 并随站内通知发给发布者
+      const r = await ElMessageBox.prompt(
+        `驳回「${row.title}」后前台不可见，可稍后重新通过。可填写驳回理由（选填，将通知发布者）。`,
+        '驳回启事', {
+          type: 'warning', confirmButtonText: '确定驳回', cancelButtonText: '取消',
+          inputPlaceholder: '例：图片模糊，无法辨认物品',
+        })
+      reason = r.value || ''
     }
-    await api.adminAudit(row.id, approve)
-    ElMessage.success(approve ? '已通过审核' : '已驳回')
+    await api.adminAudit(row.id, approve, reason)
+    ElMessage.success(approve ? '已通过审核' : '已驳回，已通知发布者')
     load()
   } catch (e) { if (e !== 'cancel') ElMessage.error(e.message || '操作失败') }
 }
 
 async function offline(row) {
-  // 修复 F-05：区分"用户取消"与"接口失败"，失败必须提示
-  try { await ElMessageBox.confirm(`确定下架「${row.title}」？`, '违规下架', { type: 'warning' }) }
-  catch { return }
-  try { await api.adminOffline(row.id); ElMessage.success('已下架'); load() }
+  // E-02：下架理由选填，随通知发给发布者
+  let reason = ''
+  try {
+    const r = await ElMessageBox.prompt(`下架「${row.title}」后前台不可见。可填写下架理由（选填，将通知发布者）。`, '违规下架', {
+      type: 'warning', confirmButtonText: '确定下架', cancelButtonText: '取消',
+      inputPlaceholder: '例：内容与失物招领无关',
+    })
+    reason = r.value || ''
+  } catch { return }
+  try { await api.adminOffline(row.id, reason); ElMessage.success('已下架，已通知发布者'); load() }
   catch (e) { ElMessage.error(e.message || '下架失败') }
 }
 
@@ -70,7 +82,7 @@ onMounted(load)
     <el-table :data="list" style="width: 100%">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column label="封面" width="80">
-        <template #default="{ row }"><img class="cov" :src="row.thumb || row.img" alt="" /></template>
+        <template #default="{ row }"><img class="cov" :src="assetUrl(row.thumb || row.img)" alt="" /></template>
       </el-table-column>
       <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
       <el-table-column prop="type" label="类型" width="70">

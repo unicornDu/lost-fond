@@ -12,7 +12,7 @@ import { LOCATIONS } from '../constants/catalog'
 const keyword = defineModel('keyword', { type: String, default: '' })
 const location = defineModel('location', { type: String, default: '' })
 const sort = defineModel('sort', { type: String, default: 'new' })
-const emit = defineEmits(['search'])
+const emit = defineEmits(['search', 'focus', 'blur'])   // E-07：focus/blur 供搜索历史下拉显隐
 
 const focused = ref(false)
 const hasText = computed(() => keyword.value.trim().length > 0)
@@ -40,8 +40,8 @@ function submit() {
         placeholder="搜索标题 / 描述关键词"
         aria-label="搜索标题 / 描述关键词"
         @keydown.enter.prevent="submit"
-        @focus="focused = true"
-        @blur="focused = false"
+        @focus="focused = true; emit('focus')"
+        @blur="focused = false; emit('blur')"
       />
 
       <button

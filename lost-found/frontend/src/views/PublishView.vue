@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { CATEGORIES, LOCATIONS } from '../constants/catalog'
 import { api } from '../api'
+import { IS_NATIVE, takePhotoNative } from '../utils/native-camera'
 
 const router = useRouter()
 
@@ -37,6 +38,18 @@ function beforeUpload(file) {
     return false
   }
   return false // 阻止 el-upload 自动上传，统一在提交时用 FormData 发送
+}
+
+// M-P1b：原生端"拍照/相册"补图（拍完进同一 fileList，共享 3 张上限与提交管道）
+async function addNativePhoto() {
+  if (fileList.value.length >= 3) { ElMessage.warning('最多上传 3 张图片'); return }
+  try {
+    const file = await takePhotoNative('publish-' + Date.now() + '.jpg')
+    fileList.value.push({ name: file.name, raw: file, url: URL.createObjectURL(file) })
+  } catch (e) {
+    if (String(e?.message || e).includes('cancel')) return
+    ElMessage.error(e.message || '获取照片失败')
+  }
 }
 
 function onSubmit() {
@@ -123,6 +136,10 @@ function onSubmit() {
             :auto-upload="false" :before-upload="beforeUpload" :limit="3">
             <el-icon><Plus /></el-icon>
           </el-upload>
+          <!-- M-P1b：Capacitor 原生端补"拍照/相册"入口（与上传卡片共存，共占 3 张上限） -->
+          <el-button v-if="IS_NATIVE" round plain size="small" style="margin-left: 10px" @click="addNativePhoto">
+            📸 拍照/相册
+          </el-button>
         </el-form-item>
 
         <div class="demo-tip">📷 已接入真实后端：上传的图片将保存到服务器，并由 JImageHash 计算 64 位感知哈希（pHash）入库，用于以图搜图。</div>

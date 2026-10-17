@@ -16,7 +16,7 @@ onMounted(() => {
 
 <template>
   <NavBar v-if="!route.meta.public" />
-  <main class="app-main">
+  <main class="app-main" :class="{ 'safe-top': route.meta.public && route.name !== 'welcome' }">
     <router-view v-slot="{ Component }">
       <transition name="page" mode="out-in">
         <component :is="Component" />

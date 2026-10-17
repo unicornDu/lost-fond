@@ -1,0 +1,12 @@
+{
+  "appId": "cn.edu.shiguang.lostfound",
+  "appName": "校园失物招领",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true,
+    "adjustMarginsForEdgeToEdge": "force"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

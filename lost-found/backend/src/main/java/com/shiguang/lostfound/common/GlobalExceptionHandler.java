@@ -27,9 +27,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /** HTTP 状态与业务 code 对齐；非法区间回落 500。 */
+    /** HTTP 状态与业务 code 对齐；非法区间回落 500。
+     *  E-05：40301（封禁专用码）映射 HTTP 403——它不在通用 4xx/5xx 区间内，
+     *  但语义是"禁止访问"，不能落 500 误导监控与前端分支。 */
     private ResponseEntity<Result<Void>> resp(int code, String msg) {
-        int http = (code >= 400 && code <= 599) ? code : 500;
+        int http = code == 40301 ? 403 : (code >= 400 && code <= 599) ? code : 500;
         return ResponseEntity.status(http).body(Result.fail(code, msg));
     }
 
@@ -65,7 +67,8 @@ public class GlobalExceptionHandler {
         return resp(400, "请求体格式不正确");
     }
 
-    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class})
     public ResponseEntity<Result<Void>> handleParam(Exception e) {
         return resp(400, "请求参数不正确");
     }

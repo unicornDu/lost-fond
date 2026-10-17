@@ -2,11 +2,13 @@
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../../api'
+import { openOrDownload } from '../../utils/delivery'
 
 /**
  * 修复 F-10：管理员工具入口——重算缺失图片指纹 / 补生成缩略图。
  * 两个接口此前在 api/index.js 定义却全项目无人调用（docs/01 FR6.4 要求）。
  * 后端行为（02 批 B-08 后）：reindex 补算 phash 为 null 的图；regen-thumbs 只写 uploads/yyyy/MM。
+ * E-08B：新增启事数据 CSV 导出（blob 下载，带鉴权头）。
  */
 const busy = ref('')
 const lastResult = ref('')
@@ -22,6 +24,21 @@ async function run(key, fn, label) {
     ElMessage.success(`${label} 完成：${Object.entries(d).map(([k, v]) => `${k}=${v}`).join('，')}`)
   } catch (e) {
     ElMessage.error(e.message || `${label} 失败`)
+  } finally {
+    busy.value = ''
+  }
+}
+
+// P1：报表生成 → delivery 卡片 → 统一受控下载/原生打开（不再有独立下载端点）
+async function createReport() {
+  busy.value = 'report'
+  try {
+    const d = await api.createReport()
+    ElMessage.success('报表已生成，开始下载')
+    await openOrDownload({ ...d, fileName: d.title + '.csv' })
+    lastResult.value = `报表已生成：${d.title}（${(d.fileSize / 1024).toFixed(1)} KB）`
+  } catch (e) {
+    ElMessage.error(e.message || '生成失败')
   } finally {
     busy.value = ''
   }
@@ -44,6 +61,11 @@ async function run(key, fn, label) {
         <p>为 uploads/yyyy/MM 下缺 `_thumb` 的原图补生成 480px 缩略图（不写 seed 目录）。</p>
         <el-button type="primary" plain :loading="busy === 'thumbs'"
           @click="run('thumbs', () => api.adminRegenThumbs(), '补缩略图')">执行</el-button>
+      </div>
+      <div class="tool">
+        <b>导出启事数据报表</b>
+        <p>生成 item 全量 CSV（含状态/审核/发布人，公式注入转义），交付到消息中心卡片，走统一受控下载。</p>
+        <el-button type="primary" plain :loading="busy === 'report'" @click="createReport">生成报表</el-button>
       </div>
     </div>
     <p v-if="lastResult" class="last">上次结果：{{ lastResult }}</p>

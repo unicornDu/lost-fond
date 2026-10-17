@@ -5,6 +5,7 @@ import com.shiguang.lostfound.common.Result;
 import com.shiguang.lostfound.context.UserContext;
 import com.shiguang.lostfound.dto.DmReq;
 import com.shiguang.lostfound.dto.ItemForm;
+import com.shiguang.lostfound.service.FavoriteService;
 import com.shiguang.lostfound.service.ItemService;
 import com.shiguang.lostfound.service.SearchService;
 import com.shiguang.lostfound.vo.ItemVO;
@@ -17,7 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 /**
- * M2 发布 + M4 检索 + 2.7 私信 + 2.26 相似推荐。
+ * M2 发布 + M4 检索 + 2.7 私信 + 2.26 相似推荐 + E-07 收藏。
  */
 @RestController
 @RequestMapping("/api/items")
@@ -26,6 +27,7 @@ public class ItemController {
 
     private final ItemService itemService;
     private final SearchService searchService;
+    private final FavoriteService favoriteService;
 
     @GetMapping
     public Result<PageResult<ItemVO>> list(
@@ -76,6 +78,22 @@ public class ItemController {
     @PostMapping("/{id}/dm")
     public Result<Void> dm(@PathVariable Long id, @RequestBody @Valid DmReq req) {
         itemService.sendDm(id, UserContext.requireUserId(), req == null ? null : req.getContent());
+        return Result.ok();
+    }
+
+    // ---------------- E-07：收藏 ----------------
+
+    /** 收藏（幂等，重复收藏返回成功）。 */
+    @PostMapping("/{id}/favorite")
+    public Result<Void> favorite(@PathVariable Long id) {
+        favoriteService.add(UserContext.requireUserId(), id);
+        return Result.ok();
+    }
+
+    /** 取消收藏（幂等）。 */
+    @DeleteMapping("/{id}/favorite")
+    public Result<Void> unfavorite(@PathVariable Long id) {
+        favoriteService.remove(UserContext.requireUserId(), id);
         return Result.ok();
     }
 }

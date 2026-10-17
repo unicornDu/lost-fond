@@ -35,9 +35,11 @@ class ClaimServiceTest {
     @Mock MessageMapper messageMapper;
     @Mock UserMapper userMapper;
     @Mock ItemService itemService;
+    @Mock com.shiguang.lostfound.service.PdfService pdfService;                 // P1：认领证明生成器
+    @Mock FileDeliveryService fileDeliveryService;                              // P1：交付服务
 
     private ClaimService newService() {
-        return new ClaimService(claimMapper, itemMapper, messageMapper, userMapper, itemService);
+        return new ClaimService(claimMapper, itemMapper, messageMapper, userMapper, itemService, pdfService, fileDeliveryService);
     }
 
     private Item item(long id, long owner, String status) {

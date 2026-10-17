@@ -3,6 +3,12 @@ server:
   # 修复 B-07：反向代理（Nginx）后按 X-Forwarded-For 重写 remoteAddr，
   # 否则匿名访客浏览量去重会退化成"全站共用一把 key"（配合 docs/12 的 proxy_set_header）
   forward-headers-strategy: native
+  # 修复 F-11 配套：静态产物（约 1.6MB JS/CSS）开 gzip，花生壳免费穿透只有 1Mbps，
+  # 不压缩首屏要 10s+ 才出画面（用户侧表现为长时间"白屏"）；gzip 后约 450KB。
+  compression:
+    enabled: true
+    mime-types: text/html,text/css,text/plain,application/javascript,application/json,application/xml,image/svg+xml
+    min-response-size: 1024
   servlet:
     encoding:
       charset: UTF-8
@@ -65,9 +71,17 @@ image-search:
 
 # CORS（修复 Z-03）：开发期前端走 Vite 代理本就是同源；通配 "*" + allowCredentials(true) 已移除
 # （Bearer 鉴权无 Cookie，凭证放行无收益纯风险面）。确有跨域来源时在此显式列出。
+# M-P1：Capacitor 源（Android WebView=https://localhost，iOS=capacitor://localhost）加入默认放行；
+# P3：桌面壳渲染层是 file:// 源（Origin: null），跨域连后端必须放行 null——
+# 鉴权走 Bearer 无 Cookie，null 源可调用的仅限未登录端点，风险可接受（见 docs/12）。
 web:
   cors:
-    allowed-origins: ${WEB_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${WEB_CORS_ALLOWED_ORIGINS:http://localhost:5173,https://localhost,capacitor://localhost,null}
+
+# P3 发行：后端同时托管已构建前端（浏览器直接开服务器地址即完整网站；iOS PWA 也靠它）
+# 目录指 frontend/dist；服务器部署时把 dist 与 jar 放同目录结构或用环境变量覆盖
+app:
+  frontend-dist-dir: ${FRONTEND_DIST_DIR:../frontend/dist}
 
 # 演示账号口令外置在 application-local.yml；为空则回退随机口令并打印警告（审查 2.3）
 seed:

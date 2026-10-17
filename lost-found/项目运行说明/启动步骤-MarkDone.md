@@ -2,7 +2,8 @@
 
 > 用法：从上往下逐条执行，完成一条把 `[ ]` 改成 `[x]`。全部 `[x]` = 项目已在本地跑起来。
 > 终端默认用 **Git Bash**（每条同时附 cmd 写法）。路径均为你本机实际安装位置。
-> 本机环境核验日期：2026-10-15（标注「本机已验」的条目当时实测通过）。
+> 本机环境核验日期：2026-10-17（标注「本机已验」的条目为最近一次实测通过）。
+> 只想看 Web 端：走完第一~五节即可；桌面端见第六节、移动端见第七节（完整说明见同目录两份分端手册）。
 
 ---
 
@@ -15,11 +16,13 @@
 | 数据库服务 | **MySQL** | 9.7（服务名 `MySQL`） | 客户端 `D:\Visual_Stdio_Code\Claude_Code\MysqL\mysql-9.7.0-winx64\bin\mysql.exe`（不在 PATH，用全路径或 Navicat 代替） |
 | 前端运行 | **Node.js（含 npm）** | node v24.16.0 / npm 11.13.0 | 已装，`node -v` 可查 |
 | 辅助脚本（可选） | **Python** | 3.13.15 | `D:\Visual_Stdio_Code\Pathon_peizhi\python-3.13.15\python.exe`；跑 `scripts/` 下生成图/自测脚本才需要，另需 `pip install pillow requests` |
+| 重打 APK（可选） | **Android SDK** | platform-35 / build-tools 35 | 已在 `lost-found/_android-sdk/`；只做演示不重打包可忽略 |
 | 敲命令的终端 | **Git Bash**（推荐）或 cmd / PowerShell | — | 本文件命令两种写法都给 |
 | 看界面 | **浏览器**（Chrome / Edge） | — | 打开 `http://localhost:5173` |
 | 看代码（可选） | VS Code / IDEA | — | 仅阅读编辑用，启动不依赖 |
 
 > 启动只需要 **4 样东西在跑/在用**：MySQL 服务、JDK+Maven（后端窗口）、Node（前端窗口）、浏览器。其余都是可选。
+> 后端（:8080）也会直接托管 `frontend/dist`，不想开 Node 时浏览器开 `http://localhost:8080` 同样能看整套站点（只是没有热更）。
 
 ---
 
@@ -74,7 +77,8 @@
   ```bash
   "/d/Visual_Stdio_Code/Claude_Code/MysqL/mysql-9.7.0-winx64/bin/mysql" -u root -p -e "USE lost_found; SHOW TABLES;"
   ```
-  应看到 6 张表：user / item / item_image / claim_record / message / admin_log。
+  应看到 **8 张表**：user / item / item_image / claim_record / message / admin_log / favorite / delivery。
+  （后两张是 E-07 收藏与 P1 文件交付新增；老库执行一次 `schema.sql` 即可补齐，脚本幂等）
 
 ---
 
@@ -124,23 +128,63 @@
 ## 五、浏览器验收（逐页点一遍）
 
 - [ ] 打开 `http://localhost:5173` → 落地页正常显示。
-- [ ] 登录：学号 `10000001`，口令 = `backend/application-local.yml` 里 `seed.admin-password` 的值（启动日志也打印了；普通演示号 20240001~20240020 用 `seed.user-password`）。
+- [ ] 登录：学号 `10000001`，口令 = `backend/application-local.yml` 里 `seed.admin-password` 的值（普通演示号 20240001~20240020 用 `seed.user-password`；启动日志也会打印当次生效的账号口令）。
 - [ ] 首页/失物墙有真实数据和图片（图来自 `backend/uploads/`）。
 - [ ] 以图搜图：上传 `backend/uploads/_query/q-cup.jpg` → 命中该物品多条启事、相似度 ~100%。
-- [ ] 导航栏出现「🛡️ 后台管理」→ 看板（ECharts 图）/ 审核 / 用户 / 日志四个页面能打开。
-- [ ] 个人中心四页签（我的发布/我的认领/收到的申请/消息通知）正常。
+- [ ] 导航栏出现「🛡️ 后台管理」→ 看板（ECharts 图）/ 审核 / 用户 / 日志 / 运维五个页面能打开。
+- [ ] 个人中心六页签（我的发布 / 我的认领 / 我的收藏 / 收到的申请 / 消息通知 / 账号设置）正常。
+- [ ] 认领走一单通过 → 消息通知里出现「认领证明 PDF」交付卡片（桌面端点击直接打开，Web 端下载）。
 
 ---
 
-## 六、停止与重启
+## 六、启动桌面端（Electron，可选）
+
+- [ ] 开发模式（后端、前端 dev 都开着的情况下，再开第三个终端）：
+  ```bash
+  cd /d/Visual_Stdio_Code/Dai_ma/软件工程/lost-found/desktop
+  npm install                                        # 仅第一次
+  ELECTRON_RENDERER_URL=http://localhost:5173 npm run dev
+  ```
+- [ ] 打包安装包（演示/分发用，不需要开前端 dev）：
+  ```bash
+  cd /d/Visual_Stdio_Code/Dai_ma/软件工程/lost-found/desktop
+  npm run dist        # → release2/ShiGuang Setup 1.0.1.exe（NSIS，per-user 免管理员）
+  ```
+- [ ] 首次打开会探活 `<apiBase>/api/stats`：后端没起会弹窗提示（这是预期拦截）。
+- [ ] 想让壳自动拉起后端：在 `%APPDATA%\shiguang-desktop\config.json` 写
+  `{"apiBase":"http://localhost:8080","backendJar":"<...>/backend/target/lost-found-backend.jar"}`。
+- 局域网/公网分发、配置优先级、asar 被占用等踩坑 → 见 **桌面端运行说明.md**。
+
+---
+
+## 七、安装移动端（Android APK / iPhone PWA，可选）
+
+- [ ] 最快路径：手机浏览器打开站点（`http://<你电脑IP>:8080` 或公网域名）→ 落地页底部「📱 下载 Android 版」→ 安装。
+  APK 由后端 `GET /api/file/apk` 提供，文件在 `backend/uploads/downloads/app-release.apk`。
+- [ ] 自己重打 APK：
+  ```bash
+  cd /d/Visual_Stdio_Code/Dai_ma/软件工程/lost-found/frontend
+  npx vite build --mode mobile --outDir dist --emptyOutDir   # 烙入 .env.mobile 的后端地址
+  npx cap copy android
+  cd android && ./gradlew.bat assembleRelease
+  # 产物 app/build/outputs/apk/release/app-release.apk → 复制为 backend/uploads/downloads/app-release.apk
+  ```
+  构建前确认 `.env.mobile` 里的 `VITE_API_BASE` 指向手机能访问到的后端（局域网 IP 或公网域名）。
+- [ ] iPhone：Safari 打开站点 → 分享 → 添加到主屏幕（PWA，无需签名）。
+- **升级注意**：1.0.0 装过 SW，必须先卸载再装新包；1.0.1 起可直接覆盖安装。
+- 详见 **移动端运行说明.md**。
+
+---
+
+## 八、停止与重启
 
 - [ ] 停止：后端、前端两个窗口各按一次 `Ctrl+C`；MySQL 服务不用停。
 - [ ] 重启：重复第三、四步即可（数据在 MySQL 里，不会丢）。
-- [ ] 重置演示数据（可选）：`TRUNCATE` 六张表 → 重启后端 → 自动重新播种并重算 pHash。
+- [ ] 重置演示数据（可选）：`TRUNCATE` 八张表 → 重启后端 → 自动重新播种并重算 pHash。
 
 ---
 
-## 七、常见失败速查
+## 九、常见失败速查
 
 | 现象 | 原因 / 处理 |
 |---|---|
@@ -149,12 +193,14 @@
 | 端口 8080/5173 被占用 | `netstat -ano \| grep :8080` 找 PID 结束进程，或改 yml / vite.config 端口 |
 | 图片不显示 | 必须在 `backend/` 目录下启动（upload-dir 是相对路径）；确认 vite 代理在 |
 | 搜图全 100% 或全空 | 见 README 第六节；漏算哈希可 `POST /api/search/reindex` |
-| 前端白屏 | `npm install` 没跑完；或重启 `npm run dev` |
+| 前端白屏（dev） | `npm install` 没跑完；或重启 `npm run dev` |
+| **打包/部署后白屏（只有米色背景）** | 生产构建 chunk 循环（F-11，已修）；改过 `vite.config.js` 的 manualChunks 后务必 build 验证。dev 正常 ≠ build 正常 |
+| **手机 App 顶部压状态栏** | Android 15 强制 edge-to-edge；1.0.2 已用安全区 + 原生边距修复 |
 | 401 | token 过期/账号被封禁 → 重新登录 |
 
 ---
 
-## 八、复制粘贴速查卡（Git Bash）
+## 十、复制粘贴速查卡（Git Bash）
 
 ```bash
 # 窗口1：后端
@@ -166,7 +212,17 @@ export JAVA_HOME="/d/Visual_Stdio_Code/Java_peizhi/JDK21"
 cd /d/Visual_Stdio_Code/Dai_ma/软件工程/lost-found/frontend
 npm run dev
 
+# 窗口3（可选）：桌面端开发模式
+cd /d/Visual_Stdio_Code/Dai_ma/软件工程/lost-found/desktop
+ELECTRON_RENDERER_URL=http://localhost:5173 npm run dev
+
 # 浏览器
 #   用户端  http://localhost:5173
+#   整站(后端托管) http://localhost:8080
 #   接口文档 http://localhost:8080/doc.html
+
+# 重打 APK（可选）
+cd /d/Visual_Stdio_Code/Dai_ma/软件工程/lost-found/frontend
+npx vite build --mode mobile --outDir dist --emptyOutDir && npx cap copy android
+cd android && ./gradlew.bat assembleRelease
 ```

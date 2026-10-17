@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ItemCard from '../components/ItemCard.vue'
 import GradientSearchBar from '../components/GradientSearchBar.vue'
@@ -14,6 +14,26 @@ const keyword = ref('')
 const category = ref(route.query.cat || '')
 const location = ref('')
 const sort = ref('new')
+
+// ---- E-07：搜索历史（纯前端，localStorage，上限 10 条、最近优先去重） ----
+const HIST_KEY = 'shiguang_search_history'
+const history = ref(readHistory())
+const searchFocused = ref(false)
+const showHistory = computed(() => searchFocused.value && !keyword.value.trim() && history.value.length > 0)
+
+function readHistory() {
+  try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]') } catch { return [] }
+}
+function persistHistory() { localStorage.setItem(HIST_KEY, JSON.stringify(history.value)) }
+function saveHistory(k) {
+  const kw = k.trim()
+  if (!kw) return
+  history.value = [kw, ...history.value.filter((h) => h !== kw)].slice(0, 10)
+  persistHistory()
+}
+function removeHistory(k) { history.value = history.value.filter((h) => h !== k); persistHistory() }
+function clearHistory() { history.value = []; localStorage.removeItem(HIST_KEY) }
+function useHistory(k) { keyword.value = k; onSearchNow() }
 
 const list = ref([])
 const loading = ref(false)
@@ -40,6 +60,7 @@ async function load() {
     if (seq !== reqSeq) return // 竞态守卫
     list.value = res.records
     total.value = res.total
+    if (keyword.value.trim()) saveHistory(keyword.value)   // E-07：搜索成功才写入历史
   } catch (e) {
     if (seq !== reqSeq) return
     list.value = []
@@ -94,12 +115,29 @@ function switchType(t) {
     </div>
 
     <!-- 搜索栏（2026-10-17 重设计：渐变光晕胶囊搜索条，见 Prompt/前端prompt/搜索框.md） -->
-    <GradientSearchBar
-      v-model:keyword="keyword"
-      v-model:location="location"
-      v-model:sort="sort"
-      @search="onSearchNow"
-    />
+    <div class="search-area">
+      <GradientSearchBar
+        v-model:keyword="keyword"
+        v-model:location="location"
+        v-model:sort="sort"
+        @search="onSearchNow"
+        @focus="searchFocused = true"
+        @blur="searchFocused = false"
+      />
+      <!-- E-07：搜索历史下拉（聚焦且未输入时展示；mousedown.prevent 避免点选时先失焦） -->
+      <div v-if="showHistory" class="history-drop paper-card">
+        <div class="hist-head">
+          <span>搜索历史</span>
+          <a @click.prevent="clearHistory">清空</a>
+        </div>
+        <div class="hist-list">
+          <span v-for="h in history" :key="h" class="hist-item" @mousedown.prevent="useHistory(h)">
+            🕘 {{ h }}
+            <i class="hist-x" @mousedown.prevent.stop="removeHistory(h)">✕</i>
+          </span>
+        </div>
+      </div>
+    </div>
 
     <!-- 分类 chips -->
     <div class="cats">
@@ -159,4 +197,23 @@ function switchType(t) {
 .count { color: var(--ink-faint); font-size: 13px; margin-bottom: 14px; }
 .count b { color: var(--orange-deep); }
 .pager { margin-top: 26px; justify-content: center; }
+
+/* E-07：搜索历史下拉 */
+.search-area { position: relative; }
+.history-drop {
+  position: absolute; z-index: 30; left: 12px; right: 12px; top: calc(100% + 6px);
+  padding: 12px 16px;
+}
+.hist-head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-faint); margin-bottom: 8px; }
+.hist-head a { cursor: pointer; color: var(--ink-faint); }
+.hist-head a:hover { color: var(--orange-deep); }
+.hist-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.hist-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--cream-deep); font-size: 13px; cursor: pointer;
+}
+.hist-item:hover { background: var(--orange-soft); color: var(--orange-deep); }
+.hist-x { font-style: normal; font-size: 11px; color: var(--ink-faint); padding: 0 2px; }
+.hist-x:hover { color: #C0392B; }
 </style>

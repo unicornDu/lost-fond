@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M-P1 安全线（课程演示取舍，见 移动端运行说明）：
+     全局禁明文（满足"release 构建 cleartext 关闭"），
+     仅对课程演示的局域网后端 IP 放行 HTTP（docs/12 建议生产上 HTTPS 后删除） -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">172.20.10.2</domain>
+    </domain-config>
+</network-security-config>

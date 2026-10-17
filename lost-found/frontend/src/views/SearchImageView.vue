@@ -1,15 +1,39 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '../api'
 import { useTransferStore } from '../stores/transfer'
+import { useUserStore } from '../stores/user'
+import { assetUrl } from '../utils/desktop'
+import { openOrDownload } from '../utils/delivery'
+import { IS_NATIVE, takePhotoNative } from '../utils/native-camera'
 
 const transfer = useTransferStore()
+const user = useUserStore()   // P2：匹配报告需登录（交付落到具体用户）
+
+// P2：以图搜图匹配报告（命中结果固化为可带走的 PDF）
+const reporting = ref(false)
+async function makeReport() {
+  if (!user.logged) { ElMessage.warning('请先登录后再生成报告'); return }
+  if (!fileRaw.value) return
+  reporting.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', fileRaw.value)
+    const d = await api.matchReport(fd)
+    ElMessage.success(`匹配报告已生成（${d.hits} 条命中）`)
+    await openOrDownload({ ...d, fileName: d.title + '.pdf' })
+  } catch (e) {
+    ElMessage.error(e.message || '报告生成失败')
+  } finally {
+    reporting.value = false
+  }
+}
 
 /**
  * 以图搜图（核心亮点页）：上传照片 → POST /api/search/image（multipart）
  * 后端用 JImageHash 计算查询图 pHash，与库内指纹逐条算汉明距离，阈值过滤后返回 Top-N。
- * 前端保留「读取图片→提取哈希→汉明匹配」的阶段动画提升观感，与真实请求并行。
+ * E-06：阶段进度由真实请求状态驱动（pending→响应→渲染完成），不再用人为 sleep 拉长。
  */
 const fileUrl = ref('')
 const fileName = ref('')
@@ -20,22 +44,36 @@ const totalImgs = ref(0)
 const elapsed = ref(0)
 const threshold = ref(10)   // 03 T-03：服务端生效阈值（indexed-count 下发），文案同步用
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-
 function onFileChange(file) {
   if (!file.raw.type.startsWith('image/')) {
     ElMessage.error('请上传图片文件')
     return
   }
-  if (file.size > 5 * 1024 * 1024) {   // 审查 2.27③ 前端体积校验
+  if (file.size > 5 * 1024 * 1024) {   // 审查 2.27③ 前端体积校验（原生相机路径由 1600px/q70 压缩兜底）
     ElMessage.error('图片不能超过 5MB')
     return
   }
+  acceptImage(file.raw, file.raw.name)
+}
+
+/** M-P1b：统一图片入口——原生相机（拍照/相册）与 <input> 上传共用同一管道。 */
+function acceptImage(raw, name) {
   if (fileUrl.value) URL.revokeObjectURL(fileUrl.value) // 审查 2.31② 释放旧 blob
-  fileUrl.value = URL.createObjectURL(file.raw)
-  fileName.value = file.raw.name
-  fileRaw.value = file.raw
+  fileUrl.value = URL.createObjectURL(raw)
+  fileName.value = name
+  fileRaw.value = raw
   runPipeline()
+}
+
+/** M-P1b：Capacitor 原生端"拍照/相册"入口。 */
+async function onNativeCamera() {
+  try {
+    const file = await takePhotoNative('search-' + Date.now() + '.jpg')
+    acceptImage(file, file.name)
+  } catch (e) {
+    if (String(e?.message || e).includes('cancel')) return   // 用户取消不提示
+    ElMessage.error(e.message || '获取照片失败')
+  }
 }
 
 async function runPipeline() {
@@ -43,18 +81,17 @@ async function runPipeline() {
   const fd = new FormData()
   fd.append('file', fileRaw.value)
   const t0 = performance.now()
-  const req = api.searchByImage(fd)
   const cntReq = api.indexedCount().catch(() => ({ count: 0 }))
-
-  await sleep(450); step.value = 2
-  await sleep(550); step.value = 3
+  // E-06：step2 = 请求已发出（服务端在读图/算哈希/做汉明匹配），响应回来才进 step3
+  step.value = 2
   try {
-    const [res, cnt] = await Promise.all([req, cntReq])
+    const [res, cnt] = await Promise.all([api.searchByImage(fd), cntReq])
     totalImgs.value = cnt.count || 0
     if (cnt.threshold) threshold.value = cnt.threshold   // 03 T-03：文案与配置同步
     elapsed.value = ((performance.now() - t0) / 1000).toFixed(2)
-    await sleep(250)
+    step.value = 3
     results.value = res || []
+    await nextTick()   // 渲染完成才落"完成"态，进度条与真实耗时一致
     step.value = 4
   } catch (e) {
     ElMessage.error(e.message || '以图搜图失败')
@@ -98,13 +135,19 @@ const steps = computed(() => [
       <!-- 左：上传与流程 -->
       <div class="left">
         <div v-if="!fileUrl" class="upload-zone paper-card">
-          <el-upload drag accept="image/*" :auto-upload="false" :show-file-list="false" :on-change="onFileChange">
+          <el-upload v-if="!IS_NATIVE" drag accept="image/*" :auto-upload="false" :show-file-list="false" :on-change="onFileChange">
             <div class="up-inner">
               <span class="cam">🔍</span>
               <p class="up-t">拖一张照片到这里，或 <em>点击上传</em></p>
               <p class="up-d">支持 JPG / PNG，拍清物品特征效果更好</p>
             </div>
           </el-upload>
+          <!-- M-P1b：Capacitor 原生端（Android/iOS App 内）改用系统相机/相册选择器 -->
+          <button v-else type="button" class="native-shot" @click="onNativeCamera">
+            <span class="cam">📸</span>
+            <p class="up-t">点击拍照或从相册选择</p>
+            <p class="up-d">拍清物品特征，匹配效果更好</p>
+          </button>
         </div>
 
         <div v-else class="preview paper-card">
@@ -135,11 +178,14 @@ const steps = computed(() => [
           <div class="res-head">
             <h3>匹配到 <em>{{ results.length }}</em> 条可能相关</h3>
             <span class="res-sub">已在 {{ totalImgs }} 张启事图片中完成比对 · 耗时 {{ elapsed }}s</span>
+            <el-button size="small" round type="primary" plain :loading="reporting" style="margin-left: 12px" @click="makeReport">
+              🖼️ 生成匹配报告 PDF
+            </el-button>
           </div>
 
           <div v-for="(r, i) in results" :key="r.id" class="res-item paper-card" :class="{ top: i === 0 }">
             <span v-if="i === 0" class="top-badge">TOP1 · 疑似同一物品</span>
-            <img :src="r.img" alt="" @error="$event.target.style.opacity = 0" />
+            <img :src="assetUrl(r.img)" alt="" @error="$event.target.style.opacity = 0" />
             <div class="res-info">
               <RouterLink :to="`/item/${r.id}`" class="rt">{{ r.title }}</RouterLink>
               <p class="rm">📍 {{ r.location }} · ⏰ {{ r.time.slice(5, 16) }}</p>
@@ -187,6 +233,12 @@ const steps = computed(() => [
 }
 .up-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .up-inner .cam { font-size: 52px; }
+/* M-P1b：原生端拍照入口（替代拖拽区） */
+.native-shot {
+  width: 100%; border: 0; cursor: pointer; background: transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 46px 30px;
+}
 .up-t { font-size: 16px; font-weight: 600; }
 .up-t em { color: var(--orange-deep); font-style: normal; }
 .up-d { color: var(--ink-faint); font-size: 12.5px; }

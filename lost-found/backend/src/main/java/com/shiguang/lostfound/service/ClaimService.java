@@ -14,6 +14,7 @@ import com.shiguang.lostfound.mapper.MessageMapper;
 import com.shiguang.lostfound.mapper.UserMapper;
 import com.shiguang.lostfound.vo.ClaimVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,9 @@ import java.util.stream.Collectors;
  *  - audit() 拒绝：仅当同物品已无其他「审核中」申请时才回退物品状态（避免状态自相矛盾）。
  *  - audit() 守卫：物品已完成认领 / 申请已处理过 / 非发布者 → 拒绝。
  * 审查 2.5：ClaimVO 回填申请人昵称/学号/凭证/联系方式，杜绝盲审。
+ * 桌面端 P1：审核通过即生成认领证明 PDF，交付失主与认领人各一份（失败仅记日志，不阻断审核主流程）。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ClaimService {
@@ -39,6 +42,8 @@ public class ClaimService {
     private final MessageMapper messageMapper;
     private final UserMapper userMapper;
     private final ItemService itemService;
+    private final PdfService pdfService;
+    private final FileDeliveryService fileDeliveryService;
 
     private static final DateTimeFormatter OUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -107,6 +112,22 @@ public class ClaimService {
             }
             push(c.getClaimantId(), "claim", "认领申请已通过",
                     "你对「" + item.getTitle() + "」的认领申请已通过：" + c.getReply(), item.getId());
+
+            // 桌面端 P1：生成认领证明 PDF 交付双方（失败仅记日志——证明是增值产物，不能让审核回滚）
+            try {
+                User owner = userMapper.selectById(item.getUserId());
+                User claimant = userMapper.selectById(c.getClaimantId());
+                byte[] pdf = pdfService.claimCertificate(item, c, owner, claimant);
+                String certTitle = "认领证明 #" + c.getId();
+                String desc = "物品「" + item.getTitle() + "」认领成功交接凭证";
+                String fileName = "认领证明-" + String.format("%06d", c.getId()) + ".pdf";
+                fileDeliveryService.deliver(item.getUserId(), "CLAIM_CERT", item.getId(),
+                        certTitle, desc, pdf, "pdf", "application/pdf");
+                fileDeliveryService.deliver(c.getClaimantId(), "CLAIM_CERT", item.getId(),
+                        certTitle, desc, pdf, "pdf", "application/pdf");
+            } catch (Exception e) {
+                log.warn("认领证明生成/交付失败（不阻断审核）: claimId={}", c.getId(), e);
+            }
         } else {
             c.setStatus("已拒绝");
             c.setReply(blankTo(req.getReply(), "特征不符，已拒绝"));

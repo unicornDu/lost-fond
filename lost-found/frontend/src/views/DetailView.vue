@@ -4,7 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { catEmoji } from '../constants/catalog'
 import { api } from '../api'
+import { useUserStore } from '../stores/user'
 import ItemCard from '../components/ItemCard.vue'
+import { assetUrl } from '../utils/desktop'
 
 /**
  * 启事详情。审查 2.26：多图缩略图条 + el-image 放大；"相似推荐"改调真接口 /items/{id}/similar。
@@ -13,6 +15,7 @@ import ItemCard from '../components/ItemCard.vue'
  */
 const route = useRoute()
 const router = useRouter()
+const user = useUserStore()   // E-01：认领联系方式可快捷填入个人资料手机号
 
 const item = ref(null)
 const similar = ref([])
@@ -29,7 +32,7 @@ const dmText = ref('')
 const dmSending = ref(false)
 
 const typeText = computed(() => item.value?.type === 'lost' ? '寻物启事' : '招领启事')
-const previewList = computed(() => item.value?.images?.length ? item.value.images : (item.value?.img ? [item.value.img] : []))
+const previewList = computed(() => (item.value?.images?.length ? item.value.images : (item.value?.img ? [item.value.img] : [])).map(assetUrl))   // assetUrl：桌面端 /uploads 转绝对
 
 async function load() {
   const id = route.params.id
@@ -115,7 +118,11 @@ onMounted(load)
           <ul class="info-list">
             <li><span>📍 地点</span><b>{{ item.location }}</b></li>
             <li><span>⏰ 时间</span><b>{{ item.time }}</b></li>
-            <li><span>🙋 发布人</span><b>{{ item.owner }}</b></li>
+            <li><span>🙋 发布人</span><b>
+              <!-- E-04：发布人可点击进入其公开主页 -->
+              <RouterLink v-if="item.userId" :to="`/user/${item.userId}`" class="owner-link">{{ item.owner }}</RouterLink>
+              <template v-else>{{ item.owner }}</template>
+            </b></li>
             <li><span>👀 浏览</span><b>{{ item.views }} 次</b></li>
           </ul>
           <div class="actions">
@@ -143,7 +150,10 @@ onMounted(load)
         <el-input v-model="claimForm.proof" type="textarea" :rows="4" maxlength="200" show-word-limit
           placeholder="例：杯盖内侧有一道裂纹，杯底贴着我的姓名贴……" />
         <p class="claim-tip" style="margin-top:12px">联系方式（选填，便于发布者联系你）：</p>
-        <el-input v-model="claimForm.contact" maxlength="50" placeholder="手机号 / 微信号 / 宿舍号" />
+        <div class="contact-row">
+          <el-input v-model="claimForm.contact" maxlength="50" placeholder="手机号 / 微信号 / 宿舍号" />
+          <el-button v-if="user.info?.phone" round plain size="small" @click="claimForm.contact = user.info.phone">用我的手机号</el-button>
+        </div>
         <template #footer>
           <el-button round @click="claimVisible = false">取消</el-button>
           <el-button type="primary" round :loading="submitting" @click="claim">提交申请</el-button>
@@ -184,8 +194,11 @@ onMounted(load)
 .info-list li { display: flex; justify-content: space-between; padding: 11px 4px; border-bottom: 1px dashed var(--line); font-size: 14px; }
 .info-list li span { color: var(--ink-soft); }
 .info-list li b { font-weight: 600; }
+.owner-link { color: var(--orange-deep); }
+.owner-link:hover { text-decoration: underline; }
 .actions { display: flex; gap: 12px; margin-bottom: 18px; }
 .safe-tip { padding: 10px 14px; border-radius: 12px; background: var(--sky-soft); color: #3D6D99; font-size: 12.5px; line-height: 1.7; }
 .claim-tip { color: var(--ink-soft); font-size: 13.5px; line-height: 1.7; margin-bottom: 12px; }
+.contact-row { display: flex; gap: 10px; align-items: center; }
 @media (max-width: 860px) { .detail { grid-template-columns: 1fr; } }
 </style>

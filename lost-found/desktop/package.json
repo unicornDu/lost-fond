@@ -1,0 +1,40 @@
+{
+  "name": "shiguang-desktop",
+  "version": "1.0.1",
+  "private": true,
+  "description": "拾光 · 校园失物招领平台 桌面端（Electron 壳，参考 ZCode-Desktop 文档的桌面化原则）",
+  "main": "main.cjs",
+  "scripts": {
+    "dev": "electron .",
+    "prepare:renderer": "node prepare-renderer.js",
+    "dist": "node prepare-renderer.js && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.shiguang.lostfound",
+    "productName": "ShiGuang",
+    "directories": {
+      "output": "release2",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "build/icon.png",
+      "default-config.json",
+      "renderer/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "拾光失物招领"
+    }
+  }
+}
