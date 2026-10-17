@@ -1,5 +1,0 @@
-{
-  "_comment": "发行版默认配置：npm run dist 时随包烙入。apiBase 留空 = 回退 http://localhost:8080（本机开发/演示）。要分发给别人的电脑，先填成那台机器能访问到的后端地址（局域网 IP 或你自己的公网 https 域名），否则装上去会提示连不上后端。运行时还可在 %APPDATA%\\shiguang-desktop\\config.json 覆盖，不必重新打包。",
-  "apiBase": "",
-  "backendJar": ""
-}

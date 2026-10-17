@@ -1,12 +1,12 @@
 # 拾光 · 校园失物招领平台（以图搜图）— 运行与联调说明
 
-> 软件工程课程设计 · 一套代码四端运行（Web / Android APK / iOS PWA / 桌面 Electron）。
+> 软件工程课程设计 · **单 Web 形态**：浏览器访问即用（开发态 Vite，生产态由后端直接托管 `dist`）。
 > 后端 Spring Boot 3.3 + MyBatis-Plus + MySQL + JJWT + JImageHash(pHash) ｜ 前端 Vue3 + Vite + Element Plus + ECharts。
 > 核心亮点：以图搜图 = 感知哈希 pHash（JImageHash）→ 64 位指纹 → MySQL `BIT_COUNT(phash ^ q)` 汉明距离（JOIN 启事表过滤待审/下架）→ 阈值过滤 → Top-N。
 
-**当前版本（2026-10-17）**：Web / PWA 与 `frontend/dist` 同步 ｜ Android **1.0.2（versionCode 3）** ｜ 桌面 **1.0.1**。
-本次更新：修复生产构建白屏（F-11/F-12）、原生图片路径（F-13）、状态栏重叠与平板断点（F-14），
-详见 `Creator/02-过程资料/03-迭代记录/06-收尾/99-修复记录.md`。
+**当前版本（2026-10-17）**：单 Web ｜ `frontend/dist` 与源码同步 ｜ 无客户端安装包。
+历史上做过 Android APK / iOS PWA / 桌面 Electron 三端，答辩改为浏览器演示后已整体下线，
+产物与手册归档在 `Creator/02-过程资料/03-迭代记录/06-收尾/archive-多端/`，详见同目录 `99-修复记录.md`。
 
 ---
 
@@ -26,20 +26,19 @@
 │   │       ├── README.md                     运行与联调总览（环境/启动/账号/排错）
 │   │       ├── 00-项目知识点与结构详解-新手版.md   面向零基础组员的答辩必读
 │   │       ├── 01-启动步骤.md                逐条勾选式启动步骤（工具/命令/验收/排错）
-│   │       ├── 02-项目结构.md                结构总览 + 模块映射 + 完成状态清单
-│   │       ├── 03-桌面端运行说明.md          Electron 壳：开发/打包/局域网/公网分发
-│   │       └── 04-移动端运行说明.md          Android APK 构建签名分发 + iOS PWA
-│
+│   │       └── 02-项目结构.md                结构总览 + 模块映射 + 完成状态清单
+│   │
 │   └── 02-过程资料/                           过程留痕（不交作业，按迭代批次归档）
 │       ├── 01-选题/  02-设计prompt/  03-迭代记录/  04-参考项目/
+│       └── 03-迭代记录/06-收尾/archive-多端/  已下线的桌面/移动端手册与说明
 │
 ├── assets/演示图/                         演示物品图 6 张
 │
 └── lost-found/                            代码仓
-    ├── backend/                           Spring Boot 后端（:8080）
+    ├── backend/                           Spring Boot 后端（:8080，同时托管前端）
     │   ├── pom.xml / application-local.yml   本地敏感配置（gitignore，勿提交）
     │   ├── scripts/                       gen_seed_images.py / test_api.py / eval_recall.py / backup.sh
-    │   ├── uploads/                       seed/ 演示图 + _query/ 查询图 + downloads/ APK + 运行时用户图
+    │   ├── uploads/                       seed/ 演示图 + _query/ 查询图 + 运行时用户图
     │   └── src/main/java/com/shiguang/lostfound/
     │       ├── controller/                Auth/Item/Search/Claim/User/Admin/File/Frontend 八控制器
     │       ├── service/                   业务层（SearchService 以图搜图、FileDeliveryService 交付、PdfService…）
@@ -48,24 +47,13 @@
     │       ├── config/ interceptor/ util/ context/ bootstrap/
     │       └── LostFoundApplication.java
     │
-    ├── frontend/                          Vue3 前端（:5173）
-    │   ├── index.html / vite.config.js    /api、/uploads 代理 → :8080；生产构建 chunk 策略见 F-11 注释
-    │   ├── vite.desktop.config.js         桌面专用构建（base=./ + 禁用 manualChunks）
-    │   ├── capacitor.config.json          Android 套壳配置（含 edge-to-edge 边距，F-14）
-    │   ├── android/                       Capacitor 原生工程（签名/图标/明文白名单）
-    │   ├── .env.mobile                    移动端后端地址（构建时烙入）
-    │   └── src/
-    │       ├── api/ stores/ router/ components/ directives/ styles/ constants/
-    │       ├── utils/                     desktop.js(多端适配) token-storage.js native-camera.js delivery.js
-    │       └── views/                     10 个用户页 + admin/ 后台 6 页
-    │
-    ├── desktop/                           Electron 壳（:无端口，加载 renderer + 探活后端）
-    │   ├── main.cjs / preload.cjs         主进程与安全白名单
-    │   ├── prepare-renderer.js            打包前置：桌面配置构建 → renderer/
-    │   ├── default-config.json            发行默认后端地址（当前=花生壳公网域名）
-    │   └── release*/                      安装包输出目录（.gitignore，不入库）
-    │
-    └── _android-sdk/                      本地 Android SDK（.gitignore，不入库）
+    └── frontend/                          Vue3 前端（:5173 开发 / 由后端托管生产）
+        ├── index.html / vite.config.js    /api、/uploads 代理 → :8080；生产构建 chunk 策略见 F-11 注释
+        ├── tests/                         vitest：路由守卫 / user store / axios 拦截器
+        └── src/
+            ├── api/ stores/ router/ components/ directives/ styles/ constants/
+            ├── utils/                     asset.js（资源地址）delivery.js（交付文件下载）
+            └── views/                     10 个用户页 + admin/ 后台 6 页
 ```
 
 ---
@@ -79,7 +67,6 @@
 | MySQL | 8.0+（本机 9.7） | 连接串已加 `serverTimezone=Asia/Shanghai` |
 | Node.js | 20+（本机 24） | 前端（含 echarts） |
 | Python | 3.x + Pillow + requests | 跑 `backend/scripts/` 下的生成与自测脚本 |
-| Android SDK | platform-35 / build-tools 35 | 仅重打 APK 需要，已装在 `lost-found/_android-sdk/` |
 
 ---
 
@@ -117,36 +104,17 @@ set JAVA_HOME=<你的JDK21路径>
 # 生产：加 --spring.profiles.active=prod（关闭 /doc.html 等调试入口）
 ```
 后端同时托管前端：`/**` → `frontend/dist`（`FRONTEND_DIST_DIR` 可覆盖）+ SPA 回退，
-所以浏览器直接开 `http://localhost:8080` 也能用整套站点（公网穿透同理）。
+所以**浏览器直接开 `http://localhost:8080` 就是完整站点**——答辩用这一条即可，不必开前端 dev。
+> 注意：`mvn package` 前先停掉正在运行的后端，否则 jar 被占用，`repackage` 会失败（jar 变成无主清单，启动报错）。
 
-### 3) 前端（:5173，开发热更）
+### 3) 前端（:5173，仅开发热更时需要）
 ```bash
 cd frontend
 npm install        # 首次（含 echarts）
 npm run dev        # http://localhost:5173 （/api、/uploads 已代理到 :8080）
 ```
 
-### 4) 桌面端（Electron）
-```bash
-# 开发模式（三个终端：后端 / 前端 dev / 壳）
-cd desktop && ELECTRON_RENDERER_URL=http://localhost:5173 npm run dev
-# 打包安装包
-cd desktop && npm run dist          # → release2/ShiGuang Setup 1.0.1.exe
-```
-详见 **桌面端运行说明.md**（含局域网/公网分发、配置优先级、踩坑）。
-
-### 5) 移动端（Android APK / iPhone PWA）
-```bash
-cd frontend
-npx vite build --mode mobile --outDir dist --emptyOutDir   # 烙入 .env.mobile 的后端地址
-npx cap copy android
-cd android && gradlew.bat assembleRelease                  # 中文路径已用 android.overridePathCheck=true 放行
-# 产物：android/app/build/outputs/apk/release/app-release.apk
-# 分发：复制为 backend/uploads/downloads/app-release.apk → 官网「📱 下载 Android 版」
-```
-详见 **移动端运行说明.md**（签名、明文白名单、真机验收、iOS 添加主屏幕）。
-
-### 6) 接口文档（Knife4j）
+### 4) 接口文档（Knife4j）
 开发态打开 `http://localhost:8080/doc.html`；生产 profile 下已关闭。
 
 ---
@@ -170,7 +138,7 @@ cd android && gradlew.bat assembleRelease                  # 中文路径已用 
   - 整体召回 48/56 = 85.7%，误检 0；单张平均耗时约 54ms。
 - **管理后台**：管理员登录后 NavBar 出现「🛡️ 后台管理」→ 看板（ECharts 趋势+分类环形）/ 审核 / 用户封禁⇄解封 / 操作日志 / 运维工具。
 - **审核流演示**：新注册账号发布一条启事 → 个人中心显示「待审核」标签；管理员通过后才在墙页可见、可被搜图命中。
-- **文件交付演示**：认领审核通过 → 失主与认领人各收到一份「认领证明 PDF」；管理端可生成统计报表 CSV、搜图页可生成匹配报告 PDF（桌面端点击直接原生打开）。
+- **文件交付演示**：认领审核通过 → 失主与认领人各收到一份「认领证明 PDF」；管理端可生成统计报表 CSV、搜图页可生成匹配报告 PDF（浏览器内下载）。
 
 ---
 
@@ -194,13 +162,13 @@ bash scripts/backup.sh         # 数据库 + uploads 备份（见 scripts/backup
 | 现象 | 原因 / 处理 |
 |---|---|
 | MySQL 时区报错 | 连接串已含 `serverTimezone=Asia/Shanghai&useSSL=false`，勿删 |
-| 跨域报错 | 前端走 Vite 代理本就是同源；CorsConfig 只放行显式来源（含 `null` 供桌面 file://、`https://localhost` 供 Android WebView） |
+| 跨域报错 | 前端走 Vite 代理本就是同源；生产由后端托管 dist，同源零 CORS |
 | 启动报连不上数据库 | `backend/application-local.yml` 缺失或口令不对 |
 | **打包/部署后页面全白（只有米色背景）** | 生产构建 chunk 循环导致入口报错（F-11，已修）；若改过 `vite.config.js` 的 `manualChunks`，务必 `npm run build` 后用浏览器控制台验证一次。**dev 正常不代表 build 正常** |
-| **手机 App 顶部压状态栏** | Android 15 强制 edge-to-edge；已用 `--safe-top` + `adjustMarginsForEdgeToEdge:"force"` 修复（F-14）；旧包需装 1.0.2 |
-| **覆盖安装 APK 后仍白屏** | 1.0.0 留下的 Service Worker 在回放旧缓存：先卸载再装；1.0.1 起 APK 不含 SW，可正常覆盖 |
+| `mvn package` 报 Unable to rename …jar | 后端还在跑，jar 被占用：先停进程再打包 |
 | 以图搜图全 100% 或全空 | 检查 `ItemImageMapper` 用 `^`（按位异或）而非 `XOR`；检查 phash 是否入库（`/api/search/indexed-count`） |
 | 发布后搜不到自己 | ① 需管理员审核通过后才可被搜到；② pHash 漏算可 `POST /api/search/reindex` |
 | 图片不显示 | 确认 `/uploads/**` 代理与 `file.upload-dir` 指向 backend/uploads；缩略图缺失可在后台「重建缩略图」 |
 | pHash 对旋转不鲁棒 | 属算法特性：演示变体只用缩放/裁剪/亮度/对比度/灰度，不用旋转（见 Creator/01-交付文档/11） |
 | 8080 被占用 | 本机 TCP 动态端口曾被改成 1024 起，出站连接会抢 8080；可用 `--server.port=8081` + `BACKEND_PORT=8081` 临时绕开 |
+| 想离线/异地演示 | 电脑开着后端 + `lost-found/scripts/tunnel.bat`（cloudflared），把打印出的 https 地址发给别人用浏览器打开 |

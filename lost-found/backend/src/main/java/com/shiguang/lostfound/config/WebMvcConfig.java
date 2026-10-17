@@ -45,7 +45,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/api/**")
-                // /api/file/apk 为公开分发端点（官网/扫码安装入口，无需登录）
-                .excludePathPatterns("/api/auth/login", "/api/auth/register", "/api/file/apk");
+                .excludePathPatterns("/api/auth/login", "/api/auth/register");
     }
 }

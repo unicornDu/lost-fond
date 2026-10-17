@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { api } from '../api'
-import { persistTokenStorage, clearTokenStorage } from '../utils/token-storage'
 
 const TK = 'shiguang_token'
 const UK = 'shiguang_user'
@@ -23,7 +22,6 @@ export const useUserStore = defineStore('user', {
       this.info = user
       localStorage.setItem(TK, token)
       localStorage.setItem(UK, JSON.stringify(user))
-      persistTokenStorage()   // M-P1：原生端写穿到 Capacitor Preferences（真源）
     },
     async login(form) {
       const data = await api.login(form)
@@ -63,7 +61,6 @@ export const useUserStore = defineStore('user', {
       this.info = null
       localStorage.removeItem(TK)
       localStorage.removeItem(UK)
-      clearTokenStorage()   // M-P1：原生端同步清 Preferences 真源
     },
   },
 })

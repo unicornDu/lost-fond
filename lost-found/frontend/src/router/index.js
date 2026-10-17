@@ -1,5 +1,4 @@
-import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
-import { IS_DESKTOP, IS_NATIVE } from '../utils/desktop'
+import { createRouter, createWebHistory } from 'vue-router'
 
 /**
  * 路由架构：
@@ -57,9 +56,8 @@ const routes = [
 ]
 
 const router = createRouter({
-  // 桌面（file://）与移动原生容器（Capacitor）用 hash 路由：
-  // file:// 无法 history 回退；原生 WebView 无服务器 SPA 回退，冷启动深链会 404
-  history: IS_DESKTOP || IS_NATIVE ? createWebHashHistory() : createWebHistory(),
+  // Web 单端：history 模式（后端 FrontendController 已做 SPA 回退，刷新深链不 404）
+  history: createWebHistory(),
   routes,
   scrollBehavior: () => ({ top: 0 }),
 })

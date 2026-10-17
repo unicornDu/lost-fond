@@ -6,7 +6,7 @@ import { catEmoji } from '../constants/catalog'
 import { api } from '../api'
 import { useUserStore } from '../stores/user'
 import ItemCard from '../components/ItemCard.vue'
-import { assetUrl } from '../utils/desktop'
+import { assetUrl } from '../utils/asset'
 
 /**
  * 启事详情。审查 2.26：多图缩略图条 + el-image 放大；"相似推荐"改调真接口 /items/{id}/similar。

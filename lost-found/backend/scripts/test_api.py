@@ -278,9 +278,10 @@ try:
        "no-store" in r.headers.get("Cache-Control", ""), "P1 响应头三件套（nosniff + no-store）")
     ok(s.get(BASE + "/file/download", headers=hB, params={"id": certA["id"]}).status_code == 403, "P1 下载他人交付 → 403")
     ok(s.get(BASE + "/file/download", params={"id": certB["id"]}).status_code == 401, "P1 未登录下载 → 401")
-    ro = s.post(BASE + "/file/open", headers=hB, params={"id": certB["id"]}).json()
-    ok(ro["code"] == 200 and "uploads" in ro["data"]["path"], "P1 open 端点返回服务端读回的绝对路径")
-    ok(s.post(BASE + "/file/open", headers=hB, params={"id": 99999999}).json()["code"] == 404, "P1 不存在交付 → 404")
+    ok(s.post(BASE + "/file/open", headers=hB, params={"id": certB["id"]}).status_code in (404, 405),
+       "P1 桌面端 /file/open 已下线（单 Web 收敛，返回 404/405）")
+    ok(s.get(BASE + "/file/apk").status_code in (404, 405),
+       "M-P1 APK 分发端点已下线（单 Web 收敛，返回 404/405）")
 
     show("M5 消息（C 收到自动拒绝通知 / 未读 / 单条已读 / 全部已读）")
     msgs = s.get(BASE + "/user/messages", headers=hC).json()["data"]

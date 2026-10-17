@@ -4,8 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import { api } from '../api'
-import { IS_DESKTOP, assetUrl } from '../utils/desktop'   // 桌面端 /uploads 转绝对地址
-import { openOrDownload, revealInFolder, DELIVERY_ICONS, fmtSize } from '../utils/delivery'
+import { assetUrl } from '../utils/asset'
+import { downloadDelivery, DELIVERY_ICONS, fmtSize } from '../utils/delivery'
 import ItemCard from '../components/ItemCard.vue'
 
 /**
@@ -88,11 +88,7 @@ async function readOne(m) {
 
 // P1：交付文件动作（桌面原生打开 / Web 受控下载；渲染层只经手 deliveryId）
 async function takeDelivery(d) {
-  try { await openOrDownload(d) }
-  catch (e) { ElMessage.error(e.message || '操作失败') }
-}
-async function revealDelivery(d) {
-  try { await revealInFolder(d) }
+  try { await downloadDelivery(d) }
   catch (e) { ElMessage.error(e.message || '操作失败') }
 }
 async function removeDelivery(d) {
@@ -310,8 +306,7 @@ onMounted(loadAll)
                 <p v-if="d.description">{{ d.description }}</p>
                 <small>{{ fmtSize(d.fileSize) }} · {{ (d.createTime || '').replace('T', ' ').slice(0, 16) }}</small>
               </div>
-              <el-button size="small" round type="primary" plain @click.stop="takeDelivery(d)">{{ IS_DESKTOP ? '打开' : '下载' }}</el-button>
-              <el-button v-if="IS_DESKTOP" size="small" round plain @click.stop="revealDelivery(d)">所在位置</el-button>
+              <el-button size="small" round type="primary" plain @click.stop="takeDelivery(d)">下载</el-button>
               <el-button size="small" round plain type="danger" @click.stop="removeDelivery(d)">删除</el-button>
             </div>
           </template>

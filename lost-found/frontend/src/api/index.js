@@ -1,15 +1,13 @@
 import axios from 'axios'
-import { API_ORIGIN, IS_DESKTOP, IS_NATIVE } from '../utils/desktop'
 
 /**
  * 接口层（真实后端）。统一响应 {code,msg,data}；拦截器剥壳返回 data。
  * 审查 2.14：401 时清登录态并整页跳回 /auth（整页刷新重建 Pinia，规避 store 残留旧 token）。
  * 修复 F-09：删除无人引用的 USE_MOCK 开关（mock 时代遗留）。
- * 桌面端（Electron file://）：API_ORIGIN 指向后端绝对地址；Web 模式保持相对 /api 走同源。
  */
 
 export const http = axios.create({
-  baseURL: API_ORIGIN + '/api',
+  baseURL: '/api',
   timeout: 20000,
 })
 
@@ -23,12 +21,11 @@ function clearSession() {
   localStorage.removeItem('shiguang_token')
   localStorage.removeItem('shiguang_user')
   // 审查 2.14：跳转登录页并记录来源（已在登录页则不跳，避免死循环）
-  // 桌面（file://）与移动原生（Capacitor 无 SPA 回退）都走 hash 路由（F-13 补齐 IS_NATIVE）
-  const HASH_ROUTER = IS_DESKTOP || IS_NATIVE
-  const atAuth = HASH_ROUTER ? location.hash.startsWith('#/auth') : location.pathname.startsWith('/auth')
+  // Web 单端：history 路由，直接按 pathname 判断与回跳
+  const atAuth = location.pathname.startsWith('/auth')
   if (!atAuth) {
-    const from = HASH_ROUTER ? (location.hash.slice(1) || '/home') : location.pathname + location.search
-    location.href = (HASH_ROUTER ? '#/auth?redirect=' : '/auth?redirect=') + encodeURIComponent(from)
+    const from = location.pathname + location.search
+    location.href = '/auth?redirect=' + encodeURIComponent(from)
   }
 }
 
@@ -95,10 +92,9 @@ export const api = {
   favorite: (id) => http.post(`/items/${id}/favorite`),
   unfavorite: (id) => http.delete(`/items/${id}/favorite`),
   favorites: (params) => http.get('/user/favorites', { params }),
-  // 交付文件（桌面端 P1）：下载走受控路由（blob），打开走 /file/open + 壳 IPC
+  // 交付文件（P1）：受控下载 blob，渲染层只经手 deliveryId
   deliveries: () => http.get('/file/list'),
   downloadDelivery: (id) => http.get('/file/download', { params: { id }, responseType: 'blob' }),
-  openDelivery: (id) => http.post('/file/open', null, { params: { id } }),
   deleteDelivery: (id) => http.delete('/file', { params: { id } }),
   // 管理后台（审查 2.8/2.9：契约补全）
   adminUsers: (params) => http.get('/admin/users', { params }),

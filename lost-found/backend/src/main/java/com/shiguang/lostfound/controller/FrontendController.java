@@ -17,4 +17,11 @@ public class FrontendController {
     public String spa() {
         return "forward:/index.html";
     }
+
+    /** 兜底：未知的单段路径（如手输错地址 /nope-404）也回 index.html，交给前端渲染 404 页。
+     *  不含点号 → 不会吞掉静态资源；两段以上（/api/xxx、/uploads/xxx）不匹配此规则。 */
+    @GetMapping("/{path:[^\\.]*}")
+    public String spaFallback() {
+        return "forward:/index.html";
+    }
 }

@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">校园失物招领</string>
-    <string name="title_activity_main">校园失物招领</string>
-    <string name="package_name">cn.edu.shiguang.lostfound</string>
-    <string name="custom_url_scheme">cn.edu.shiguang.lostfound</string>
-</resources>

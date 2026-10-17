@@ -8,7 +8,7 @@
 |---|---|---|
 | `01-交付文档/` | 课程交付物 01-12 全套 + `运行说明/` | 老师、评审、外部访客 |
 | `02-过程资料/` | 选题、设计 prompt、迭代记录、参考项目离线副本 | 自己（过程留痕，不交作业） |
-| `Knowledge_List/` | 答辩复习知识清单（9 份 · 248 个自测点） | 自己（答辩前突击） |
+| `Knowledge_List/` | 答辩复习知识清单（8 份 · 208 个可勾选自测点） | 自己（答辩前突击） |
 | `CONTRIBUTING.md` | 提交前检查单、`versionNN_` 提交命名、误操作补救、体积红线 | 自己 / 协作者 |
 
 ## 为什么都收在这里
@@ -16,7 +16,7 @@
 根目录只留少量东西，一眼能扫完：
 
 - `README.md` —— 门牌（项目是什么、怎么跑、去哪看）
-- `lost-found/` —— 代码仓（backend / frontend / desktop）
+- `lost-found/` —— 代码仓（backend / frontend；`desktop/` 已随 2026-10-17 单 Web 收敛删除）
 - `assets/演示图/` —— 演示物品图 6 张
 - `Project_operation_software/` —— 运行期软件台账（二进制在 GitHub Releases）
 

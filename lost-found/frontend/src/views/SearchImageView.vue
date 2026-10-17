@@ -4,9 +4,8 @@ import { ElMessage } from 'element-plus'
 import { api } from '../api'
 import { useTransferStore } from '../stores/transfer'
 import { useUserStore } from '../stores/user'
-import { assetUrl } from '../utils/desktop'
-import { openOrDownload } from '../utils/delivery'
-import { IS_NATIVE, takePhotoNative } from '../utils/native-camera'
+import { assetUrl } from '../utils/asset'
+import { downloadDelivery } from '../utils/delivery'
 
 const transfer = useTransferStore()
 const user = useUserStore()   // P2：匹配报告需登录（交付落到具体用户）
@@ -22,7 +21,7 @@ async function makeReport() {
     fd.append('file', fileRaw.value)
     const d = await api.matchReport(fd)
     ElMessage.success(`匹配报告已生成（${d.hits} 条命中）`)
-    await openOrDownload({ ...d, fileName: d.title + '.pdf' })
+    await downloadDelivery({ ...d, fileName: d.title + '.pdf' })
   } catch (e) {
     ElMessage.error(e.message || '报告生成失败')
   } finally {
@@ -63,17 +62,6 @@ function acceptImage(raw, name) {
   fileName.value = name
   fileRaw.value = raw
   runPipeline()
-}
-
-/** M-P1b：Capacitor 原生端"拍照/相册"入口。 */
-async function onNativeCamera() {
-  try {
-    const file = await takePhotoNative('search-' + Date.now() + '.jpg')
-    acceptImage(file, file.name)
-  } catch (e) {
-    if (String(e?.message || e).includes('cancel')) return   // 用户取消不提示
-    ElMessage.error(e.message || '获取照片失败')
-  }
 }
 
 async function runPipeline() {
@@ -135,19 +123,13 @@ const steps = computed(() => [
       <!-- 左：上传与流程 -->
       <div class="left">
         <div v-if="!fileUrl" class="upload-zone paper-card">
-          <el-upload v-if="!IS_NATIVE" drag accept="image/*" :auto-upload="false" :show-file-list="false" :on-change="onFileChange">
+          <el-upload drag accept="image/*" :auto-upload="false" :show-file-list="false" :on-change="onFileChange">
             <div class="up-inner">
               <span class="cam">🔍</span>
               <p class="up-t">拖一张照片到这里，或 <em>点击上传</em></p>
               <p class="up-d">支持 JPG / PNG，拍清物品特征效果更好</p>
             </div>
           </el-upload>
-          <!-- M-P1b：Capacitor 原生端（Android/iOS App 内）改用系统相机/相册选择器 -->
-          <button v-else type="button" class="native-shot" @click="onNativeCamera">
-            <span class="cam">📸</span>
-            <p class="up-t">点击拍照或从相册选择</p>
-            <p class="up-d">拍清物品特征，匹配效果更好</p>
-          </button>
         </div>
 
         <div v-else class="preview paper-card">
@@ -234,11 +216,6 @@ const steps = computed(() => [
 .up-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .up-inner .cam { font-size: 52px; }
 /* M-P1b：原生端拍照入口（替代拖拽区） */
-.native-shot {
-  width: 100%; border: 0; cursor: pointer; background: transparent;
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  padding: 46px 30px;
-}
 .up-t { font-size: 16px; font-weight: 600; }
 .up-t em { color: var(--orange-deep); font-style: normal; }
 .up-d { color: var(--ink-faint); font-size: 12.5px; }

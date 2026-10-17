@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import SplitText from '../components/SplitText.vue'
 import GooeyNav from '../components/GooeyNav.vue'
 import { api } from '../api'
-import { API_ORIGIN, assetUrl } from '../utils/desktop'
+import { assetUrl } from '../utils/asset'
 
 /**
  * 简介落地页（复刻 21st.dev hero-01：导航 + Hero + 社交证明 + 品牌跑马灯）
@@ -50,41 +50,6 @@ const steps = [
   { no: '03', title: '审核交接找回', desc: '凭"只有失主知道"的特征申请认领，线下交接完成闭环' },
 ]
 
-// M-P1：Android APK 下载入口（后端 uploads/downloads/app-release.apk；未发布时友好提示）
-const apkLoading = ref(false)
-async function downloadApk() {
-  if (apkLoading.value) return
-  apkLoading.value = true
-  try {
-    const blob = await fetch(API_ORIGIN + '/api/file/apk').then((r) => {
-      if (!r.ok) throw new Error(r.status)
-      return r.blob()
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'shiguang-lostfound.apk'
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (e) {
-    const { ElMessage } = await import('element-plus')
-    ElMessage.info('Android 版尚未发布，敬请期待')
-  } finally {
-    apkLoading.value = false
-  }
-}
-// M-P2 方案 C：iOS Safari 安装引导浮层（PWA 不弹自定义安装横幅，必须靠引导说明
-// "分享 → 添加到主屏幕"；standalone 时已装，不再打扰；本会话内可关闭）
-const showIosGuide = ref(false)
-if (typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent)
-    && !/CriOS|FxiOS|EdgiOS/i.test(navigator.userAgent)
-    && window.navigator.standalone !== true) {
-  showIosGuide.value = sessionStorage.getItem('shiguang_ios_guide_dismissed') !== '1'
-}
-function dismissIosGuide() {
-  showIosGuide.value = false
-  sessionStorage.setItem('shiguang_ios_guide_dismissed', '1')
-}
 </script>
 
 <template>
@@ -190,10 +155,6 @@ function dismissIosGuide() {
         <h2>现在注册，让丢掉的东西回家</h2>
         <p>注册只需 30 秒，全校的失物与招领启事都在等你</p>
         <el-button size="large" round @click="toAuth('register')" class="cta-btn">免费注册 →</el-button>
-        <el-button size="large" round plain :loading="apkLoading" @click="downloadApk"
-          style="margin-left: 12px; background: transparent !important; border-color: #FFF7EC !important; color: #FFF7EC !important">
-          📱 下载 Android 版
-        </el-button>
       </div>
     </section>
 
@@ -202,12 +163,6 @@ function dismissIosGuide() {
       <p>校园失物招领平台 · 软件工程课程设计小组项目</p>
       <small>© 2026 拾光 LOST &amp; FOUND</small>
     </footer>
-
-    <!-- M-P2 方案 C：iPhone 安装引导浮层 -->
-    <div v-if="showIosGuide" class="ios-guide">
-      <span>📱 iPhone 安装：点底部 <b>分享</b> 按钮 → 选择 <b>添加到主屏幕</b>，即可像 App 一样全屏使用</span>
-      <button type="button" @click="dismissIosGuide">知道了</button>
-    </div>
   </div>
 </template>
 
@@ -385,21 +340,6 @@ function dismissIosGuide() {
 .cta-band h2 { font-size: 32px; }
 .cta-band p { margin: 10px 0 24px; opacity: .92; font-size: 14.5px; }
 .cta-btn { background: #FFF7EC !important; border-color: #FFF7EC !important; color: var(--orange-deep) !important; font-weight: 700; }
-
-/* M-P2：iPhone 安装引导浮层 */
-.ios-guide {
-  position: fixed; left: 14px; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 50;
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 16px; border-radius: 14px;
-  background: rgba(51, 41, 31, .92); color: #FFF7EC;
-  font-size: 13px; line-height: 1.6;
-  box-shadow: 0 14px 30px rgba(40, 25, 10, .35);
-}
-.ios-guide button {
-  flex-shrink: 0; border: 0; cursor: pointer;
-  padding: 7px 14px; border-radius: 999px;
-  background: var(--orange); color: #FFF7EC; font-weight: 700; font-size: 12.5px;
-}
 
 /* ---- 页脚 ---- */
 .w-footer {

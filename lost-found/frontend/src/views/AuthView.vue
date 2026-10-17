@@ -3,7 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { assetUrl } from '../utils/desktop'   // 桌面端 /uploads 转绝对地址
+import { assetUrl } from '../utils/asset'
 
 /**
  * 登录 / 注册页（复刻 21st.dev sign-in：左表单 + 右大图评价卡，交错入场动画）

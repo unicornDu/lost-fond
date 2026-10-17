@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { catEmoji } from '../constants/catalog'
 import { api } from '../api'
-import { assetUrl } from '../utils/desktop'
+import { assetUrl } from '../utils/asset'
 
 /**
  * 物品卡片：图片 + 贴纸分类标签 + 状态角标 + Spotlight 光晕

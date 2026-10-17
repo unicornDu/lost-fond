@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../../api'
-import { assetUrl } from '../../utils/desktop'
+import { assetUrl } from '../../utils/asset'
 
 /** 启事审核（审查 2.9）：待审核/已通过/已驳回 筛选 + 通过/驳回/下架/删除。 */
 const tab = ref('0')   // '0' 待审核 / '1' 已通过 / '2' 已驳回 / '' 全部

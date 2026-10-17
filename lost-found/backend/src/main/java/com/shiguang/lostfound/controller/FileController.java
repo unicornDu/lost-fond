@@ -14,12 +14,11 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 
 /**
- * 受控文件路由（桌面端 P1，dsh /api/file + present.open 转译）。
- * 全部在 JwtInterceptor 围栏之后；浏览器只传 deliveryId，路径由服务端读回；
- * /open 仅供桌面壳经 IPC 原生打开使用（壳侧再做 realpath 双保险校验）。
+ * 受控文件路由（P1 文件交付）。
+ * 全部在 JwtInterceptor 围栏之后；浏览器只传 deliveryId，路径由服务端解析，
+ * 永不下发绝对路径（原桌面壳用的 /open 已随 Electron 端下线一并移除）。
  */
 @RestController
 @RequestMapping("/api/file")
@@ -57,44 +56,10 @@ public class FileController {
                 .body(bytes);
     }
 
-    /** 桌面联动：服务端按 id 读回绝对路径，壳经 IPC shell.openPath 原生打开（Web 端不调本端点）。 */
-    @PostMapping("/open")
-    public Result<Map<String, Object>> open(@RequestParam Long id) {
-        Long uid = UserContext.requireUserId();
-        Delivery d = deliveryService.getReadable(id, uid);
-        Path p = deliveryService.resolveReal(d);
-        return Result.ok(Map.of("path", p.toString(), "fileName", d.getFileName(), "mimeType", d.getMimeType()));
-    }
-
     /** 本人删除自己的交付（行 + 盘；供用户清理与测试幂等）。 */
     @DeleteMapping
     public Result<Void> delete(@RequestParam Long id) {
         deliveryService.deleteOwn(id, UserContext.requireUserId());
         return Result.ok();
-    }
-
-    // ---------------- M-P1：Android APK 分发 ----------------
-
-    /**
-     * APK 下载（公开端点，无需登录——官网/答辩现场扫码安装入口）。
-     * APK 由组员放置在 uploads/downloads/app-release.apk；按 M-P1 要求补安全响应头
-     * （vnd.android.package-archive + attachment + nosniff，防 APK 被当网页执行）。
-     */
-    @GetMapping("/apk")
-    public ResponseEntity<byte[]> apk() {
-        Path p = deliveryService.resolveUploadRelative("downloads/app-release.apk");
-        byte[] bytes;
-        try {
-            bytes = Files.readAllBytes(p);
-        } catch (Exception e) {
-            throw new BusinessException(404, "APK 尚未发布，请联系管理员");
-        }
-        return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=\"shiguang-lostfound.apk\"")
-                .header("X-Content-Type-Options", "nosniff")
-                .header("Cache-Control", "private, no-store")
-                .contentType(MediaType.parseMediaType("application/vnd.android.package-archive"))
-                .contentLength(bytes.length)
-                .body(bytes);
     }
 }

@@ -120,15 +120,6 @@ public class FileDeliveryService {
         }
     }
 
-    /** 由 uploads 相对路径解析真实文件（供 APK 分发等静态资产用；同样做根前缀防穿越）。 */
-    public Path resolveUploadRelative(String rel) {
-        Path root = uploadsRoot();
-        Path p = root.resolve(rel).normalize();
-        if (!p.startsWith(root)) throw new BusinessException(403, "非法文件路径");
-        if (!Files.isRegularFile(p)) throw new BusinessException(404, "文件不存在");
-        return p;
-    }
-
     /** 我的交付（卡片列表，上限 50，新→旧）。 */
     public List<Delivery> list(Long userId) {
         return deliveryMapper.selectList(new QueryWrapper<Delivery>()

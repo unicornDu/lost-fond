@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../../api'
-import { openOrDownload } from '../../utils/delivery'
+import { downloadDelivery } from '../../utils/delivery'
 
 /**
  * 修复 F-10：管理员工具入口——重算缺失图片指纹 / 补生成缩略图。
@@ -35,7 +35,7 @@ async function createReport() {
   try {
     const d = await api.createReport()
     ElMessage.success('报表已生成，开始下载')
-    await openOrDownload({ ...d, fileName: d.title + '.csv' })
+    await downloadDelivery({ ...d, fileName: d.title + '.csv' })
     lastResult.value = `报表已生成：${d.title}（${(d.fileSize / 1024).toFixed(1)} KB）`
   } catch (e) {
     ElMessage.error(e.message || '生成失败')
