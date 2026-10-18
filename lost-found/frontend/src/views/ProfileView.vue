@@ -107,6 +107,16 @@ async function readOne(m) {
   } catch (e) { /* 非关键路径：单条已读失败静默 */ }
 }
 
+/* 全部已读（对齐整合版 v1 的"全部标为已读"） */
+async function readAllNow() {
+  try {
+    await api.readAll()
+    messages.value.forEach((m) => (m.isRead = 1))
+    window.dispatchEvent(new Event('shiguang-unread-changed'))
+    ElMessage.success('通知已全部标为已读')
+  } catch (e) { ElMessage.error(e.message || '操作失败') }
+}
+
 // ---- G 版式：通知中心（分栏状态定义见上方）----
 // 导航/外部链接带 sub 参数进入时同步分栏
 watch(() => route.query, (q) => {
@@ -369,12 +379,15 @@ onMounted(loadAll)
           </template>
 
           <!-- 三分栏切换 -->
-          <div class="ntf-tabs">
-            <button
-              v-for="s in MSG_SUBS" :key="s.key"
-              class="ntf-tab" :class="{ on: msgSub === s.key }"
-              @click="msgSub = s.key; activeConv = null"
-            >{{ s.label }}<i v-if="msgSubUnread(s.key)">{{ msgSubUnread(s.key) }}</i></button>
+          <div class="ntf-bar">
+            <div class="ntf-tabs">
+              <button
+                v-for="s in MSG_SUBS" :key="s.key"
+                class="ntf-tab" :class="{ on: msgSub === s.key }"
+                @click="msgSub = s.key; activeConv = null"
+              >{{ s.label }}<i v-if="msgSubUnread(s.key)">{{ msgSubUnread(s.key) }}</i></button>
+            </div>
+            <button v-if="unreadCount" class="all-read" @click="readAllNow">全部标为已读</button>
           </div>
 
           <!-- 认领与审核 / 系统通知：卡片列表 -->
@@ -517,7 +530,7 @@ onMounted(loadAll)
 .claim-row .proof { color: var(--orange-deep); background: var(--orange-soft); padding: 4px 8px; border-radius: 8px; display: inline-block; }
 
 .msg { position: relative; display: flex; gap: 12px; align-items: center; padding: 14px 18px; margin-bottom: 12px; cursor: pointer; }
-.msg.unread { border-color: var(--orange); background: var(--orange-soft); }
+.msg.unread { border-color: var(--orange); background: var(--orange-soft); box-shadow: inset 3px 0 0 var(--orange); }
 .msg .dot { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
 .msg-body { flex: 1; }
 .msg-body b { font-size: 14.5px; }
@@ -527,6 +540,14 @@ onMounted(loadAll)
 .d-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--honey-soft); font-size: 20px; flex-shrink: 0; }
 
 /* G 版式：通知分栏 */
+.ntf-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 16px; flex-wrap: wrap; }
+.ntf-bar .ntf-tabs { margin: 0; }
+.all-read {
+  border: 0; background: none; cursor: pointer;
+  color: var(--orange-deep); font-family: inherit; font-size: 12.5px; font-weight: 700;
+  padding: 6px 2px; transition: opacity .18s;
+}
+.all-read:hover { opacity: .75; text-decoration: underline; }
 .ntf-tabs { display: flex; gap: 8px; margin: 4px 0 16px; flex-wrap: wrap; }
 .ntf-tab {
   border: 0; cursor: pointer;

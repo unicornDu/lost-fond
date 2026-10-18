@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { catEmoji } from '../constants/catalog'
 import { api } from '../api'
 import { useUserStore } from '../stores/user'
 import ItemCard from '../components/ItemCard.vue'
+import PosterDialog from '../components/PosterDialog.vue'
 import { assetUrl } from '../utils/asset'
 
 /**
@@ -25,7 +26,9 @@ let reqSeq = 0
 
 const claimVisible = ref(false)
 const claimForm = ref({ proof: '', contact: '' })
+const claimStep = ref(0)   // 0 核验凭证 → 1 联系方式（对齐整合版 v1 的分步认领）
 const submitting = ref(false)
+const posterVisible = ref(false)
 
 const dmVisible = ref(false)
 const dmText = ref('')
@@ -50,11 +53,25 @@ const claimStage = computed(() => {
   if (c.claimStatus === '已通过') return { fill: 2 / 3, note: '审核已通过，请与发布者约定线下交付（建议公共场所）', states: ['done', 'done', 'now', ''] }
   return { fill: 1 / 3, note: '申请已送达发布者，等待审核', states: ['done', 'now', '', ''] }
 })
+/* 时间线填充：挂载时先钉在 0，再在下一帧过渡到目标宽度（对齐整合版的连线生长动效） */
+const tlReady = ref(false)
 const claimFillStyle = computed(() => {
   if (!claimStage.value) return {}
+  if (!tlReady.value) return { width: '0%' }
   const f = claimStage.value.fill
   return { width: `calc(${f * 100}% - ${(f * 32).toFixed(1)}px)` }
 })
+
+/* 认领弹窗：分步核验（第一步只收集"只有失主才知道"的凭证） */
+function openClaim() {
+  claimStep.value = 0
+  claimVisible.value = true
+}
+function nextClaimStep() {
+  const v = claimForm.value.proof.trim()
+  if (v.length < 6) { ElMessage.warning('请至少写 6 个字，描述只有失主才知道的特征'); return }
+  claimStep.value = 1
+}
 
 async function load() {
   const id = route.params.id
@@ -66,6 +83,10 @@ async function load() {
     item.value = detail
     similar.value = sim
     mainImg.value = 0
+    // 时间线：先归零再驱动过渡，让进度条"长"出来
+    tlReady.value = false
+    await nextTick()
+    tlReady.value = true
   } catch (e) {
     if (seq !== reqSeq) return
     item.value = null
@@ -79,6 +100,7 @@ async function claim() {
   try {
     await api.applyClaim(item.value.id, { proof: claimForm.value.proof.trim(), contact: claimForm.value.contact.trim() || undefined })
     claimVisible.value = false
+    claimStep.value = 0
     claimForm.value = { proof: '', contact: '' }
     ElMessage.success('认领申请已提交，等待发布者审核')
     await load()
@@ -114,7 +136,7 @@ onMounted(load)
     <template v-else-if="item">
       <el-button round plain size="small" @click="router.back()">← 返回</el-button>
 
-      <div class="detail paper-card">
+      <div class="detail paper-card" v-reveal>
         <div class="left">
           <div class="main-img">
             <div class="img-fallback">{{ catEmoji(item.category) }}</div>
@@ -148,17 +170,21 @@ onMounted(load)
             <li><span>👀 浏览</span><b>{{ item.views }} 次</b></li>
           </ul>
           <div class="actions">
-            <el-button type="primary" size="large" round @click="claimVisible = true">
+            <el-button type="primary" size="large" round @click="openClaim">
               {{ item.type === 'lost' ? '我捡到了，联系Ta' : '这是我的，申请认领' }}
             </el-button>
             <el-button size="large" round plain @click="dmVisible = true">私信</el-button>
+            <el-button size="large" round text @click="posterVisible = true">
+              <svg class="act-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 15V3M7 8l5-5 5 5"/></svg>
+              分享海报
+            </el-button>
           </div>
           <div class="safe-tip">🛡️ 平台提示：认领需发布者核实凭证，请勿向陌生人转账；线下交接建议在公共场所。</div>
         </div>
       </div>
 
       <!-- G 版式：认领进度时间线（本人提交过认领时展示） -->
-      <div v-if="myClaim && claimStage" class="claim-tl paper-card">
+      <div v-if="myClaim && claimStage" class="claim-tl paper-card" v-reveal="{ delay: 120 }">
         <div class="tl-head">
           <h3>认领进度</h3>
           <p>{{ claimStage.note }}</p>
@@ -181,19 +207,37 @@ onMounted(load)
       </div>
       <el-empty v-else description="暂无视觉相似的启事" :image-size="80" />
 
-      <!-- 认领弹窗（审查 2.5：凭证 + 联系方式） -->
-      <el-dialog v-model="claimVisible" title="申请认领" width="460px">
-        <p class="claim-tip">请描述 <b>只有失主才知道</b> 的特征（如贴纸、划痕、内容物），供发布者核实，防止冒领：</p>
-        <el-input v-model="claimForm.proof" type="textarea" :rows="4" maxlength="200" show-word-limit
-          placeholder="例：杯盖内侧有一道裂纹，杯底贴着我的姓名贴……" />
-        <p class="claim-tip" style="margin-top:12px">联系方式（选填，便于发布者联系你）：</p>
-        <div class="contact-row">
-          <el-input v-model="claimForm.contact" maxlength="50" placeholder="手机号 / 微信号 / 宿舍号" />
-          <el-button v-if="user.info?.phone" round plain size="small" @click="claimForm.contact = user.info.phone">用我的手机号</el-button>
-        </div>
+      <!-- 认领弹窗：两步核验（审查 2.5 凭证 + G 版分步体验） -->
+      <el-dialog v-model="claimVisible" title="申请认领" width="480px" @closed="claimStep = 0">
+        <el-steps :active="claimStep" finish-status="success" align-center class="claim-steps">
+          <el-step title="核验凭证" description="只有失主知道的细节" />
+          <el-step title="联系方式" description="便于发布者联系你" />
+        </el-steps>
+
+        <template v-if="claimStep === 0">
+          <p class="claim-tip">请描述 <b>只有失主才知道</b> 的特征（如贴纸、划痕、内容物），发布者会据此核实，防止冒领：</p>
+          <el-input v-model="claimForm.proof" type="textarea" :rows="4" maxlength="200" show-word-limit
+            placeholder="例：杯盖内侧有一道裂纹，杯底贴着我的姓名贴……" />
+          <p class="claim-note">这条描述就是发布者审核的依据，写得越具体，通过越快。</p>
+        </template>
+
+        <template v-else>
+          <p class="claim-tip">联系方式（选填，便于发布者联系你安排交付）：</p>
+          <div class="contact-row">
+            <el-input v-model="claimForm.contact" maxlength="50" placeholder="手机号 / 微信号 / 宿舍号" />
+            <el-button v-if="user.info?.phone" round plain size="small" @click="claimForm.contact = user.info.phone">用我的手机号</el-button>
+          </div>
+          <div class="claim-recap">
+            <span>已填写的凭证</span>
+            <p>{{ claimForm.proof }}</p>
+          </div>
+        </template>
+
         <template #footer>
           <el-button round @click="claimVisible = false">取消</el-button>
-          <el-button type="primary" round :loading="submitting" @click="claim">提交申请</el-button>
+          <el-button v-if="claimStep === 1" round plain @click="claimStep = 0">上一步</el-button>
+          <el-button v-if="claimStep === 0" type="primary" round @click="nextClaimStep">下一步</el-button>
+          <el-button v-else type="primary" round :loading="submitting" @click="claim">提交申请</el-button>
         </template>
       </el-dialog>
 
@@ -206,6 +250,9 @@ onMounted(load)
           <el-button type="primary" round :loading="dmSending" @click="sendDm">发送</el-button>
         </template>
       </el-dialog>
+
+      <!-- 分享海报（canvas 导出 PNG） -->
+      <PosterDialog v-model="posterVisible" :item="item" />
     </template>
 
     <el-empty v-else description="启事不存在或已被删除">
@@ -233,7 +280,7 @@ onMounted(load)
 .info-list li b { font-weight: 600; }
 .owner-link { color: var(--orange-deep); }
 .owner-link:hover { text-decoration: underline; }
-.actions { display: flex; gap: 12px; margin-bottom: 18px; }
+.actions { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .safe-tip { padding: 10px 14px; border-radius: 12px; background: var(--sky-soft); color: #3D6D99; font-size: 12.5px; line-height: 1.7; }
 .claim-tip { color: var(--ink-soft); font-size: 13.5px; line-height: 1.7; margin-bottom: 12px; }
 .contact-row { display: flex; gap: 10px; align-items: center; }
@@ -244,4 +291,15 @@ onMounted(load)
 .tl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
 .tl-head h3 { font-size: 16px; }
 .tl-head p { font-size: 13px; color: var(--ink-soft); }
+
+/* 认领分步 */
+.claim-steps { margin-bottom: 20px; }
+.claim-note { color: var(--ink-faint); font-size: 12px; line-height: 1.7; margin-top: 10px; }
+.claim-recap {
+  margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+  background: var(--cream-deep);
+}
+.claim-recap span { font-size: 11.5px; color: var(--ink-faint); font-weight: 700; letter-spacing: .5px; }
+.claim-recap p { margin-top: 5px; font-size: 13px; color: var(--ink-soft); line-height: 1.7; }
+.act-ico { width: 14px; height: 14px; margin-right: 5px; }
 </style>

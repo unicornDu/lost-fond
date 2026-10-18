@@ -3,11 +3,12 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { api } from '../api'
+import InboxDrawer from './InboxDrawer.vue'
 
 /**
  * 应用导航（G 版式：下划线滑入链接 + SVG 图标 + 聊天/通知双入口）。
  * 审查 2.7 消息铃铛（未读红点）；2.9 管理员"后台管理"入口；2.22 窄屏汉堡+抽屉。
- * 聊天入口 → 个人中心私信会话；铃铛入口 → 个人中心通知中心（三分栏）。
+ * 2026-10-18 交互补齐：滚动态阴影（哨兵 IO）+ 聊天/通知改为右侧抽屉（对齐整合版 v1）。
  */
 const router = useRouter()
 const route = useRoute()
@@ -15,8 +16,13 @@ const user = useUserStore()
 
 const unread = ref(0)
 const drawer = ref(false)
+const scrolled = ref(false)
+const inboxOpen = ref(false)
+const inboxMode = ref('notify')
 let timer = null
 let lastPoll = 0
+let sentinel = null
+let navIO = null
 
 async function pollUnread() {
   lastPoll = Date.now()
@@ -27,13 +33,10 @@ async function pollUnread() {
   } catch (e) { /* 静默：轮询失败不打扰 */ }
 }
 
-function goMessages() {
+function openInbox(mode) {
   drawer.value = false
-  router.push({ path: '/profile', query: { tab: 'msg' } })
-}
-function goChats() {
-  drawer.value = false
-  router.push({ path: '/profile', query: { tab: 'msg', sub: 'dm' } })
+  inboxMode.value = mode
+  inboxOpen.value = true
 }
 
 onMounted(() => {
@@ -41,10 +44,19 @@ onMounted(() => {
   timer = setInterval(pollUnread, 30000) // 30s 轮询未读
   // 修复 F-02：消息页标已读后主动通知铃铛刷新（不用等 30s 轮询）
   window.addEventListener('shiguang-unread-changed', pollUnread)
+
+  // 滚动态：文档顶部哨兵滚出视口即加 .scrolled（零 scroll 监听，页面切走自动复位）
+  sentinel = document.createElement('div')
+  sentinel.className = 'nav-sentinel'
+  document.body.prepend(sentinel)
+  navIO = new IntersectionObserver(([e]) => { scrolled.value = !e.isIntersecting }, { threshold: 0 })
+  navIO.observe(sentinel)
 })
 onBeforeUnmount(() => {
   clearInterval(timer)
   window.removeEventListener('shiguang-unread-changed', pollUnread)
+  navIO?.disconnect()
+  sentinel?.remove()
 })
 // 修复 F-11：切页刷新未读加 5 秒节流，避免频繁路由切换时请求过多
 watch(() => route.fullPath, () => {
@@ -54,7 +66,7 @@ watch(() => route.fullPath, () => {
 </script>
 
 <template>
-  <header class="nav">
+  <header class="nav" :class="{ scrolled }">
     <div class="container nav-inner">
       <RouterLink to="/home" class="brand">
         <span class="brand-logo">拾</span>
@@ -70,12 +82,12 @@ watch(() => route.fullPath, () => {
       </nav>
 
       <div class="nav-actions">
-        <!-- 聊天会话（私信）入口 -->
-        <button v-if="user.info" class="nav-icon" title="聊天会话" aria-label="聊天会话" @click="goChats">
+        <!-- 聊天会话（私信）入口 → 右侧抽屉 -->
+        <button v-if="user.info" class="nav-icon" title="聊天会话" aria-label="聊天会话" @click="openInbox('chat')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>
         </button>
-        <!-- 消息铃铛（审查 2.7） -->
-        <button v-if="user.info" class="nav-icon" title="通知中心" aria-label="通知中心" @click="goMessages">
+        <!-- 通知中心（审查 2.7）→ 右侧抽屉 -->
+        <button v-if="user.info" class="nav-icon" title="通知中心" aria-label="通知中心" @click="openInbox('notify')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/></svg>
           <span v-if="unread" class="nav-dot">{{ unread > 99 ? '99+' : unread }}</span>
         </button>
@@ -109,6 +121,9 @@ watch(() => route.fullPath, () => {
         <RouterLink v-if="!user.info" to="/auth" @click="drawer = false">登录 / 注册</RouterLink>
       </nav>
     </el-drawer>
+
+    <!-- 右侧抽屉：聊天会话 / 通知中心（对齐整合版 v1） -->
+    <InboxDrawer v-model="inboxOpen" v-model:mode="inboxMode" />
   </header>
 </template>
 

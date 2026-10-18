@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '../api'
 import { useTransferStore } from '../stores/transfer'
@@ -112,14 +112,25 @@ const steps = computed(() => [
   // 03 T-03：阈值文案不再硬编码，与 /api/search/indexed-count 返回的生效阈值同步
   { n: 3, label: '汉明距离匹配', detail: `与库内启事逐条比对，阈值 ≤ ${threshold.value}` },
 ])
+
+/* 守望订阅（对齐整合版 v1）：记录"这张照片值得一直盯"的意向。
+   后端 watch 表尚未建，当前为本地订阅态，不虚构推送。 */
+const WATCH_KEY = 'shiguang_watch'
+const watchOn = ref(false)
+try { watchOn.value = localStorage.getItem(WATCH_KEY) === '1' } catch (e) { /* 隐私模式 */ }
+watch(watchOn, (v) => {
+  try { localStorage.setItem(WATCH_KEY, v ? '1' : '0') } catch (e) { /* 隐私模式 */ }
+  if (v) ElMessage.success('已开启守望订阅：新招领入库时会用这张照片再比对一次')
+  else ElMessage.info('已关闭守望订阅')
+})
 </script>
 
 <template>
   <div class="page container">
-    <h1 class="page-title">📷 以图搜图</h1>
-    <p class="page-sub">不上传文字，直接上传物品照片——用「长相」找回你的东西（感知哈希 pHash · 汉明距离匹配）</p>
+    <h1 class="page-title" v-reveal>📷 以图搜图</h1>
+    <p class="page-sub" v-reveal="{ delay: 60 }">不上传文字，直接上传物品照片——用「长相」找回你的东西（感知哈希 pHash · 汉明距离匹配）</p>
 
-    <div class="layout">
+    <div class="layout" v-reveal="{ delay: 100 }">
       <!-- 左：上传与流程 -->
       <div class="left">
         <div v-if="!fileUrl" class="upload-zone paper-card">
@@ -151,6 +162,17 @@ const steps = computed(() => [
               <small>{{ s.detail }}</small>
             </div>
           </div>
+        </div>
+
+        <!-- 守望订阅（对齐整合版 v1）：这次没搜到也没关系 -->
+        <div class="watch-row">
+          <div class="w-txt">
+            <b>{{ watchOn ? '守望订阅 · 已开启' : '守望订阅 · 这次没搜到也没关系' }}</b>
+            <span v-if="watchOn">已记住{{ fileName || '当前这张照片' }}，新招领入库时会用它再比对一次。</span>
+            <span v-else>开启后会记住这张照片的长相指纹，新招领入库时自动为你再搜一遍。</span>
+            <span class="w-tip">自动推送能力待后端「守望订阅表」上线，当前记录订阅意向。</span>
+          </div>
+          <el-switch v-model="watchOn" />
         </div>
       </div>
 

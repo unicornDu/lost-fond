@@ -175,14 +175,15 @@ p { margin: 0; }
 }
 
 /* ---------- v-reveal 滚动显现 ---------- */
+/* 用独立 translate 属性而非 transform：避免覆盖 chip/card 自己的 hover 位移 */
 .reveal {
   opacity: 0;
-  transform: translateY(28px);
-  transition: opacity .75s ease, transform .75s cubic-bezier(.22, 1, .36, 1);
+  translate: 0 28px;
+  transition: opacity .75s ease, translate .75s cubic-bezier(.22, 1, .36, 1);
 }
-.reveal.revealed { opacity: 1; transform: none; }
+.reveal.revealed { opacity: 1; translate: 0 0; }
 @media (prefers-reduced-motion: reduce) {
-  .reveal { opacity: 1; transform: none; transition: none; }
+  .reveal { opacity: 1; translate: none; transition: none; }
 }
 
 /* ---------- 装饰浮动 emoji（保留兼容，各页可选使用） ---------- */
@@ -230,6 +231,203 @@ p { margin: 0; }
 .tl-node span { font-size: 11.5px; color: var(--ink-faint); text-align: center; line-height: 1.4; font-weight: 600; }
 .tl-node.now span { color: var(--orange-deep); font-weight: 800; }
 .tl-node.rej span { color: var(--rose); }
+
+/* ============================================================
+   2026-10-18 交互补齐：对齐「整合版-拾光平台功能演示-v1」
+   新增：导航滚动态 / 抽屉(聊天·通知) / 海报弹层 / 帮转 / 守望订阅 / 推荐签
+   约定：动画只碰 transform/opacity/filter，reduced-motion 全降级
+   ============================================================ */
+
+/* ---- 导航滚动态：哨兵 IO 触发，零 scroll 监听 ---- */
+.nav-sentinel { position: absolute; top: 0; left: 0; width: 1px; height: 1px; pointer-events: none; }
+.nav { transition: box-shadow .25s ease, background .25s ease; }
+.nav.scrolled { box-shadow: 0 1px 0 var(--line), 0 10px 30px rgba(27, 26, 23, .06); }
+
+/* ---- 滚动进场阶梯：v-reveal 支持 --i 序号 ---- */
+.reveal { transition-delay: calc(var(--i, 0) * 80ms); }
+
+/* ---- 帮转助力 ---- */
+.boost {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 0; background: transparent; padding: 4px 9px; border-radius: 999px;
+  font-family: inherit; font-size: 12px; font-weight: 700; color: var(--ink-faint);
+  cursor: pointer; transition: all .2s cubic-bezier(.22, 1, .36, 1);
+}
+.boost svg { width: 13px; height: 13px; flex: none; }
+.boost:hover { background: var(--orange-soft); color: var(--orange-deep); transform: translateY(-1px); }
+.boost.done { background: var(--orange-soft); color: var(--orange-deep); cursor: default; }
+.boost.done:hover { transform: none; }
+
+/* ---- 为你推荐：理由签 ---- */
+.reco-block { display: flex; flex-direction: column; gap: 10px; }
+.reco-reason {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11.5px; font-weight: 700; color: var(--orange-deep);
+}
+.reco-reason i { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+
+/* ---- 守望订阅行 ---- */
+.watch-row {
+  display: flex; align-items: center; gap: 16px;
+  margin-top: 22px; padding: 15px 18px;
+  border-radius: 14px; background: var(--cream-deep);
+}
+.watch-row .w-txt { flex: 1; min-width: 0; }
+.watch-row .w-txt b { font-size: 14px; display: block; margin-bottom: 3px; }
+.watch-row .w-txt span { font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; }
+.watch-row .w-tip { display: block; margin-top: 4px; font-size: 11.5px; color: var(--ink-faint); }
+
+/* ============================================================
+   右侧抽屉（聊天 / 通知）—— teleport 到 body，必须全局
+   ============================================================ */
+.drawer-mask {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(27, 26, 23, .4);
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s ease;
+}
+.drawer-mask.open { opacity: 1; pointer-events: auto; }
+.inbox-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 210;
+  width: min(420px, 94vw);
+  background: var(--paper);
+  box-shadow: -20px 0 60px rgba(27, 26, 23, .18);
+  display: flex; flex-direction: column;
+  transform: translateX(105%);
+  transition: transform .38s cubic-bezier(.22, 1, .36, 1);
+  padding-top: var(--safe-top);
+}
+.inbox-drawer.open { transform: none; }
+.inbox-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px; border-bottom: 1px solid var(--line); flex: none;
+}
+.inbox-head h3 { font-size: 17px; }
+.inbox-x {
+  width: 34px; height: 34px; border: 0; border-radius: 10px;
+  background: var(--cream-deep); color: var(--ink-soft);
+  font-size: 14px; cursor: pointer; transition: all .18s;
+}
+.inbox-x:hover { background: var(--line); color: var(--ink); }
+.inbox-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.inbox-empty { padding: 48px 24px; text-align: center; color: var(--ink-faint); font-size: 13px; line-height: 1.8; }
+
+/* 通知分栏 */
+.inbox-tabs { display: flex; gap: 6px; padding: 13px 20px 0; flex: none; }
+.inbox-tab {
+  border: 0; cursor: pointer; padding: 8px 14px; border-radius: 999px;
+  background: var(--cream-deep); color: var(--ink-soft);
+  font-family: inherit; font-size: 12.5px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: all .18s cubic-bezier(.22, 1, .36, 1);
+}
+.inbox-tab:hover { color: var(--ink); transform: translateY(-1px); }
+.inbox-tab.on { background: var(--ink); color: #fff; }
+.inbox-tab i {
+  font-style: normal; background: var(--rose); color: #fff;
+  border-radius: 999px; font-size: 10px; font-weight: 800; padding: 1px 6px;
+}
+.inbox-list { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; }
+.inbox-ntf {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 13px 14px; border-radius: 12px; background: var(--cream);
+  cursor: pointer; transition: all .18s;
+}
+.inbox-ntf:hover { background: var(--orange-soft); }
+.inbox-ntf.unread { box-shadow: inset 3px 0 0 var(--orange); }
+.inbox-ntf b { font-size: 13px; display: block; margin-bottom: 2px; }
+.inbox-ntf p { font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
+.inbox-ntf small { font-size: 10.5px; color: var(--ink-faint); display: block; margin-top: 4px; }
+.inbox-foot { padding: 0 16px 16px; flex: none; }
+
+/* 会话 */
+.inbox-convs { flex: 1; overflow-y: auto; }
+.inbox-conv {
+  display: flex; gap: 13px; padding: 15px 20px; cursor: pointer;
+  border-bottom: 1px solid var(--line); transition: background .15s;
+}
+.inbox-conv:hover { background: var(--cream); }
+.inbox-conv.on { background: var(--orange-soft); }
+.inbox-ava {
+  width: 44px; height: 44px; border-radius: 14px; flex: none;
+  display: grid; place-items: center;
+  background: var(--orange-soft); color: var(--orange-deep);
+  font-size: 16px; font-weight: 800;
+}
+.inbox-conv-main { flex: 1; min-width: 0; }
+.inbox-conv-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.inbox-conv-top b { font-size: 14px; }
+.inbox-conv-top span { font-size: 11px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.inbox-conv-last {
+  font-size: 12.5px; color: var(--ink-soft); margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.inbox-thread { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.inbox-thread-head { padding: 12px 16px 0; flex: none; }
+.inbox-back { border: 0; background: none; cursor: pointer; padding: 4px 0; color: var(--orange-deep); font-weight: 700; font-size: 13px; font-family: inherit; }
+.inbox-item-card {
+  display: flex; gap: 10px; align-items: center; flex: none;
+  margin: 12px 16px 0; padding: 10px 12px;
+  background: var(--cream); border-radius: 12px; font-size: 12px; color: var(--ink-soft);
+}
+.inbox-item-card b { color: var(--ink); font-size: 12.5px; display: block; margin-bottom: 2px; }
+.inbox-msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.inbox-msg { max-width: 78%; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.7; }
+.inbox-msg.them { align-self: flex-start; background: var(--cream-deep); border-radius: 14px 14px 14px 4px; }
+.inbox-msg.me { align-self: flex-end; background: var(--orange); color: #fff; border-radius: 14px 14px 4px 14px; }
+.inbox-msg small { display: block; font-size: 10px; opacity: .6; margin-top: 4px; }
+.inbox-input { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--line); flex: none; }
+.inbox-input input {
+  flex: 1; min-width: 0; padding: 11px 16px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--paper);
+  font-family: inherit; font-size: 13.5px; color: var(--ink); outline: none;
+  transition: border-color .2s;
+}
+.inbox-input input:focus { border-color: var(--orange); }
+.inbox-input button {
+  border: 0; border-radius: 999px; padding: 0 20px; cursor: pointer;
+  background: var(--orange); color: #fff; font-family: inherit; font-weight: 700; font-size: 13.5px;
+  transition: background .2s, transform .15s;
+}
+.inbox-input button:hover { background: var(--orange-deep); }
+.inbox-input button:active { transform: scale(.95); }
+.inbox-input button:disabled { opacity: .55; cursor: default; }
+
+/* ============================================================
+   分享海报弹层
+   ============================================================ */
+.poster-mask {
+  position: fixed; inset: 0; z-index: 220;
+  display: grid; place-items: center;
+  background: rgba(27, 26, 23, .5);
+  opacity: 0; pointer-events: none; transition: opacity .3s ease;
+}
+.poster-mask.open { opacity: 1; pointer-events: auto; }
+.poster-card {
+  width: min(340px, 88vw); max-height: 92vh; overflow-y: auto;
+  background: var(--paper); border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(27, 26, 23, .3);
+  transform: translateY(24px) scale(.96);
+  transition: transform .38s cubic-bezier(.22, 1, .36, 1);
+}
+.poster-mask.open .poster-card { transform: none; }
+.poster-ph { aspect-ratio: 1 / .72; background: var(--orange-soft); display: grid; place-items: center; overflow: hidden; }
+.poster-ph img { width: 100%; height: 100%; object-fit: cover; }
+.poster-body { padding: 20px 22px 22px; }
+.poster-body h4 { font-size: 17px; margin-bottom: 6px; line-height: 1.5; }
+.poster-body p { font-size: 12.5px; color: var(--ink-soft); line-height: 1.7; }
+.poster-foot { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 18px; gap: 12px; }
+.poster-brand b { font-size: 14px; }
+.poster-brand span { display: block; font-size: 10.5px; color: var(--ink-faint); margin-top: 2px; }
+.poster-qr { display: grid; grid-template-columns: repeat(21, 1fr); width: 74px; height: 74px; background: #fff; padding: 5px; border-radius: 8px; box-shadow: 0 1px 3px rgba(27, 26, 23, .12); flex: none; }
+.poster-qr i { background: transparent; }
+.poster-qr i.d { background: var(--ink); border-radius: 1px; }
+.poster-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .inbox-drawer, .poster-card { transition: none; }
+  .reveal { transition-delay: 0ms; }
+}
 
 /* ---- M-P0 移动端适配：底部安全区（iPhone Home Indicator / Android 手势条） ---- */
 @media (max-width: 720px) {

@@ -20,6 +20,22 @@ const props = defineProps({
 const fav = ref(props.favInitial)
 onMounted(() => { fav.value = props.favInitial })
 
+/* 帮转助力：纯前端本地态（后端助力表尚未建，先保证交互闭环，不虚构助力总数） */
+const BOOST_KEY = 'shiguang_boosted'
+const boosted = ref(false)
+function readBoosted() {
+  try { return JSON.parse(localStorage.getItem(BOOST_KEY) || '[]') } catch { return [] }
+}
+onMounted(() => { boosted.value = readBoosted().includes(props.item.id) })
+function boost() {
+  if (boosted.value) return
+  const set = readBoosted()
+  if (!set.includes(props.item.id)) set.push(props.item.id)
+  try { localStorage.setItem(BOOST_KEY, JSON.stringify(set.slice(-300))) } catch (e) { /* 隐私模式忽略 */ }
+  boosted.value = true
+  ElMessage.success('已帮转，这条启事会获得更多曝光')
+}
+
 async function toggleFav() {
   if (!localStorage.getItem('shiguang_token')) {
     ElMessage.warning('请先登录后收藏')
@@ -71,9 +87,19 @@ async function toggleFav() {
         </span>
       </p>
       <div class="foot">
-        <span class="views">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-          {{ item.views ?? 0 }}
+        <span class="foot-left">
+          <span class="views">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            {{ item.views ?? 0 }}
+          </span>
+          <button
+            class="boost" :class="{ done: boosted }" type="button"
+            :title="boosted ? '已帮转' : '帮这条启事扩散'"
+            @click.prevent.stop="boost"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a1 1 0 0 0 1 1h3v-9H5a1 1 0 0 0-1 1zM10 11V5a2 2 0 0 1 4 0v5h4.5a2 2 0 0 1 2 2.4l-1.2 6a2 2 0 0 1-2 1.6H10v-9z"/></svg>
+            <span>{{ boosted ? '已帮转' : '帮转' }}</span>
+          </button>
         </span>
         <span class="go">查看详情 →</span>
       </div>
@@ -157,7 +183,9 @@ async function toggleFav() {
 .foot {
   margin-top: auto; padding-top: 10px; display: flex; justify-content: space-between; align-items: center;
   color: var(--ink-faint); font-size: 12px;
+  gap: 8px;
 }
+.foot-left { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .views { display: inline-flex; align-items: center; gap: 4px; }
 .views svg { width: 13px; height: 13px; }
 .go { color: var(--orange); font-weight: 700; opacity: 0; transform: translateX(-6px); transition: all .2s; }

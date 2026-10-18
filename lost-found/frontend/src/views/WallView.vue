@@ -103,19 +103,19 @@ function switchType(t) {
 
 <template>
   <div class="page container">
-    <h1 class="page-title">{{ type === 'lost' ? '失物墙' : '招领墙' }}</h1>
-    <p class="page-sub">
+    <h1 class="page-title" v-reveal>{{ type === 'lost' ? '失物墙' : '招领墙' }}</h1>
+    <p class="page-sub" v-reveal="{ delay: 60 }">
       {{ type === 'lost' ? '同学们发布的寻物启事，看看有没有你捡到的东西' : '好心人捡到的物品都在这里，快看看有没有你的' }}
     </p>
 
     <!-- 类型切换大按钮（G 版式：实色方块、无渐变无旋转） -->
-    <div class="type-switch">
+    <div class="type-switch" v-reveal="{ delay: 110 }">
       <button :class="{ on: type === 'lost' }" @click="switchType('lost')">我丢了东西</button>
       <button :class="{ on: type === 'found', mint: true }" @click="switchType('found')">我捡到东西</button>
     </div>
 
     <!-- 搜索栏（2026-10-17 重设计：渐变光晕胶囊搜索条，见 Prompt/前端prompt/搜索框.md） -->
-    <div class="search-area">
+    <div class="search-area" v-reveal="{ delay: 150 }">
       <GradientSearchBar
         v-model:keyword="keyword"
         v-model:location="location"
@@ -140,7 +140,7 @@ function switchType(t) {
     </div>
 
     <!-- 分类 chips -->
-    <div class="cats">
+    <div class="cats" v-reveal="{ delay: 190 }">
       <span class="chip" :class="{ on: category === '' }" @click="category = ''">全部</span>
       <span
         v-for="c in CATEGORIES" :key="c.name"
@@ -149,7 +149,7 @@ function switchType(t) {
       >{{ c.emoji }} {{ c.name }}</span>
     </div>
 
-    <p class="count">共 <b>{{ total }}</b> 条启事</p>
+    <p class="count" v-reveal="{ delay: 220 }">共 <b>{{ total }}</b> 条启事</p>
 
     <!-- 错误态 + 重试（审查 2.31） -->
     <el-empty v-if="error" :description="error">
@@ -157,7 +157,7 @@ function switchType(t) {
     </el-empty>
 
     <template v-else>
-      <div v-if="list.length" class="grid-cards" v-loading="loading">
+      <div v-if="list.length" class="grid-cards" v-reveal="{ delay: 260 }" v-loading="loading">
         <ItemCard v-for="it in list" :key="it.id" :item="it" />
       </div>
       <el-empty v-else description="没有匹配的启事，换个条件试试～">

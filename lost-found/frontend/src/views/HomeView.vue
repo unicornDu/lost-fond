@@ -5,6 +5,7 @@ import ItemCard from '../components/ItemCard.vue'
 import { CATEGORIES } from '../constants/catalog'
 import { api } from '../api'
 import { assetUrl } from '../utils/asset'
+import { useUserStore } from '../stores/user'
 
 /**
  * 首页（G 版式：非对称编辑 Hero + 计数统计 + 特稿跨列卡）。
@@ -16,6 +17,8 @@ const latestFound = ref([])
 const stats = ref({ reunited: 0, lostCount: 0, foundCount: 0 })
 const error = ref('')
 const scene = ref(null)   // 右侧发现现场卡 = 最新一条招领启事
+const reco = ref([])      // 为你推荐：{ item, reason }
+const user = useUserStore()
 
 async function load() {
   error.value = ''
@@ -32,6 +35,33 @@ async function load() {
     runCounters()
   } catch (e) {
     error.value = e.message || '加载首页数据失败'
+  }
+  loadReco()
+}
+
+/* 为你推荐（规则版）：取我的收藏品类 → 每类拉最新启事 → 去重取 3 条。
+   未登录或没有收藏时不渲染该区块，避免与「最新招领」重复。 */
+async function loadReco() {
+  if (!user.info) { reco.value = []; return }
+  try {
+    const favs = await api.favorites({ page: 1, size: 30 })
+    const cats = [...new Set((favs.records || []).map((i) => i.category).filter(Boolean))].slice(0, 2)
+    if (!cats.length) { reco.value = []; return }
+    const lists = await Promise.all(
+      cats.map((c) => api.listItems({ category: c, sort: 'new', page: 1, size: 4 }).catch(() => ({ records: [] }))),
+    )
+    const seen = new Set()
+    const out = []
+    lists.forEach((res, idx) => {
+      for (const it of res.records || []) {
+        if (seen.has(it.id)) continue
+        seen.add(it.id)
+        out.push({ item: it, reason: `因为你收藏过「${cats[idx]}」` })
+      }
+    })
+    reco.value = out.slice(0, 3)
+  } catch (e) {
+    reco.value = []
   }
 }
 
@@ -64,16 +94,16 @@ onMounted(load)
     <!-- ① G 版式 Hero：左编辑式大标题 / 右发现现场卡 -->
     <section class="hero container">
       <div class="hero-left">
-        <p class="kicker"><i></i>校园失物招领平台 · LOST &amp; FOUND</p>
+        <p class="kicker" v-reveal><i></i>校园失物招领平台 · LOST &amp; FOUND</p>
         <h1 class="hero-title">
           <SplitText text="丢了东西？" :stagger="60" /><br />
           <SplitText text="一张照片帮你找回" :stagger="50" :delay="350" />
         </h1>
-        <p class="hero-sub">
+        <p class="hero-sub" v-reveal="{ delay: 90 }">
           上传物品照片，感知哈希算法（pHash）为它生成 64 位「长相指纹」，与全校失物与招领启事秒级比对——
           不只是关键词搜索，而是「认得长相」的搜索。
         </p>
-        <div class="hero-cta">
+        <div class="hero-cta" v-reveal="{ delay: 160 }">
           <el-button type="primary" size="large" round @click="$router.push('/search-image')">
             上传照片，搜一搜
           </el-button>
@@ -81,7 +111,7 @@ onMounted(load)
             浏览失物墙
           </el-button>
         </div>
-        <div class="hero-stats">
+        <div class="hero-stats" v-reveal="{ delay: 220 }">
           <div class="num"><b><span id="stat-reunited">{{ stats.reunited }}</span></b><span>件失物已找回</span></div>
           <div class="num"><b><span id="stat-lostCount">{{ stats.lostCount }}</span></b><span>条寻物启事</span></div>
           <div class="num"><b><span id="stat-foundCount">{{ stats.foundCount }}</span></b><span>条招领启事</span></div>
@@ -89,52 +119,69 @@ onMounted(load)
       </div>
 
       <!-- 右侧：发现现场（最新一条招领启事） -->
-      <RouterLink v-if="scene" :to="`/item/${scene.id}`" class="scene">
-        <div class="scene-note"><b>{{ scene.views ?? 0 }}</b> 次浏览 · 最新招领</div>
-        <div class="scene-card">
-          <div class="scene-ph">
-            <img v-if="scene.thumb || scene.img" :src="assetUrl(scene.thumb || scene.img)" :alt="scene.title" />
+      <div v-if="scene" v-reveal="{ delay: 120 }" class="scene-wrap">
+        <RouterLink :to="`/item/${scene.id}`" class="scene">
+          <div class="scene-note"><b>{{ scene.views ?? 0 }}</b> 次浏览 · 最新招领</div>
+          <div class="scene-card">
+            <div class="scene-ph">
+              <img v-if="scene.thumb || scene.img" :src="assetUrl(scene.thumb || scene.img)" :alt="scene.title" />
+            </div>
+            <div class="scene-cap">
+              <b>{{ scene.title }}</b>
+              <span>{{ scene.location }} · {{ (scene.time || '').slice(5, 16) }}</span>
+            </div>
           </div>
-          <div class="scene-cap">
-            <b>{{ scene.title }}</b>
-            <span>{{ scene.location }} · {{ (scene.time || '').slice(5, 16) }}</span>
+          <div class="match-chip">
+            <span class="pct">pHash</span>
+            <span><b>已加入指纹库</b><small>以图搜图可直接命中这条招领</small></span>
           </div>
-        </div>
-        <div class="match-chip">
-          <span class="pct">pHash</span>
-          <span><b>已加入指纹库</b><small>以图搜图可直接命中这条招领</small></span>
-        </div>
-      </RouterLink>
+        </RouterLink>
+      </div>
     </section>
 
     <!-- ② 分类快捷入口 -->
     <section class="container cats">
       <span
-        v-for="c in CATEGORIES" :key="c.name"
+        v-for="(c, i) in CATEGORIES" :key="c.name"
         class="chip"
+        v-reveal="{ delay: i * 45 }"
         @click="$router.push({ path: '/wall', query: { cat: c.name } })"
       >{{ c.emoji }} {{ c.name }}</span>
     </section>
 
     <!-- ③ 最新寻物（桌面端首卡跨两列特稿） -->
     <section class="container">
-      <div class="section-head">
+      <div class="section-head" v-reveal>
         <h2>最新<em>寻物</em>启事</h2>
         <span class="more" @click="$router.push('/wall?type=lost')">查看全部 →</span>
       </div>
-      <div class="grid-cards feat-grid">
+      <div class="grid-cards feat-grid" v-reveal="{ delay: 60 }">
         <ItemCard v-for="(it, i) in latestLost" :key="it.id" :item="it" :featured="i === 0" />
       </div>
     </section>
 
     <!-- ④ 最新招领 -->
     <section class="container">
-      <div class="section-head">
+      <div class="section-head" v-reveal>
         <h2>最新<em>招领</em>启事</h2>
         <span class="more" @click="$router.push('/wall?type=found')">查看全部 →</span>
       </div>
-      <div class="grid-cards">
+      <div class="grid-cards" v-reveal="{ delay: 60 }">
         <ItemCard v-for="it in latestFound" :key="it.id" :item="it" />
+      </div>
+    </section>
+
+    <!-- ⑤ 为你推荐（规则版：基于收藏品类；未登录/无收藏不渲染） -->
+    <section v-if="reco.length" class="container">
+      <div class="section-head" v-reveal>
+        <h2>为你<em>推荐</em></h2>
+        <span class="more" @click="$router.push('/wall?type=found')">去失物墙逛逛 →</span>
+      </div>
+      <div class="grid-cards">
+        <div v-for="(r, i) in reco" :key="'r' + r.item.id" v-reveal="{ delay: i * 70 }" class="reco-block">
+          <span class="reco-reason"><i></i>{{ r.reason }}</span>
+          <ItemCard :item="r.item" />
+        </div>
       </div>
     </section>
   </div>
@@ -159,6 +206,7 @@ onMounted(load)
 .hero-stats .num span { display: block; font-size: 12.5px; color: var(--ink-faint); margin-top: 5px; letter-spacing: 1px; }
 
 /* 右侧发现现场卡 */
+.scene-wrap { position: relative; }
 .scene { position: relative; display: block; }
 .scene-note {
   position: absolute; right: -14px; top: -18px; z-index: 2;
@@ -189,6 +237,9 @@ onMounted(load)
 .match-chip small { font-size: 11.5px; color: #B8B2A6; line-height: 1.6; display: block; }
 
 .cats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 44px; }
+
+/* 为你推荐：理由签 + 卡片等高 */
+.reco-block :deep(.item-card) { flex: 1; }
 
 /* 特稿卡：桌面端首卡跨两列 + 横排（编辑层级） */
 @media (min-width: 1021px) {
