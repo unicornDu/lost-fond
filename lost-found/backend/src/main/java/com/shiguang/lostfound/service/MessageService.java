@@ -36,6 +36,13 @@ public class MessageService {
     /** E-03：同一目标消息 60 秒内仅可回复 1 次（单机内存节流，与限流/浏览去重同取舍）。 */
     private static final long REPLY_THROTTLE_MS = 60 * 1000L;
     private final ConcurrentHashMap<Long, Long> replyAt = new ConcurrentHashMap<>();
+    /** 2026-10-18 审查修复：节流表容量上限，防止海量消息 ID 刷爆内存。 */
+    private static final int MAX_THROTTLE_ENTRIES = 10000;
+
+    private void pruneReplyAt(long now) {
+        if (replyAt.size() <= MAX_THROTTLE_ENTRIES) return;
+        replyAt.entrySet().removeIf(e -> now - e.getValue() > REPLY_THROTTLE_MS);
+    }
 
     private static final int MAX_REPLY = 200;   // E-03：回复正文上限（拼前缀后仍可控制在 content 列宽内）
 
@@ -97,6 +104,7 @@ public class MessageService {
         if (text.length() > MAX_REPLY) throw new BusinessException(400, "回复最多 " + MAX_REPLY + " 字");
 
         Long now = System.currentTimeMillis();
+        pruneReplyAt(now);
         Long last = replyAt.get(messageId);
         if (last != null && now - last < REPLY_THROTTLE_MS)
             throw new BusinessException(400, "回复太频繁，请稍后再试");

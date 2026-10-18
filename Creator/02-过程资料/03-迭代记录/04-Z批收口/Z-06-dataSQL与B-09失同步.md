@@ -54,7 +54,7 @@ SELECT claimant_id, status FROM claim_record WHERE item_id=1;
 |---|---|---|---|
 | `Creator/01-交付文档/运行说明/README.md` | 35、87 | 目录树 + 方案 a 命令 | 删方案 a，目录树去掉 data.sql |
 | `Creator/01-交付文档/运行说明/00-项目知识点与结构详解-新手版.md` | 209、315 | 目录树 + "mysqldump 导出的初始化数据" | 改为"离线备份由 scripts/backup.sh 产出" |
-| `Creator/01-交付文档/运行说明/启动步骤-MarkDone.md` | 71 | "备选方案：`mysql … < data.sql`" | 删除该备选，指向自动播种 |
+| `Creator/01-交付文档/运行说明/01-启动步骤.md`（改名前：启动步骤-MarkDone.md） | 71 | "备选方案：`mysql … < data.sql`" | 删除该备选，指向自动播种 |
 | `Creator/01-交付文档/运行说明/项目结构.md` | 72、138、147 | 文件清单 + M7 + 已完成清单 | 去掉 data.sql |
 | `Creator/01-交付文档/06-数据库设计…` | 5、190 | "初始化数据：data.sql" + "仅作离线备份" | 保留"离线备份"表述，删掉"初始化数据"说法 |
 

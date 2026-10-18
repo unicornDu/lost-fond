@@ -4,8 +4,9 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   build: {
-    // 修复 F-06：大依赖拆独立 chunk 利于缓存与首屏；阈值放宽到 900kB 消除误报
-    chunkSizeWarningLimit: 900,
+    // 修复 F-06：大依赖拆独立 chunk 利于缓存与首屏；阈值 1000kB（与"无 >1000kB 单文件"口径一致，
+    // element-plus 单 chunk 约 965kB 属预期，原 900 只会持续误报）。2026-10-18 审查调整。
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         // 修复 F-11（生产构建白屏）：element-plus 曾按组件首字母拆成 a/b 两个 chunk，

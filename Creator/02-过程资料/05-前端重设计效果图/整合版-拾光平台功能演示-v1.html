@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>拾光平台 · 功能整合演示版 v1（基于方案G扩展）</title>
+<style>
+/* ============================================================
+   拾光平台 · 功能整合演示版 v1
+   基底：方案 G「拾光排版 · 编辑叙事版式」（样式与骨架不变）
+   叠加：聊天会话 / 通知中心 / 认领时间线+暗号核验 / 守望订阅 /
+         为你推荐 / 帮转助力 / 找回故事墙 / 分享海报
+   性能约定不变：仅 transform/opacity 动画，IO 触发，reduced-motion 降级
+   ============================================================ */
+:root {
+  --bg: #FBFAF7;
+  --surface: #FFFFFF;
+  --ink: #1B1A17;
+  --ink-2: #6C675E;
+  --ink-3: #A8A298;
+  --line: #EAE7DF;
+  --accent: #0F7A5C;
+  --accent-deep: #0A5C45;
+  --accent-soft: #E2F0EA;
+  --amber: #C2811A;
+  --amber-soft: #FBF1DC;
+  --rose: #C24B2A;
+  --rose-soft: #F9E9E4;
+  --r: 12px;
+  --sans: 'PingFang SC', 'HarmonyOS Sans SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--sans); color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+.container { width: min(1280px, 94vw); margin: 0 auto; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+::selection { background: var(--accent-soft); color: var(--accent-deep); }
+
+/* ================= 原方案G骨架（保持不变） ================= */
+.sentinel { position: absolute; top: 0; height: 1px; width: 1px; }
+.nav { position: sticky; top: 0; z-index: 50; background: rgba(251,250,247,.9); backdrop-filter: blur(10px); transition: box-shadow .25s ease; }
+.nav.scrolled { box-shadow: 0 1px 0 var(--line), 0 10px 30px rgba(27,26,23,.06); }
+.nav-inner { display: flex; align-items: center; gap: 34px; height: 68px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand b { font-size: 19px; font-weight: 800; letter-spacing: 1px; }
+.brand small { font-size: 10.5px; color: var(--ink-3); letter-spacing: 2.5px; }
+.nav-links { display: flex; gap: 28px; margin-left: auto; }
+.nav-links a { position: relative; font-size: 14px; font-weight: 600; color: var(--ink-2); padding: 4px 0; }
+.nav-links a::after { content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .3s var(--ease); }
+.nav-links a:hover { color: var(--ink); }
+.nav-links a:hover::after, .nav-links a.on::after { transform: scaleX(1); }
+.nav-links a.on { color: var(--ink); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 0; border-radius: 10px; font-weight: 700; font-size: 14.5px; padding: 14px 26px; position: relative; overflow: hidden; transition: transform .18s ease, background .2s ease, color .25s ease, box-shadow .25s ease; }
+.btn:active { transform: scale(.97) translateY(1px); }
+.btn-primary { background: var(--ink); color: #fff; }
+.btn-primary::before { content: ''; position: absolute; top: 0; left: -85%; width: 55%; height: 100%; background: linear-gradient(105deg, transparent, rgba(255,255,255,.3), transparent); transform: skewX(-18deg); transition: left .55s ease; }
+.btn-primary:hover::before { left: 135%; }
+.btn-primary:hover { box-shadow: 0 12px 26px rgba(27,26,23,.2); transform: translateY(-2px); }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-accent::before { content: ''; position: absolute; top: 0; left: -85%; width: 55%; height: 100%; background: linear-gradient(105deg, transparent, rgba(255,255,255,.36), transparent); transform: skewX(-18deg); transition: left .55s ease; }
+.btn-accent:hover::before { left: 135%; }
+.btn-accent:hover { background: var(--accent-deep); box-shadow: 0 12px 26px rgba(15,122,92,.3); transform: translateY(-2px); }
+.btn-ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+.btn-ghost:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.btn-sm { padding: 10px 18px; font-size: 13px; }
+
+.mask { display: inline-block; overflow: hidden; vertical-align: bottom; }
+.split .ch { display: inline-block; white-space: pre; transform: translateY(1.05em); transition: transform .9s var(--ease); transition-delay: calc(var(--d) * 45ms); }
+.split.in .ch { transform: translateY(0); }
+.rv { opacity: 0; transform: translateY(30px); transition: opacity .8s var(--ease), transform .8s var(--ease); transition-delay: calc(var(--i, 0) * 90ms); }
+.rv.in { opacity: 1; transform: none; }
+
+.hero { display: grid; grid-template-columns: 1.12fr .88fr; gap: 64px; align-items: center; padding: 92px 0 72px; }
+.kicker { font-size: 12.5px; font-weight: 700; letter-spacing: 3px; color: var(--ink-3); margin-bottom: 26px; display: flex; align-items: center; gap: 12px; }
+.kicker i { width: 30px; height: 2px; background: var(--accent); }
+h1 { font-size: clamp(42px, 5.4vw, 66px); font-weight: 800; line-height: 1.16; letter-spacing: -1px; }
+.hero-sub { margin: 26px 0 36px; max-width: 480px; font-size: 16px; line-height: 1.95; color: var(--ink-2); }
+.hero-sub b { color: var(--ink); }
+.hero-cta { display: flex; gap: 13px; flex-wrap: wrap; }
+.hero-stats { display: flex; gap: 52px; margin-top: 62px; }
+.hero-stats .num b { font-size: 36px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.hero-stats .num span { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 5px; letter-spacing: 1px; }
+.scene { position: relative; }
+.scene-card { background: var(--surface); border-radius: 20px; padding: 14px; box-shadow: 0 1px 2px rgba(27,26,23,.05), 0 30px 70px rgba(27,26,23,.12); }
+.scene-ph { border-radius: 12px; aspect-ratio: 4/3.4; background: var(--accent-soft); display: grid; place-items: center; overflow: hidden; }
+.scene-cap { display: flex; justify-content: space-between; align-items: center; padding: 14px 6px 6px; }
+.scene-cap b { font-size: 14px; }
+.scene-cap span { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); }
+.match-chip { position: absolute; left: -34px; bottom: 46px; background: var(--ink); color: #fff; border-radius: 14px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 18px 40px rgba(27,26,23,.28); }
+.match-chip .pct { font-family: var(--mono); font-size: 22px; font-weight: 800; color: #7CE8C8; }
+.match-chip small { font-size: 11.5px; color: #B8B2A6; line-height: 1.6; display: block; }
+.match-chip b { font-size: 13px; }
+.scene-note { position: absolute; right: -16px; top: -18px; background: var(--surface); border-radius: 12px; padding: 12px 16px; box-shadow: 0 14px 34px rgba(27,26,23,.14); font-size: 12px; color: var(--ink-2); font-weight: 600; }
+.scene-note b { color: var(--accent-deep); font-family: var(--mono); }
+
+.sec { padding: 88px 0 8px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 30px; gap: 16px; flex-wrap: wrap; }
+.sec-head h2 { font-size: clamp(26px, 3vw, 34px); font-weight: 800; letter-spacing: -.5px; }
+.sec-head .more { font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.sec-head .more:hover { color: var(--accent); }
+.sec-tag { font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--accent-deep); background: var(--accent-soft); padding: 6px 13px; border-radius: 999px; }
+
+.cats { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 0 6px; }
+.chip { padding: 10px 18px; border-radius: 10px; border: 0; background: var(--surface); color: var(--ink-2); font-size: 13.5px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(27,26,23,.05); transition: all .2s var(--ease); font-variant-numeric: tabular-nums; }
+.chip small { color: var(--ink-3); margin-left: 5px; }
+.chip:hover { color: var(--ink); transform: translateY(-2px); box-shadow: 0 8px 18px rgba(27,26,23,.08); }
+.chip.on { background: var(--ink); color: #fff; }
+.chip.on small { color: rgba(255,255,255,.55); }
+
+.grid-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.item-card { display: flex; flex-direction: column; background: var(--surface); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(27,26,23,.05); transition: transform .22s var(--ease), box-shadow .25s ease; }
+.item-card:hover { transform: translateY(-5px); box-shadow: 0 20px 44px rgba(27,26,23,.1); }
+.cover { position: relative; aspect-ratio: 4/3; display: grid; place-items: center; overflow: hidden; background: #F0EEE8; }
+.cover svg { transition: transform .5s var(--ease); }
+.item-card:hover .cover svg { transform: scale(1.06); }
+.cover.c2 { background: #E7EFEA; }
+.cover.c3 { background: #F1EDE2; }
+.cover.c4 { background: #EAEEF1; }
+.item-card.featured { grid-column: span 2; display: grid; grid-template-columns: 1.1fr .9fr; }
+.item-card.featured .cover { aspect-ratio: auto; height: 100%; min-height: 268px; }
+.item-card.featured .body { padding: 24px 26px; justify-content: center; }
+.item-card.featured h3 { font-size: 19px; }
+.status { position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; padding: 5px 11px; border-radius: 6px; }
+.status.lost { background: var(--ink); color: #fff; }
+.status.found { background: var(--accent); color: #fff; }
+.fav { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border: 0; border-radius: 8px; background: rgba(255,255,255,.94); color: var(--ink-3); font-size: 14px; transition: all .18s var(--ease); }
+.fav:hover { color: var(--accent); transform: scale(1.12); }
+.fav.on { color: var(--accent); }
+.body { padding: 15px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.body h3 { font-size: 15px; font-weight: 700; }
+.cat-line { font-size: 11.5px; color: var(--ink-3); letter-spacing: 1px; }
+.meta { display: flex; gap: 14px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.foot { margin-top: auto; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--ink-3); }
+.foot .go { color: var(--accent); font-weight: 700; }
+
+.search-sec { margin: 96px 0 0; padding: 60px; background: var(--surface); border-radius: 22px; box-shadow: 0 1px 2px rgba(27,26,23,.05); display: grid; grid-template-columns: .95fr 1.05fr; gap: 56px; }
+.search-sec h2 { font-size: 28px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 14px; }
+.search-sec .desc { font-size: 15px; line-height: 1.95; color: var(--ink-2); margin-bottom: 30px; }
+.steps { position: relative; display: flex; flex-direction: column; gap: 6px; padding-left: 6px; }
+.steps::before { content: ''; position: absolute; left: 18px; top: 20px; bottom: 20px; width: 2px; background: var(--line); border-radius: 2px; }
+.step { display: flex; gap: 16px; align-items: flex-start; padding: 12px 6px; }
+.step-no { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--bg); border: 2px solid var(--line); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: var(--ink-3); z-index: 1; }
+.step h4 { font-size: 14.5px; font-weight: 700; margin-bottom: 3px; }
+.step p { font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+.step p code { font-family: var(--mono); font-size: 11.5px; color: var(--accent-deep); }
+.result-list { display: flex; flex-direction: column; gap: 10px; }
+.result-head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-3); letter-spacing: 1px; margin-bottom: 4px; }
+.result-head .ms { font-family: var(--mono); color: var(--accent-deep); }
+.result { display: flex; align-items: center; gap: 16px; padding: 15px 16px; border-radius: 12px; background: var(--bg); transition: all .2s var(--ease); }
+.result:hover { background: var(--accent-soft); transform: translateX(5px); }
+.result .thumb { width: 56px; height: 56px; border-radius: 10px; background: var(--surface); display: grid; place-items: center; flex: none; box-shadow: 0 1px 2px rgba(27,26,23,.06); }
+.result .info { flex: 1; min-width: 0; }
+.result .info b { font-size: 14.5px; display: block; margin-bottom: 3px; }
+.result .info span { font-size: 12px; color: var(--ink-3); }
+.sim-badge { flex: none; font-family: var(--mono); font-weight: 700; font-size: 13px; padding: 6px 12px; border-radius: 8px; }
+.sim-badge.hi { background: var(--accent); color: #fff; }
+.sim-badge.mid { background: var(--accent-soft); color: var(--accent-deep); }
+.sim-badge.lo { background: #EFEDE7; color: var(--ink-2); }
+
+.footer { margin-top: 96px; background: var(--ink); color: #D8D5CC; padding: 52px 0 44px; }
+.footer-inner { display: flex; align-items: center; gap: 30px; flex-wrap: wrap; }
+.footer b.brand-f { font-size: 17px; font-weight: 800; letter-spacing: 1px; color: #fff; }
+.footer-links { display: flex; gap: 26px; margin-left: auto; font-size: 13px; }
+.footer-links a:hover { color: #fff; }
+.footer-note { margin-top: 22px; font-size: 12px; color: #8E8A80; }
+
+/* ================= 新增：功能演示导览 ================= */
+.feat-nav { display: flex; flex-wrap: wrap; gap: 10px; padding: 26px 0 0; }
+.feat-nav a { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 999px; background: var(--surface); box-shadow: 0 1px 2px rgba(27,26,23,.06); font-size: 13px; font-weight: 700; color: var(--ink-2); transition: all .2s var(--ease); }
+.feat-nav a:hover { color: var(--accent-deep); background: var(--accent-soft); transform: translateY(-2px); }
+.feat-nav a i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); font-style: normal; }
+
+/* ================= 新增：帮转助力 ================= */
+.boost { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--ink-3); transition: all .2s var(--ease); }
+.boost svg { width: 13px; height: 13px; }
+.boost:hover { background: var(--accent-soft); color: var(--accent-deep); transform: translateY(-1px); }
+.boost.done { background: var(--accent-soft); color: var(--accent-deep); cursor: default; }
+
+/* ================= 新增：认领流程演示（时间线 + 暗号核验） ================= */
+.claim-demo { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; background: var(--surface); border-radius: 22px; padding: 52px 56px; box-shadow: 0 1px 2px rgba(27,26,23,.05); }
+.claim-info h2 { font-size: 28px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 12px; }
+.claim-info .desc { font-size: 14.5px; line-height: 1.95; color: var(--ink-2); margin-bottom: 24px; }
+.claim-target { display: flex; gap: 16px; align-items: center; background: var(--bg); border-radius: 14px; padding: 14px 16px; margin-bottom: 26px; }
+.claim-target .thumb { width: 52px; height: 52px; border-radius: 12px; background: var(--accent-soft); display: grid; place-items: center; flex: none; }
+.claim-target b { font-size: 14.5px; display: block; }
+.claim-target span { font-size: 12px; color: var(--ink-3); }
+.tl { display: flex; justify-content: space-between; position: relative; margin: 10px 0 30px; }
+.tl::before { content: ''; position: absolute; left: 14px; right: 14px; top: 14px; height: 2px; background: var(--line); }
+.tl .tl-fill { position: absolute; left: 14px; top: 14px; height: 2px; background: var(--accent); width: 0; transition: width .8s var(--ease); }
+.tl-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 19%; }
+.tl-dot { width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: var(--ink-3); transition: all .4s var(--ease); }
+.tl-node.done .tl-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tl-node.now .tl-dot { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); box-shadow: 0 0 0 5px rgba(15,122,92,.12); }
+.tl-node span { font-size: 11.5px; color: var(--ink-3); text-align: center; line-height: 1.4; font-weight: 600; }
+.tl-node.now span { color: var(--accent-deep); font-weight: 800; }
+.claim-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.claim-status-note { font-size: 12.5px; color: var(--ink-3); margin-top: 14px; line-height: 1.8; }
+.claim-status-note b { color: var(--accent-deep); }
+/* 暗号核验卡 */
+.verify-card { background: var(--bg); border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 14px; align-self: start; }
+.verify-card h4 { font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.verify-card .q { font-size: 14px; color: var(--ink-2); line-height: 1.8; background: var(--surface); border-radius: 10px; padding: 12px 14px; }
+.verify-card .q b { color: var(--ink); }
+.verify-card input { width: 100%; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 14px; font-family: inherit; background: var(--surface); outline: none; transition: border-color .2s; }
+.verify-card input:focus { border-color: var(--accent); }
+.verify-card .hint { font-size: 12px; color: var(--ink-3); line-height: 1.7; }
+.verify-card .err { font-size: 12.5px; color: var(--rose); font-weight: 600; display: none; }
+.verify-card .err.show { display: block; }
+
+/* ================= 新增：守望订阅 ================= */
+.watch-row { display: flex; align-items: center; gap: 16px; margin-top: 26px; padding: 16px 18px; border-radius: 14px; background: var(--bg); }
+.watch-row .txt { flex: 1; }
+.watch-row .txt b { font-size: 14px; display: block; margin-bottom: 3px; }
+.watch-row .txt span { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+.switch { position: relative; width: 48px; height: 27px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .knob { position: absolute; inset: 0; background: #D9D4C8; border-radius: 999px; transition: background .25s var(--ease); }
+.switch .knob::after { content: ''; position: absolute; left: 3px; top: 3px; width: 21px; height: 21px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(27,26,23,.2); transition: transform .25s var(--ease); }
+.switch input:checked + .knob { background: var(--accent); }
+.switch input:checked + .knob::after { transform: translateX(21px); }
+
+/* ================= 新增：为你推荐 / 故事墙 ================= */
+.reco-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.reco-card { background: var(--surface); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(27,26,23,.05); transition: transform .22s var(--ease), box-shadow .25s ease; display: flex; flex-direction: column; }
+.reco-card:hover { transform: translateY(-5px); box-shadow: 0 20px 44px rgba(27,26,23,.1); }
+.reco-reason { display: flex; align-items: center; gap: 7px; padding: 12px 16px 0; font-size: 11.5px; font-weight: 700; color: var(--accent-deep); }
+.reco-reason i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); font-style: normal; }
+.story-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.story { background: var(--surface); border-radius: 16px; padding: 26px; box-shadow: 0 1px 2px rgba(27,26,23,.05); display: flex; flex-direction: column; gap: 16px; transition: transform .22s var(--ease); }
+.story:hover { transform: translateY(-4px); }
+.story .quote { font-size: 15px; line-height: 2; color: var(--ink); }
+.story .quote::before { content: '“'; font-size: 30px; color: var(--accent); line-height: 0; margin-right: 4px; font-family: Georgia, serif; }
+.story .who { display: flex; align-items: center; gap: 11px; margin-top: auto; }
+.story .avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #fff; flex: none; }
+.story .who b { font-size: 13.5px; display: block; }
+.story .who span { font-size: 11.5px; color: var(--ink-3); }
+.story .days { margin-left: auto; font-size: 11.5px; font-weight: 800; color: var(--accent-deep); background: var(--accent-soft); padding: 4px 10px; border-radius: 999px; }
+
+/* ================= 新增：抽屉（聊天 / 通知） ================= */
+.drawer-mask { position: fixed; inset: 0; background: rgba(27,26,23,.4); opacity: 0; pointer-events: none; transition: opacity .3s ease; z-index: 90; }
+.drawer-mask.open { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 94vw); background: var(--surface); z-index: 95; transform: translateX(105%); transition: transform .38s var(--ease); display: flex; flex-direction: column; box-shadow: -20px 0 60px rgba(27,26,23,.18); }
+.drawer.open { transform: translateX(0); }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+.drawer-head h3 { font-size: 17px; font-weight: 800; }
+.drawer-head .x { border: 0; background: var(--bg); width: 34px; height: 34px; border-radius: 10px; font-size: 15px; color: var(--ink-2); transition: all .18s; }
+.drawer-head .x:hover { background: var(--line); color: var(--ink); }
+/* 聊天 */
+.chat-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.conv-list { overflow-y: auto; }
+.conv { display: flex; gap: 13px; padding: 15px 20px; cursor: pointer; transition: background .15s; border-bottom: 1px solid var(--line); }
+.conv:hover { background: var(--bg); }
+.conv.on { background: var(--accent-soft); }
+.conv .c-avatar { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; font-weight: 800; font-size: 15px; color: #fff; flex: none; }
+.conv .c-main { flex: 1; min-width: 0; }
+.conv .c-top { display: flex; justify-content: space-between; align-items: baseline; }
+.conv .c-top b { font-size: 14px; }
+.conv .c-top span { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.conv .c-item { font-size: 11px; color: var(--accent-deep); background: rgba(15,122,92,.08); display: inline-block; padding: 2px 8px; border-radius: 999px; margin: 4px 0; font-weight: 700; }
+.conv .c-last { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-thread { flex: 1; display: none; flex-direction: column; min-height: 0; }
+.chat-thread.on { display: flex; }
+.thread-item-card { display: flex; gap: 10px; align-items: center; margin: 12px 16px 0; padding: 10px 12px; background: var(--bg); border-radius: 12px; font-size: 12px; color: var(--ink-2); }
+.thread-item-card .t-thumb { width: 38px; height: 38px; border-radius: 9px; background: var(--accent-soft); display: grid; place-items: center; flex: none; }
+.thread-item-card b { color: var(--ink); font-size: 12.5px; display: block; }
+.thread-back { border: 0; background: none; color: var(--accent-deep); font-weight: 700; font-size: 13px; padding: 4px 0; }
+.msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 78%; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.7; }
+.msg.them { align-self: flex-start; background: var(--bg); border-radius: 14px 14px 14px 4px; }
+.msg.me { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 14px 14px 4px 14px; }
+.msg small { display: block; font-size: 10px; opacity: .55; margin-top: 4px; }
+.msg-sys { align-self: center; font-size: 11px; color: var(--ink-3); background: var(--bg); padding: 5px 12px; border-radius: 999px; }
+.chat-input { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--line); }
+.chat-input input { flex: 1; border: 1.5px solid var(--line); border-radius: 999px; padding: 11px 16px; font-size: 13.5px; font-family: inherit; outline: none; transition: border-color .2s; }
+.chat-input input:focus { border-color: var(--accent); }
+.chat-input button { border: 0; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 700; padding: 0 20px; transition: background .2s, transform .15s; }
+.chat-input button:hover { background: var(--accent-deep); }
+.chat-input button:active { transform: scale(.95); }
+/* 通知 */
+.ntf-tabs { display: flex; gap: 6px; padding: 12px 20px 0; }
+.ntf-tabs button { border: 0; background: var(--bg); padding: 8px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: var(--ink-2); transition: all .18s; position: relative; }
+.ntf-tabs button.on { background: var(--ink); color: #fff; }
+.ntf-tabs button i { font-style: normal; background: var(--rose); color: #fff; border-radius: 999px; font-size: 10px; padding: 1px 6px; margin-left: 5px; }
+.ntf-list { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; }
+.ntf { display: flex; gap: 12px; padding: 13px 14px; border-radius: 12px; background: var(--bg); transition: all .18s; cursor: pointer; }
+.ntf:hover { background: var(--accent-soft); }
+.ntf.unread { box-shadow: inset 3px 0 0 var(--accent); }
+.ntf .n-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+.ntf .n-ico svg { width: 16px; height: 16px; }
+.ntf .n-main b { font-size: 13px; display: block; margin-bottom: 2px; }
+.ntf .n-main p { font-size: 12px; color: var(--ink-2); line-height: 1.6; }
+.ntf .n-main small { font-size: 10.5px; color: var(--ink-3); display: block; margin-top: 4px; }
+.ntf-clear { margin: 0 16px 16px; }
+
+/* ================= 新增：分享海报弹层 ================= */
+.poster-mask { position: fixed; inset: 0; background: rgba(27,26,23,.5); display: grid; place-items: center; opacity: 0; pointer-events: none; transition: opacity .3s ease; z-index: 96; }
+.poster-mask.open { opacity: 1; pointer-events: auto; }
+.poster { width: min(340px, 88vw); background: var(--surface); border-radius: 20px; overflow: hidden; transform: translateY(24px) scale(.96); transition: transform .38s var(--ease); box-shadow: 0 30px 80px rgba(27,26,23,.3); }
+.poster-mask.open .poster { transform: none; }
+.poster-ph { aspect-ratio: 1/.72; background: var(--accent-soft); display: grid; place-items: center; }
+.poster-body { padding: 20px 22px 22px; }
+.poster-body h4 { font-size: 17px; font-weight: 800; margin-bottom: 6px; }
+.poster-body p { font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+.poster-foot { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 18px; }
+.poster-foot .p-brand b { font-size: 14px; font-weight: 800; }
+.poster-foot .p-brand span { display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+.qr { display: grid; grid-template-columns: repeat(21, 1fr); width: 74px; height: 74px; background: #fff; padding: 5px; border-radius: 8px; box-shadow: 0 1px 3px rgba(27,26,23,.12); }
+.qr i { background: transparent; }
+.qr i.d { background: var(--ink); border-radius: 1px; }
+.poster-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+/* ================= 新增：Toast ================= */
+.toasts { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 120; display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none; }
+.toast { background: var(--ink); color: #fff; font-size: 13px; font-weight: 600; padding: 12px 22px; border-radius: 999px; box-shadow: 0 14px 34px rgba(27,26,23,.3); animation: toastIn .35s var(--ease); max-width: 86vw; }
+.toast.accent { background: var(--accent-deep); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(14px); } }
+
+/* 导航角标按钮 */
+.nav-icon { position: relative; border: 0; background: var(--bg); width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--ink-2); transition: all .18s var(--ease); }
+.nav-icon:hover { background: var(--accent-soft); color: var(--accent-deep); transform: translateY(-1px); }
+.nav-icon svg { width: 17px; height: 17px; }
+.nav-icon .dot { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--rose); color: #fff; font-size: 10px; font-weight: 800; display: grid; place-items: center; border: 2px solid var(--bg); }
+
+.mock-tag { position: fixed; left: 18px; bottom: 18px; z-index: 99; padding: 8px 14px; border-radius: 8px; background: rgba(27,26,23,.92); color: #F2F1EC; font-size: 12px; letter-spacing: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .split .ch { transform: none; transition: none; }
+  .rv { opacity: 1; transform: none; transition: none; }
+  .btn-primary::before, .btn-accent::before { display: none; }
+  .toast { animation: none; }
+}
+@media (max-width: 1020px) {
+  .hero { grid-template-columns: 1fr; padding: 56px 0 48px; }
+  .grid-cards, .reco-grid, .story-grid { grid-template-columns: 1fr 1fr; }
+  .item-card.featured { grid-column: span 2; grid-template-columns: 1fr; }
+  .item-card.featured .cover { min-height: 200px; }
+  .search-sec, .claim-demo { grid-template-columns: 1fr; padding: 34px; }
+}
+@media (max-width: 640px) {
+  .grid-cards, .reco-grid, .story-grid { grid-template-columns: 1fr; }
+  .item-card.featured { grid-column: span 1; }
+  .nav-links { display: none; }
+  .hero-stats { gap: 30px; flex-wrap: wrap; }
+  .match-chip { left: 6px; }
+  .tl-node span { font-size: 10px; }
+}
+</style>
+</head>
+<body>
+<div class="sentinel" id="sentinel"></div>
+
+<!-- ================= 导航（新增：聊天 + 通知入口） ================= -->
+<header class="nav" id="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#"><b>拾光</b><small>CAMPUS LOST &amp; FOUND</small></a>
+    <nav class="nav-links">
+      <a class="on" href="#">首页</a>
+      <a href="#wall">失物墙</a>
+      <a href="#search">以图搜图</a>
+      <a href="#reco">为你推荐</a>
+      <a href="#stories">找回故事</a>
+    </nav>
+    <div class="nav-actions" style="display:flex;gap:10px;align-items:center">
+      <button class="nav-icon" id="btnChat" title="聊天会话" aria-label="聊天会话">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>
+        <span class="dot" id="chatDot">2</span>
+      </button>
+      <button class="nav-icon" id="btnNtf" title="通知中心" aria-label="通知中心">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/></svg>
+        <span class="dot" id="ntfDot">4</span>
+      </button>
+      <button class="btn btn-primary btn-sm"><span>发布启事</span></button>
+    </div>
+  </div>
+</header>
+
+<!-- ================= Hero（原样保留） ================= -->
+<section class="hero container">
+  <div>
+    <p class="kicker rv"><i></i>校园失物招领平台</p>
+    <h1 class="split">
+      <span class="mask"><span data-split>丢了东西？</span></span><br />
+      <span class="mask"><span data-split>一张照片帮你找回</span></span>
+    </h1>
+    <p class="hero-sub rv" style="--i:2">
+      上传物品照片，<b>感知哈希 pHash</b> 为它生成 64 位长相指纹，与全校启事逐条比对汉明距离，秒级返回最像的结果。
+    </p>
+    <div class="hero-cta rv" style="--i:3">
+      <button class="btn btn-accent" onclick="document.getElementById('search').scrollIntoView({behavior:'smooth'})"><span>上传照片搜一搜</span></button>
+      <button class="btn btn-ghost" onclick="openDrawer('chatDrawer')">打开聊天会话</button>
+    </div>
+    <div class="hero-stats rv" style="--i:4">
+      <div class="num"><b><span data-count="128" id="statReunited">0</span></b><span>件失物已找回</span></div>
+      <div class="num"><b><span data-count="342">0</span></b><span>条寻物启事</span></div>
+      <div class="num"><b><span data-count="276">0</span></b><span>条招领启事</span></div>
+    </div>
+  </div>
+
+  <div class="scene rv" style="--i:2">
+    <div class="scene-note"><b>3</b> 件新招领 · 今天</div>
+    <div class="scene-card">
+      <div class="scene-ph">
+        <svg width="180" height="160" viewBox="0 0 150 130">
+          <ellipse cx="75" cy="114" rx="50" ry="7" fill="rgba(15,122,92,.12)"/>
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#0F7A5C"/>
+          <rect x="38" y="34" width="74" height="22" rx="11" fill="#0A5C45"/>
+          <circle cx="60" cy="80" r="9" fill="#FBFAF7"/>
+          <circle cx="90" cy="80" r="9" fill="#FBFAF7"/>
+        </svg>
+      </div>
+      <div class="scene-cap"><b>白色无线耳机 · 图书馆服务台</b><span>10-16 09:02</span></div>
+    </div>
+    <div class="match-chip">
+      <span class="pct">93%</span>
+      <span><b>疑似匹配到你的寻物</b><small>pHash 距离 5 / 64 · 立即认领</small></span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 新增：功能演示导览 ================= -->
+<nav class="container feat-nav rv" style="--i:1">
+  <a href="#claimDemo"><i></i>认领时间线 + 暗号核验</a>
+  <a href="#search"><i></i>以图搜图 · 守望订阅</a>
+  <a href="#reco"><i></i>为你推荐</a>
+  <a href="#stories"><i></i>找回故事墙</a>
+  <a href="#" onclick="openDrawer('chatDrawer');return false"><i></i>聊天会话</a>
+  <a href="#" onclick="openDrawer('ntfDrawer');return false"><i></i>通知中心</a>
+  <a href="#" onclick="openPoster();return false"><i></i>分享海报</a>
+</nav>
+
+<!-- ================= 失物墙（新增：帮转助力按钮） ================= -->
+<section class="sec container" id="wall">
+  <div class="sec-head rv" style="--i:0">
+    <h2>最新失物与招领</h2>
+    <a class="more" href="#">查看全部 →</a>
+  </div>
+  <div class="grid-cards">
+
+    <div class="item-card featured rv" style="--i:0">
+      <div class="cover c2">
+        <svg width="200" height="170" viewBox="0 0 150 130">
+          <ellipse cx="75" cy="114" rx="52" ry="7" fill="rgba(15,122,92,.14)"/>
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#0F7A5C"/>
+          <rect x="38" y="34" width="74" height="22" rx="11" fill="#0A5C45"/>
+          <circle cx="60" cy="80" r="9" fill="#FBFAF7"/>
+          <circle cx="90" cy="80" r="9" fill="#FBFAF7"/>
+        </svg>
+        <span class="status lost" id="featuredStatus">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>黑色 AirPods Pro 耳机</h3>
+        <div class="cat-line">电子设备 · 特稿</div>
+        <p style="font-size:13px;color:var(--ink-2);line-height:1.8">充电仓外壳有一道浅划痕，右耳硅胶套偏大。发布人已开启以图搜图提醒，捡到请直接私信。</p>
+        <div class="meta"><span>图书馆 · 三楼自习区</span><span>10-16 08:30</span></div>
+        <div class="foot">
+          <span>46 次浏览</span>
+          <span style="display:flex;gap:10px;align-items:center">
+            <button class="boost" data-boost="12">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a1 1 0 0 0 1 1h3v-9H5a1 1 0 0 0-1 1zM10 11V5a2 2 0 0 1 4 0v5h4.5a2 2 0 0 1 2 2.4l-1.2 6a2 2 0 0 1-2 1.6H10v-9z"/></svg>
+              <span class="b-txt">帮转 12</span>
+            </button>
+            <button class="boost" onclick="openPoster()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 15V3M7 8l5-5 5 5"/></svg>
+              <span class="b-txt">分享海报</span>
+            </button>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="item-card rv" style="--i:1">
+      <div class="cover c2">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <rect x="42" y="28" width="66" height="86" rx="8" fill="#0F7A5C"/>
+          <rect x="42" y="28" width="66" height="30" rx="8" fill="#0A5C45"/>
+          <circle cx="75" cy="74" r="13" fill="#FBFAF7"/>
+          <rect x="52" y="94" width="46" height="5" rx="2.5" fill="#FBFAF7" opacity=".8"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav on">★</button>
+      </div>
+      <div class="body">
+        <h3>蓝色海豚卡套的校园卡</h3>
+        <div class="cat-line">证件卡类 · 已存至第二食堂服务台</div>
+        <div class="meta"><span>第二食堂 · 一楼</span><span>10-15 12:10</span></div>
+        <div class="foot">
+          <span>132 次浏览</span>
+          <button class="boost" data-boost="28">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a1 1 0 0 0 1 1h3v-9H5a1 1 0 0 0-1 1zM10 11V5a2 2 0 0 1 4 0v5h4.5a2 2 0 0 1 2 2.4l-1.2 6a2 2 0 0 1-2 1.6H10v-9z"/></svg>
+            <span class="b-txt">帮转 28</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="item-card rv" style="--i:2">
+      <div class="cover c3">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <circle cx="75" cy="52" r="18" fill="none" stroke="#8A8478" stroke-width="7"/>
+          <rect x="66" y="68" width="9" height="34" rx="3" fill="#0F7A5C"/>
+          <rect x="66" y="88" width="18" height="5" rx="2.5" fill="#0F7A5C"/>
+          <rect x="66" y="96" width="14" height="5" rx="2.5" fill="#0F7A5C"/>
+          <circle cx="88" cy="46" r="4.5" fill="#C9BFA9"/>
+          <circle cx="60" cy="44" r="4.5" fill="#C9BFA9"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>小熊挂件钥匙串（3 把钥匙）</h3>
+        <div class="cat-line">钥匙</div>
+        <div class="meta"><span>操场 · 东看台</span><span>10-15 17:45</span></div>
+        <div class="foot">
+          <span>58 次浏览</span>
+          <button class="boost" data-boost="9">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a1 1 0 0 0 1 1h3v-9H5a1 1 0 0 0-1 1zM10 11V5a2 2 0 0 1 4 0v5h4.5a2 2 0 0 1 2 2.4l-1.2 6a2 2 0 0 1-2 1.6H10v-9z"/></svg>
+            <span class="b-txt">帮转 9</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= 新增：认领时间线 + 暗号核验 ================= -->
+<section class="sec container" id="claimDemo">
+  <div class="sec-head rv" style="--i:0">
+    <h2>认领流程演示</h2>
+    <span class="sec-tag">新功能 · 信任闭环</span>
+  </div>
+  <div class="claim-demo rv" style="--i:1">
+    <div class="claim-info">
+      <h2>看得见的认领进度</h2>
+      <p class="desc">失主提交认领申请后，每一步流转都有迹可循：暗号核验防冒领，发布者审核确认，交付完成双方闭环。右侧是发布者设置的验证问题——试着回答它。</p>
+      <div class="claim-target">
+        <div class="t-thumb thumb" style="width:52px;height:52px;border-radius:12px;background:var(--accent-soft);display:grid;place-items:center">
+          <svg width="32" height="28" viewBox="0 0 150 130">
+            <rect x="38" y="34" width="74" height="66" rx="14" fill="#0F7A5C"/>
+            <circle cx="60" cy="80" r="9" fill="#FBFAF7"/>
+            <circle cx="90" cy="80" r="9" fill="#FBFAF7"/>
+          </svg>
+        </div>
+        <div><b>白色无线耳机（盒装）· 招领中</b><span>招领人：阿澈 · 发布于 10-16 09:02</span></div>
+      </div>
+      <div class="tl" id="tl">
+        <div class="tl-fill" id="tlFill"></div>
+        <div class="tl-node" data-s="0"><span class="tl-dot">1</span><span>提交认领申请</span></div>
+        <div class="tl-node" data-s="1"><span class="tl-dot">2</span><span>暗号核验</span></div>
+        <div class="tl-node" data-s="2"><span class="tl-dot">3</span><span>发布者审核</span></div>
+        <div class="tl-node" data-s="3"><span class="tl-dot">4</span><span>线下交付</span></div>
+        <div class="tl-node" data-s="4"><span class="tl-dot">5</span><span>已找回</span></div>
+      </div>
+      <div class="claim-actions">
+        <button class="btn btn-accent" id="claimNext"><span>提交认领申请</span></button>
+        <button class="btn btn-ghost" id="claimReset">重置演示</button>
+      </div>
+      <p class="claim-status-note" id="claimNote">当前状态：<b>未申请</b> — 点击「提交认领申请」开始演示完整流程。</p>
+    </div>
+    <div class="verify-card" id="verifyCard">
+      <h4>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        暗号核验 · 防冒领
+      </h4>
+      <p class="q">发布者设置的验证问题：<br /><b>“耳机充电仓上贴的贴纸是什么动物？”</b></p>
+      <input type="text" id="verifyInput" placeholder="请输入你的答案（提示：一种小狗）" disabled />
+      <p class="err" id="verifyErr">答案与启事特征不符，发布者可据此拒绝认领。再想想？</p>
+      <button class="btn btn-accent btn-sm" id="verifySubmit" disabled><span>提交答案</span></button>
+      <p class="hint">只有失主才知道的细节，冒领者答不出来。核验通过后才会进入发布者审核环节。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 以图搜图（新增：守望订阅） ================= -->
+<section class="container" id="search">
+  <div class="search-sec rv" style="margin-top:0">
+    <div>
+      <h2>以图搜图</h2>
+      <p class="desc">不打一个字，直接上传照片。三步完成匹配：读图、提指纹、算距离，全程约 50 毫秒。</p>
+      <div class="steps">
+        <div class="step">
+          <span class="step-no">1</span>
+          <div><h4>读取图片</h4><p>灰度化并压缩至 32×32，与 JImageHash 感知哈希实现一致</p></div>
+        </div>
+        <div class="step">
+          <span class="step-no">2</span>
+          <div><h4>提取感知哈希</h4><p>DCT 变换 → 取 8×8 低频 → 二值化为 64 位 <code>pHash</code></p></div>
+        </div>
+        <div class="step">
+          <span class="step-no">3</span>
+          <div><h4>汉明距离匹配</h4><p>与库内启事逐条比对，阈值 ≤ 12，按距离升序返回 Top-10</p></div>
+        </div>
+      </div>
+      <!-- 新增：守望订阅 -->
+      <div class="watch-row">
+        <div class="txt">
+          <b id="watchTitle">守望订阅 · 这次没搜到也没关系</b>
+          <span id="watchDesc">开启后保存这张照片的长相指纹，之后每条新招领入库都会自动反查，命中立即通知你。</span>
+        </div>
+        <label class="switch" aria-label="守望订阅开关">
+          <input type="checkbox" id="watchToggle" />
+          <span class="knob"></span>
+        </label>
+      </div>
+    </div>
+    <div>
+      <div class="result-head"><span>匹配结果 · 3 条</span><span class="ms">elapsed 54ms</span></div>
+      <div class="result-list">
+        <div class="result">
+          <div class="thumb">
+            <svg width="38" height="34" viewBox="0 0 150 130">
+              <rect x="38" y="34" width="74" height="66" rx="14" fill="#0F7A5C"/>
+              <circle cx="60" cy="80" r="9" fill="#FBFAF7"/>
+              <circle cx="90" cy="80" r="9" fill="#FBFAF7"/>
+            </svg>
+          </div>
+          <div class="info"><b>白色无线耳机（盒装）</b><span>招领中 · 图书馆服务台 · 10-16 09:02</span></div>
+          <span class="sim-badge hi">93%</span>
+        </div>
+        <div class="result">
+          <div class="thumb">
+            <svg width="38" height="34" viewBox="0 0 150 130">
+              <rect x="38" y="34" width="74" height="66" rx="14" fill="#6C675E"/>
+              <circle cx="60" cy="80" r="9" fill="#FBFAF7"/>
+              <circle cx="90" cy="80" r="9" fill="#FBFAF7"/>
+            </svg>
+          </div>
+          <div class="info"><b>黑色蓝牙耳机（同款不同色）</b><span>招领中 · 实验楼 305 · 10-14 16:20</span></div>
+          <span class="sim-badge mid">87%</span>
+        </div>
+        <div class="result">
+          <div class="thumb">
+            <svg width="38" height="34" viewBox="0 0 150 130">
+              <circle cx="75" cy="65" r="26" fill="#A8A298"/>
+              <rect x="70" y="30" width="10" height="20" rx="5" fill="#6C675E"/>
+            </svg>
+          </div>
+          <div class="info"><b>单只无线耳机（左耳）</b><span>招领中 · 操场看台 · 10-13 10:15</span></div>
+          <span class="sim-badge lo">74%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 新增：为你推荐 ================= -->
+<section class="sec container" id="reco">
+  <div class="sec-head rv" style="--i:0">
+    <h2>为你推荐</h2>
+    <span class="sec-tag">新功能 · 规则推荐</span>
+  </div>
+  <div class="reco-grid">
+    <div class="reco-card rv" style="--i:0">
+      <div class="reco-reason"><i></i>因为你收藏过「电子设备」</div>
+      <div class="cover c4" style="aspect-ratio:16/9">
+        <svg width="110" height="90" viewBox="0 0 150 130">
+          <rect x="46" y="30" width="58" height="76" rx="10" fill="#33475A"/>
+          <rect x="52" y="38" width="46" height="52" rx="4" fill="#0F7A5C"/>
+          <circle cx="75" cy="98" r="4" fill="#FBFAF7"/>
+        </svg>
+      </div>
+      <div class="body" style="padding:14px 16px 16px">
+        <h3>墨绿色 iPad 保护壳（带笔槽）</h3>
+        <div class="meta"><span>招领中 · 图书馆</span><span>10-16 14:20</span></div>
+      </div>
+    </div>
+    <div class="reco-card rv" style="--i:1">
+      <div class="reco-reason"><i></i>常看地点：图书馆</div>
+      <div class="cover c2" style="aspect-ratio:16/9">
+        <svg width="110" height="90" viewBox="0 0 150 130">
+          <rect x="40" y="40" width="70" height="58" rx="10" fill="#0F7A5C"/>
+          <rect x="52" y="28" width="46" height="18" rx="6" fill="#0A5C45"/>
+          <rect x="50" y="62" width="50" height="6" rx="3" fill="#FBFAF7" opacity=".85"/>
+        </svg>
+      </div>
+      <div class="body" style="padding:14px 16px 16px">
+        <h3>绿色帆布笔袋（内有校园卡）</h3>
+        <div class="meta"><span>招领中 · 图书馆二楼</span><span>10-15 21:05</span></div>
+      </div>
+    </div>
+    <div class="reco-card rv" style="--i:2">
+      <div class="reco-reason"><i></i>与你订阅的照片相似 82%</div>
+      <div class="cover c3" style="aspect-ratio:16/9">
+        <svg width="110" height="90" viewBox="0 0 150 130">
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#8A8478"/>
+          <circle cx="60" cy="80" r="9" fill="#FBFAF7"/>
+          <circle cx="90" cy="80" r="9" fill="#FBFAF7"/>
+        </svg>
+      </div>
+      <div class="body" style="padding:14px 16px 16px">
+        <h3>银灰色无线耳机充电仓</h3>
+        <div class="meta"><span>招领中 · 宿舍楼大厅</span><span>10-14 18:40</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 新增：找回故事墙 ================= -->
+<section class="sec container" id="stories">
+  <div class="sec-head rv" style="--i:0">
+    <h2>找回故事</h2>
+    <span class="sec-tag">新功能 · 感谢信</span>
+  </div>
+  <div class="story-grid">
+    <div class="story rv" style="--i:0">
+      <p class="quote">学生证丢了急了一整天，下午就有人通过以图搜图联系上我。原来它一直躺在二食堂服务台，谢谢那位不愿意留名的同学。</p>
+      <div class="who">
+        <span class="avatar" style="background:#0F7A5C">早</span>
+        <span><b>早八人小林</b><span>找回：校园卡</span></span>
+        <span class="days">1 天找回</span>
+      </div>
+    </div>
+    <div class="story rv" style="--i:1">
+      <p class="quote">耳机丢在图书馆根本没抱希望，结果守望订阅第三天给我推了条 91% 相似的新招领——就是它那道划痕。这个功能真的救了我。</p>
+      <div class="who">
+        <span class="avatar" style="background:#33475A">晚</span>
+        <span><b>林晚</b><span>找回：无线耳机</span></span>
+        <span class="days">3 天找回</span>
+      </div>
+    </div>
+    <div class="story rv" style="--i:2">
+      <p class="quote">发布招领时设的暗号是「挂件是几只眼睛的小熊」，第一位认领人就答对了，交付全程十分钟。核验这一步让人特别安心。</p>
+      <div class="who">
+        <span class="avatar" style="background:#C2811A">澈</span>
+        <span><b>阿澈</b><span>归还：钥匙串</span></span>
+        <span class="days">当天找回</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= Footer（原样保留） ================= -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <b class="brand-f">拾光 · 校园失物招领平台</b>
+      <nav class="footer-links">
+        <a href="#wall">失物墙</a><a href="#search">以图搜图</a><a href="#reco">为你推荐</a><a href="#stories">找回故事</a>
+      </nav>
+    </div>
+    <p class="footer-note">© 2026 拾光 — 软件工程课程设计，仅供学习使用 · 本页为功能整合演示，数据为示例</p>
+  </div>
+</footer>
+
+<!-- ================= 抽屉：聊天 ================= -->
+<div class="drawer-mask" id="drawerMask"></div>
+<aside class="drawer" id="chatDrawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h3 id="chatTitle">聊天会话</h3>
+    <button class="x" onclick="closeDrawers()">✕</button>
+  </div>
+  <div class="chat-body">
+    <div class="conv-list" id="convList"></div>
+    <div class="chat-thread" id="chatThread">
+      <div style="padding:12px 16px 0">
+        <button class="thread-back" onclick="showConvList()">← 返回会话列表</button>
+      </div>
+      <div class="thread-item-card" id="threadItemCard"></div>
+      <div class="msgs" id="msgs"></div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="输入消息…（回车发送）" />
+        <button id="chatSend">发送</button>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ================= 抽屉：通知中心 ================= -->
+<aside class="drawer" id="ntfDrawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h3>通知中心</h3>
+    <button class="x" onclick="closeDrawers()">✕</button>
+  </div>
+  <div class="ntf-tabs" id="ntfTabs"></div>
+  <div class="ntf-list" id="ntfList"></div>
+  <div class="ntf-clear">
+    <button class="btn btn-ghost btn-sm" style="width:100%" onclick="ntfReadAll()">全部标为已读</button>
+  </div>
+</aside>
+
+<!-- ================= 弹层：分享海报 ================= -->
+<div class="poster-mask" id="posterMask" onclick="if(event.target===this)closePoster()">
+  <div class="poster">
+    <div class="poster-ph">
+      <svg width="150" height="130" viewBox="0 0 150 130">
+        <rect x="38" y="34" width="74" height="66" rx="14" fill="#0F7A5C"/>
+        <rect x="38" y="34" width="74" height="22" rx="11" fill="#0A5C45"/>
+        <circle cx="60" cy="80" r="9" fill="#FBFAF7"/>
+        <circle cx="90" cy="80" r="9" fill="#FBFAF7"/>
+      </svg>
+    </div>
+    <div class="poster-body">
+      <h4>寻物 · 黑色 AirPods Pro 耳机</h4>
+      <p>图书馆 · 三楼自习区 · 10-16 08:30<br />充电仓外壳有一道浅划痕，右耳硅胶套偏大。</p>
+      <div class="poster-foot">
+        <div class="p-brand"><b>拾光 · 校园失物招领</b><span>长按识别小程序码查看详情</span></div>
+        <div class="qr" id="qr"></div>
+      </div>
+      <div class="poster-actions">
+        <button class="btn btn-accent btn-sm" style="flex:1" onclick="toast('海报已保存到相册（演示）');closePoster()"><span>保存图片</span></button>
+        <button class="btn btn-ghost btn-sm" onclick="closePoster()">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<span class="mock-tag">整合演示版 v1 · 基底=方案G · 新增 9 项功能界面</span>
+
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const $ = (id) => document.getElementById(id)
+
+  /* ---------- 原有：Split Text / IO 进场 / 计数 / 导航滚动态 ---------- */
+  document.querySelectorAll('[data-split]').forEach((el, li) => {
+    const text = el.textContent
+    el.textContent = ''
+    ;[...text].forEach((c, i) => {
+      const s = document.createElement('span')
+      s.className = 'ch'; s.textContent = c
+      s.style.setProperty('--d', li * 6 + i)
+      el.appendChild(s)
+    })
+  })
+  const io = new IntersectionObserver((es) => {
+    es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) } })
+  }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' })
+  document.querySelectorAll('.rv, .split').forEach(el => io.observe(el))
+  if (reduced) document.querySelectorAll('.rv, .split').forEach(el => el.classList.add('in'))
+  const cntIO = new IntersectionObserver((es) => {
+    es.forEach(e => {
+      if (!e.isIntersecting) return
+      cntIO.unobserve(e.target)
+      const target = +e.target.dataset.count
+      if (reduced) { e.target.textContent = target; return }
+      const t0 = performance.now(), dur = 1400
+      const tick = (t) => {
+        const p = Math.min((t - t0) / dur, 1)
+        e.target.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)))
+        if (p < 1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+  }, { threshold: 0.6 })
+  document.querySelectorAll('[data-count]').forEach(el => cntIO.observe(el))
+  const navIO = new IntersectionObserver(([e]) => {
+    $('nav').classList.toggle('scrolled', !e.isIntersecting)
+  }, { threshold: 0 })
+  navIO.observe($('sentinel'))
+
+  /* ---------- Toast ---------- */
+  window.toast = function (msg, accent) {
+    const t = document.createElement('div')
+    t.className = 'toast' + (accent ? ' accent' : '')
+    t.textContent = msg
+    $('toasts').appendChild(t)
+    setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 320) }, 2600)
+  }
+
+  /* ---------- 抽屉通用 ---------- */
+  window.openDrawer = function (id) {
+    closeDrawers(true)
+    $('drawerMask').classList.add('open')
+    $(id).classList.add('open')
+    $(id).setAttribute('aria-hidden', 'false')
+  }
+  window.closeDrawers = function (silent) {
+    $('drawerMask').classList.remove('open')
+    document.querySelectorAll('.drawer').forEach(d => { d.classList.remove('open'); d.setAttribute('aria-hidden', 'true') })
+  }
+  $('drawerMask').addEventListener('click', () => closeDrawers())
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDrawers(); closePoster() } })
+
+  /* ---------- 新增：聊天会话 ---------- */
+  const CONVS = [
+    {
+      id: 1, name: '阿澈', color: '#0F7A5C', item: '白色无线耳机（盒装）· 招领中', time: '10:42',
+      last: '那我下午三点在图书馆服务台等你',
+      msgs: [
+        { me: 0, t: '同学你好，我好像丢的就是这副耳机' },
+        { me: 0, t: '充电仓上贴了柴犬贴纸，对吗？' },
+        { me: 1, t: '对的！贴纸还在，暗号核验通过' },
+        { me: 0, t: '太好了，我们约个时间交接？' },
+        { me: 1, t: '那我下午三点在图书馆服务台等你' },
+      ],
+      replies: ['好的，没问题', '我这边随时可以', '收到，见面再确认一下特征', '好的，注意安全']
+    },
+    {
+      id: 2, name: '林晚', color: '#33475A', item: '小熊挂件钥匙串 · 已找回', time: '昨天',
+      last: '钥匙串已经拿到啦，真的太感谢了！',
+      msgs: [
+        { me: 0, t: '你捡到的钥匙串是我的，挂件是单眼小熊' },
+        { me: 1, t: '确认无误！我放到宿舍楼大厅服务台了' },
+        { me: 1, t: '钥匙串已经拿到啦，真的太感谢了！' },
+      ],
+      replies: ['不客气，应该的', '找到就好']
+    },
+    {
+      id: 3, name: '校失物招领中心', color: '#C2811A', item: '官方 · 集中存放点', time: '周一',
+      last: '本周起，图书馆拾获物品统一存放至一楼服务台',
+      msgs: [
+        { me: 0, t: '本周起，图书馆拾获物品统一存放至一楼服务台，认领请出示校园卡。' },
+        { me: 1, t: '收到，已了解' },
+      ],
+      replies: ['如有疑问可在工作时间到服务台咨询']
+    },
+  ]
+  let curConv = null
+  function renderConvs() {
+    $('convList').innerHTML = CONVS.map(c => `
+      <div class="conv ${curConv === c.id ? 'on' : ''}" onclick="openConv(${c.id})">
+        <span class="c-avatar" style="background:${c.color}">${c.name[0]}</span>
+        <div class="c-main">
+          <div class="c-top"><b>${c.name}</b><span>${c.time}</span></div>
+          <span class="c-item">${c.item}</span>
+          <div class="c-last">${c.msgs.length ? c.msgs[c.msgs.length - 1].t : ''}</div>
+        </div>
+      </div>`).join('')
+  }
+  window.openConv = function (id) {
+    curConv = id
+    const c = CONVS.find(x => x.id === id)
+    renderConvs()
+    $('chatTitle').textContent = c.name
+    $('threadItemCard').innerHTML = `
+      <span class="t-thumb">
+        <svg width="22" height="20" viewBox="0 0 150 130">
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#0F7A5C"/>
+          <circle cx="60" cy="80" r="9" fill="#FBFAF7"/>
+          <circle cx="90" cy="80" r="9" fill="#FBFAF7"/>
+        </svg>
+      </span>
+      <span><b>${c.item}</b>会话关联启事 · 点击查看详情</span>`
+    renderMsgs()
+    $('convList').style.display = 'none'
+    $('chatThread').classList.add('on')
+  }
+  window.showConvList = function () {
+    $('chatThread').classList.remove('on')
+    $('convList').style.display = ''
+    $('chatTitle').textContent = '聊天会话'
+    curConv = null
+    renderConvs()
+  }
+  function renderMsgs() {
+    const c = CONVS.find(x => x.id === curConv)
+    if (!c) return
+    $('msgs').innerHTML = c.msgs.map(m =>
+      m.sys ? `<div class="msg-sys">${m.t}</div>` :
+      `<div class="msg ${m.me ? 'me' : 'them'}">${m.t}<small>${m.me ? '我' : c.name} · ${m.time || '刚刚'}</small></div>`
+    ).join('')
+    $('msgs').scrollTop = $('msgs').scrollHeight
+  }
+  function sendMsg() {
+    if (curConv == null) return
+    const v = $('chatInput').value.trim()
+    if (!v) return
+    const c = CONVS.find(x => x.id === curConv)
+    c.msgs.push({ me: 1, t: v, time: '刚刚' })
+    $('chatInput').value = ''
+    renderMsgs()
+    setTimeout(() => {
+      c.msgs.push({ me: 0, t: c.replies[c.msgs.length % c.replies.length], time: '刚刚' })
+      renderMsgs()
+      if (!c) return
+      if (c.msgs.length % 3 === 0) c.msgs.push({ sys: 1, t: '对方已读' }) && renderMsgs()
+    }, reduced ? 0 : 900)
+  }
+  $('chatSend').addEventListener('click', sendMsg)
+  $('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMsg() })
+  $('btnChat').addEventListener('click', () => { openDrawer('chatDrawer'); showConvList() })
+  renderConvs()
+
+  /* ---------- 新增：通知中心（分级分流） ---------- */
+  const NTFS = {
+    claim: [
+      { t: '你的认领申请已通过', p: '「白色无线耳机」发布者已核验通过，快去联系交付吧。', time: '10 分钟前', unread: 1 },
+      { t: '收到新的认领申请', p: '「蓝色海豚卡套的校园卡」有 1 条新申请，等待你审核。', time: '2 小时前', unread: 1 },
+    ],
+    system: [
+      { t: '守望提醒：发现疑似匹配', p: '新招领「银灰色无线耳机充电仓」与你订阅的照片相似度 82%。', time: '1 小时前', unread: 1 },
+      { t: '超时提醒', p: '你的启事「灰色羊绒围巾」已发布 7 天，找到了吗？点击更新状态。', time: '昨天', unread: 1 },
+    ],
+    dm: [
+      { t: '阿澈 发来新消息', p: '那我下午三点在图书馆服务台等你', time: '10:42', unread: 0, chat: 1 },
+      { t: '校失物招领中心', p: '本周起，图书馆拾获物品统一存放至一楼服务台。', time: '周一', unread: 0, chat: 3 },
+    ],
+  }
+  const NTF_META = {
+    claim: { label: '认领', color: 'var(--accent-soft)', fg: 'var(--accent-deep)', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' },
+    system: { label: '系统', color: 'var(--amber-soft)', fg: 'var(--amber)', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>' },
+    dm: { label: '私信', color: '#EAEEF1', fg: '#33475A', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>' },
+  }
+  let ntfTab = 'claim'
+  function ntfUnread() {
+    return Object.values(NTFS).flat().filter(n => n.unread).length
+  }
+  function renderNtf() {
+    $('ntfTabs').innerHTML = Object.keys(NTFS).map(k => {
+      const u = NTFS[k].filter(n => n.unread).length
+      return `<button class="${k === ntfTab ? 'on' : ''}" onclick="setNtfTab('${k}')">${NTF_META[k].label}${u ? `<i>${u}</i>` : ''}</button>`
+    }).join('')
+    const m = NTF_META[ntfTab]
+    $('ntfList').innerHTML = NTFS[ntfTab].map((n, i) => `
+      <div class="ntf ${n.unread ? 'unread' : ''}" onclick="ntfClick(${i})">
+        <span class="n-ico" style="background:${m.color};color:${m.fg}">${m.icon}</span>
+        <div class="n-main"><b>${n.t}</b><p>${n.p}</p><small>${n.time}</small></div>
+      </div>`).join('')
+    const dot = $('ntfDot')
+    const total = ntfUnread()
+    dot.textContent = total
+    dot.style.display = total ? 'grid' : 'none'
+  }
+  window.setNtfTab = function (k) { ntfTab = k; renderNtf() }
+  window.ntfClick = function (i) {
+    const n = NTFS[ntfTab][i]
+    n.unread = 0
+    renderNtf()
+    if (n.chat != null) { openDrawer('chatDrawer'); openConv(n.chat) }
+  }
+  window.ntfReadAll = function () {
+    Object.values(NTFS).flat().forEach(n => { n.unread = 0 })
+    renderNtf()
+    toast('通知已全部标为已读')
+  }
+  $('btnNtf').addEventListener('click', () => { openDrawer('ntfDrawer'); renderNtf() })
+  renderNtf()
+
+  /* ---------- 新增：认领时间线 + 暗号核验 ---------- */
+  let claimStep = -1   // -1 未开始
+  const CLAIM_LABELS = ['提交认领申请', '等待核验', '发布者审核中', '确认线下交付', '完成']
+  const CLAIM_NOTES = [
+    '当前状态：<b>未申请</b> — 点击「提交认领申请」开始演示完整流程。',
+    '当前状态：<b>认领申请已提交</b> — 请先在右侧完成暗号核验，证明你是真正的失主。',
+    '当前状态：<b>暗号核验通过</b> — 申请已送达发布者，等待对方审核。（演示：点击下方按钮模拟发布者通过）',
+    '当前状态：<b>审核已通过</b> — 双方已通过站内会话约定交付地点（图书馆服务台）。交付完成后点击确认。',
+    '当前状态：<b>已找回</b> — 失主已确认收货，启事自动关闭，双方信用 +1。感谢信已递交给拾取者。',
+  ]
+  function renderClaim() {
+    const nodes = document.querySelectorAll('#tl .tl-node')
+    nodes.forEach((n, i) => {
+      n.classList.toggle('done', i < claimStep)
+      n.classList.toggle('now', i === claimStep)
+    })
+    const pct = claimStep <= 0 ? 0 : (claimStep / 4) * 100
+    $('tlFill').style.width = 'calc(' + pct + '% - ' + (pct * 0.28) + 'px)'
+    $('claimNote').innerHTML = CLAIM_NOTES[claimStep + 1]
+    const btn = $('claimNext').querySelector('span')
+    const vInput = $('verifyInput'), vBtn = $('verifySubmit')
+    if (claimStep === 0) { btn.textContent = '等待暗号核验…'; vInput.disabled = false; vBtn.disabled = false; vInput.focus() }
+    else if (claimStep === 1) { btn.textContent = '模拟发布者通过审核' }
+    else if (claimStep === 2) { btn.textContent = '确认已完成交付' }
+    else if (claimStep === 3) { btn.textContent = '确认找回 · 完成闭环' }
+    else if (claimStep >= 4) { btn.textContent = '流程已完成' }
+  }
+  $('claimNext').addEventListener('click', () => {
+    if (claimStep === -1) {
+      claimStep = 0
+      renderClaim()
+      toast('认领申请已提交，请先完成暗号核验', true)
+    } else if (claimStep === 1) {
+      claimStep = 2; renderClaim()
+      toast('发布者已通过审核，双方开始约定交付', true)
+    } else if (claimStep === 2) {
+      claimStep = 3; renderClaim()
+      toast('交付已确认')
+    } else if (claimStep === 3) {
+      claimStep = 4; renderClaim()
+      $('featuredStatus').textContent = '已找回'
+      $('featuredStatus').style.background = 'var(--accent)'
+      const r = $('statReunited'); if (r.textContent === '128') r.textContent = '129'
+      toast('恭喜找回！感谢信已递交给拾取者，双方信用 +1', true)
+      addNtf('claim', '认领完成 · 信用 +1', '「白色无线耳机」已确认找回，感谢信已递交给拾取者。')
+    }
+  })
+  $('claimReset').addEventListener('click', () => {
+    claimStep = -1
+    $('verifyInput').value = ''
+    $('verifyInput').disabled = true
+    $('verifySubmit').disabled = true
+    $('verifyErr').classList.remove('show')
+    $('featuredStatus').textContent = '寻物中'
+    $('featuredStatus').style.background = ''
+    const r = $('statReunited'); if (r.textContent === '129') r.textContent = '128'
+    renderClaim()
+    toast('演示已重置')
+  })
+  $('verifySubmit').addEventListener('click', () => {
+    const v = $('verifyInput').value.trim()
+    if (v.includes('柴犬') || v.includes('狗') || v.includes('小狗')) {
+      $('verifyErr').classList.remove('show')
+      claimStep = 1
+      renderClaim()
+      toast('暗号核验通过，申请已送达发布者', true)
+    } else {
+      $('verifyErr').classList.add('show')
+    }
+  })
+  renderClaim()
+
+  /* ---------- 新增：守望订阅 ---------- */
+  let watchTimer = null
+  $('watchToggle').addEventListener('change', (e) => {
+    if (e.target.checked) {
+      $('watchTitle').textContent = '守望订阅 · 已开启'
+      $('watchDesc').textContent = '已保存当前照片的 64 位指纹，每条新招领入库时自动反查，命中将第一时间通知你。'
+      toast('守望订阅已开启：新招领将自动匹配你的照片', true)
+      clearTimeout(watchTimer)
+      watchTimer = setTimeout(() => {
+        addNtf('system', '守望提醒：发现疑似匹配', '新招领「白色无线耳机充电仓」与你订阅的照片相似度 91%，去看看？')
+        toast('守望提醒：发现 1 条疑似匹配（相似度 91%）', true)
+      }, reduced ? 0 : 4000)
+    } else {
+      $('watchTitle').textContent = '守望订阅 · 这次没搜到也没关系'
+      $('watchDesc').textContent = '开启后保存这张照片的长相指纹，之后每条新招领入库都会自动反查，命中立即通知你。'
+      clearTimeout(watchTimer)
+      toast('守望订阅已关闭')
+    }
+  })
+  function addNtf(tab, t, p) {
+    NTFS[tab].unshift({ t, p, time: '刚刚', unread: 1 })
+    renderNtf()
+  }
+
+  /* ---------- 新增：帮转助力 ---------- */
+  document.querySelectorAll('.boost[data-boost]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('done')) return
+      const n = +btn.dataset.boost + 1
+      btn.dataset.boost = n
+      btn.querySelector('.b-txt').textContent = '已帮转 ' + n
+      btn.classList.add('done')
+      toast('已帮转，这条启事会获得更多曝光', true)
+    })
+  })
+
+  /* ---------- 新增：分享海报 ---------- */
+  function buildQr() {
+    const qr = $('qr')
+    let html = ''
+    for (let y = 0; y < 21; y++) {
+      for (let x = 0; x < 21; x++) {
+        const finder = (x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13)
+        let d
+        if (finder) {
+          const fx = x > 13 ? x - 14 : x, fy = y > 13 ? y - 14 : y
+          d = fx === 0 || fx === 6 || fy === 0 || fy === 6 || (fx >= 2 && fx <= 4 && fy >= 2 && fy <= 4)
+        } else {
+          d = ((x * 7 + y * 13 + x * y) % 5) < 2
+        }
+        html += `<i class="${d ? 'd' : ''}"></i>`
+      }
+    }
+    qr.innerHTML = html
+  }
+  buildQr()
+  window.openPoster = function () { $('posterMask').classList.add('open') }
+  window.closePoster = function () { $('posterMask').classList.remove('open') }
+})()
+</script>
+</body>
+</html>

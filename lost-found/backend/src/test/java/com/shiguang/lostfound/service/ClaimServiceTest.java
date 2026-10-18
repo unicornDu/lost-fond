@@ -26,6 +26,8 @@ import static org.mockito.Mockito.*;
  * 05 A-03：认领状态机单元测试（Mockito，不连库）。
  * 覆盖 09 缺陷表 #4 的回归：apply 白名单守卫 / 重复申请 / audit 已处理 / 已完成守卫 /
  * 通过时批量拒绝其余在审 / 拒绝时"仅当无其他在审才回退"。
+ * 2026-10-18 审查修复：审核改为条件更新（CAS），新增两条并发守卫用例；
+ * 认领证明改为事务后置（单测无事务 → 内联执行，不影响原有断言）。
  */
 @ExtendWith(MockitoExtension.class)
 class ClaimServiceTest {
@@ -50,6 +52,15 @@ class ClaimServiceTest {
         it.setType("lost");
         it.setTitle("测试启事");
         return it;
+    }
+
+    private ClaimRecord claim(long id, long itemId, long claimantId, String status) {
+        ClaimRecord c = new ClaimRecord();
+        c.setId(id);
+        c.setItemId(itemId);
+        c.setClaimantId(claimantId);
+        c.setStatus(status);
+        return c;
     }
 
     @Test
@@ -103,11 +114,7 @@ class ClaimServiceTest {
     @Test
     @DisplayName("audit：非发布者审核 403")
     void auditRejectsNonPublisher() {
-        ClaimRecord c = new ClaimRecord();
-        c.setId(7L);
-        c.setItemId(1L);
-        c.setStatus("审核中");
-        when(claimMapper.selectById(7L)).thenReturn(c);
+        when(claimMapper.selectById(7L)).thenReturn(claim(7L, 1L, 5L, "审核中"));
         when(itemMapper.selectById(1L)).thenReturn(item(1L, 9L, "认领申请中"));
         ClaimAuditReq req = new ClaimAuditReq();
         req.setApprove(true);
@@ -118,11 +125,7 @@ class ClaimServiceTest {
     @Test
     @DisplayName("audit：已处理过的申请再次审核被拒")
     void auditRejectsProcessed() {
-        ClaimRecord c = new ClaimRecord();
-        c.setId(7L);
-        c.setItemId(1L);
-        c.setStatus("已通过");
-        when(claimMapper.selectById(7L)).thenReturn(c);
+        when(claimMapper.selectById(7L)).thenReturn(claim(7L, 1L, 5L, "已通过"));
         when(itemMapper.selectById(1L)).thenReturn(item(1L, 9L, "已找回"));
         ClaimAuditReq req = new ClaimAuditReq();
         req.setApprove(true);
@@ -133,11 +136,7 @@ class ClaimServiceTest {
     @Test
     @DisplayName("audit：物品已完成认领时守卫拒绝")
     void auditRejectsCompletedItem() {
-        ClaimRecord c = new ClaimRecord();
-        c.setId(7L);
-        c.setItemId(1L);
-        c.setStatus("审核中");
-        when(claimMapper.selectById(7L)).thenReturn(c);
+        when(claimMapper.selectById(7L)).thenReturn(claim(7L, 1L, 5L, "审核中"));
         when(itemMapper.selectById(1L)).thenReturn(item(1L, 9L, "已认领"));
         ClaimAuditReq req = new ClaimAuditReq();
         req.setApprove(true);
@@ -148,54 +147,74 @@ class ClaimServiceTest {
     @Test
     @DisplayName("audit：通过时批量拒绝同物品其余在审申请并通知（缺陷#4 回归）")
     void auditApproveClosesOthers() {
-        ClaimRecord c = new ClaimRecord();
-        c.setId(7L);
-        c.setItemId(1L);
-        c.setClaimantId(5L);
-        c.setStatus("审核中");
-        ClaimRecord other = new ClaimRecord();
-        other.setId(8L);
-        other.setItemId(1L);
-        other.setClaimantId(6L);
-        other.setStatus("审核中");
+        ClaimRecord c = claim(7L, 1L, 5L, "审核中");
+        ClaimRecord other = claim(8L, 1L, 6L, "审核中");
         when(claimMapper.selectById(7L)).thenReturn(c);
         when(itemMapper.selectById(1L)).thenReturn(item(1L, 9L, "认领申请中"));
         when(claimMapper.selectList(any(QueryWrapper.class))).thenReturn(List.of(other));
+        when(itemMapper.update(any(), any())).thenReturn(1);   // 物品 CAS 命中
+        when(claimMapper.update(any(), any())).thenReturn(1);  // 申请 CAS 命中
+
         ClaimAuditReq req = new ClaimAuditReq();
         req.setApprove(true);
         newService().audit(7L, 9L, req);
+
         assertEquals("已拒绝", other.getStatus());
-        verify(claimMapper, times(2)).updateById(any(ClaimRecord.class)); // c + other
-        verify(messageMapper, times(2)).insert(any(com.shiguang.lostfound.entity.Message.class));                    // 通知 other + 通知 c
+        verify(claimMapper).update(any(), any());              // 主申请：条件更新
+        verify(claimMapper).updateById(any(ClaimRecord.class)); // 其余申请：逐条关闭
+        verify(messageMapper, times(2)).insert(any(com.shiguang.lostfound.entity.Message.class)); // other + c
+    }
+
+    @Test
+    @DisplayName("audit：并发下物品已被置终态 → 条件更新 0 行，抛业务异常（2026-10-18 新增）")
+    void auditApproveRejectsWhenItemAlreadyClosed() {
+        when(claimMapper.selectById(7L)).thenReturn(claim(7L, 1L, 5L, "审核中"));
+        when(itemMapper.selectById(1L)).thenReturn(item(1L, 9L, "认领申请中"));
+        when(itemMapper.update(any(), any())).thenReturn(0);   // 另一个事务已抢先完成
+
+        ClaimAuditReq req = new ClaimAuditReq();
+        req.setApprove(true);
+        assertTrue(assertThrows(BusinessException.class, () -> newService().audit(7L, 9L, req))
+                .getMessage().contains("已完成认领或状态已变更"));
+        verify(claimMapper, never()).update(any(), any());
+    }
+
+    @Test
+    @DisplayName("audit：并发下申请已被处理 → 申请 CAS 0 行，抛业务异常（2026-10-18 新增）")
+    void auditApproveRejectsWhenClaimAlreadyProcessed() {
+        when(claimMapper.selectById(7L)).thenReturn(claim(7L, 1L, 5L, "审核中"));
+        when(itemMapper.selectById(1L)).thenReturn(item(1L, 9L, "认领申请中"));
+        when(itemMapper.update(any(), any())).thenReturn(1);
+        when(claimMapper.update(any(), any())).thenReturn(0);
+
+        ClaimAuditReq req = new ClaimAuditReq();
+        req.setApprove(true);
+        assertTrue(assertThrows(BusinessException.class, () -> newService().audit(7L, 9L, req))
+                .getMessage().contains("已处理过"));
     }
 
     @Test
     @DisplayName("audit：拒绝时仅当无其他在审才回退物品状态（缺陷#4 回归）")
     void auditRejectRollbackOnlyWhenNoPending() {
-        // 场景1：无其他在审 → 回退
-        ClaimRecord c = new ClaimRecord();
-        c.setId(7L);
-        c.setItemId(1L);
-        c.setClaimantId(5L);
-        c.setStatus("审核中");
+        // 场景1：无其他在审 → 回退（条件更新）
+        ClaimRecord c = claim(7L, 1L, 5L, "审核中");
         when(claimMapper.selectById(7L)).thenReturn(c);
         when(itemMapper.selectById(1L)).thenReturn(item(1L, 9L, "认领申请中"));
+        when(claimMapper.update(any(), any())).thenReturn(1);
         when(claimMapper.selectCount(any(QueryWrapper.class))).thenReturn(0L);
+        when(itemMapper.update(any(), any())).thenReturn(1);
+
         ClaimAuditReq req = new ClaimAuditReq();
         req.setApprove(false);
         newService().audit(7L, 9L, req);
-        verify(itemMapper).updateById(any(Item.class));
+        verify(itemMapper).update(any(), any());   // 回退走了条件更新
 
         // 场景2：仍有其他在审 → 不回退
-        ClaimRecord c2 = new ClaimRecord();
-        c2.setId(9L);
-        c2.setItemId(2L);
-        c2.setClaimantId(5L);
-        c2.setStatus("审核中");
+        ClaimRecord c2 = claim(9L, 2L, 5L, "审核中");
         when(claimMapper.selectById(9L)).thenReturn(c2);
         when(itemMapper.selectById(2L)).thenReturn(item(2L, 9L, "认领申请中"));
         when(claimMapper.selectCount(any(QueryWrapper.class))).thenReturn(1L);
         newService().audit(9L, 9L, req);
-        verify(itemMapper, times(1)).updateById(any(Item.class));   // 场景2 不再 update
+        verify(itemMapper, times(1)).update(any(), any());   // 场景2 不再更新物品
     }
 }

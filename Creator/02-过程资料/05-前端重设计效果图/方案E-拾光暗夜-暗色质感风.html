@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>效果图 · 方案E 拾光暗夜 — 暗色质感风</title>
+<style>
+/* ============================================================
+   方案 E 「拾光暗夜」— 暗色质感风（Dark Operate）
+   炭黑底 + 荧光青强调。按钮动效参考 21st.dev：
+   - Border Beam / Rainbow：主按钮流光边框旋转
+   - Liquid Glass Button：次按钮液态玻璃（毛玻璃 + 顶部高光）
+   - Neon Button：幽灵按钮霓虹发光
+   - Spotlight Card：卡片鼠标跟随聚光灯
+   - ReactBits Split Text：标题 effect=blur 逐字聚焦 + hover lift
+   ============================================================ */
+:root {
+  --bg: #0E141B;
+  --surface: #141C25;
+  --elev: #19232E;
+  --ink: #E8EEF4;
+  --ink-2: #9AABBC;
+  --ink-3: #5E7083;
+  --line: rgba(255,255,255,.08);
+  --accent: #34E3C3;
+  --accent-2: #7CF0DC;
+  --accent-dim: rgba(52,227,195,.14);
+  --glow: rgba(52,227,195,.35);
+  --amber: #FFB454;
+  --amber-dim: rgba(255,180,84,.16);
+  --r: 12px;
+  --sans: 'PingFang SC', 'HarmonyOS Sans SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(900px 460px at 82% -12%, rgba(52,227,195,.08), transparent 60%);
+}
+.wrap { position: relative; z-index: 1; }
+.container { width: min(1200px, 94vw); margin: 0 auto; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+::selection { background: var(--accent-dim); color: var(--accent-2); }
+
+/* ---------- 导航 ---------- */
+.nav { position: sticky; top: 0; z-index: 50; background: rgba(14,20,27,.82); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.nav-inner { display: flex; align-items: center; gap: 32px; height: 68px; }
+.brand { display: flex; align-items: center; gap: 11px; }
+.brand-logo {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--accent); color: #0B1219;
+  display: grid; place-items: center; font-weight: 800; font-size: 17px;
+  box-shadow: 0 0 18px var(--glow);
+}
+.brand b { font-size: 17px; font-weight: 800; }
+.brand small { display: block; font-size: 10px; color: var(--ink-3); letter-spacing: 2px; }
+.nav-links { display: flex; gap: 4px; margin-left: auto; }
+.nav-links a { padding: 8px 15px; border-radius: 9px; font-size: 14px; font-weight: 600; color: var(--ink-2); transition: all .16s; }
+.nav-links a:hover { color: var(--ink); background: var(--elev); }
+.nav-links a.on { color: var(--accent-2); background: var(--accent-dim); }
+.nav-actions { display: flex; align-items: center; gap: 13px; }
+.avatar { width: 36px; height: 36px; border-radius: 10px; background: var(--elev); border: 1px solid var(--line); display: grid; place-items: center; font-size: 13px; font-weight: 800; color: var(--ink-2); }
+
+/* ---------- 按钮体系 ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-weight: 700; font-size: 14.5px; border: 0; transition: all .18s ease; }
+.btn:active { transform: scale(.97); }
+/* 主按钮：Border Beam —— 流光沿边框旋转 */
+.btn-beam { position: relative; border-radius: var(--r); padding: 1.6px; overflow: hidden; isolation: isolate; }
+.btn-beam::before {
+  content: ''; position: absolute; inset: -160%; z-index: -1;
+  background: conic-gradient(from 0deg, transparent 0deg 290deg, var(--accent) 322deg, var(--accent-2) 342deg, transparent 360deg);
+  animation: beam 3.4s linear infinite;
+}
+.btn-beam:hover::before { animation-duration: 1.5s; }
+@keyframes beam { to { transform: rotate(1turn); } }
+.btn-beam .inner {
+  display: inline-flex; align-items: center; gap: 9px;
+  background: #101820; border-radius: calc(var(--r) - 1.6px);
+  padding: 12px 24px; color: var(--accent-2);
+  transition: background .2s;
+}
+.btn-beam:hover .inner { background: #0D141B; text-shadow: 0 0 14px var(--glow); }
+/* 次按钮：Liquid Glass —— 毛玻璃 + 顶部内高光 */
+.btn-glass {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  backdrop-filter: blur(10px);
+  border-radius: var(--r); color: var(--ink);
+  padding: 13px 24px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 8px 22px rgba(0,0,0,.3);
+}
+.btn-glass:hover { background: rgba(255,255,255,.10); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 12px 28px rgba(0,0,0,.4); }
+/* 幽灵按钮：Neon —— 悬停霓虹发光 */
+.btn-neon {
+  background: transparent; border-radius: var(--r);
+  border: 1px solid rgba(52,227,195,.4); color: var(--accent-2);
+  padding: 12px 22px;
+  transition: all .2s ease;
+}
+.btn-neon:hover { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(52,227,195,.25), 0 0 22px var(--glow); text-shadow: 0 0 10px var(--glow); }
+.btn-sm { font-size: 13px; padding: 9px 16px; }
+.btn-sm .inner { padding: 9px 16px; }
+.btn-sm.btn-glass, .btn-sm.btn-neon { padding: 9px 16px; }
+
+/* ---------- Split Text：effect=blur 逐字聚焦 + hover lift ---------- */
+.split .ch {
+  display: inline-block; white-space: pre;
+  opacity: 0; filter: blur(10px); transform: translateY(12px);
+  animation: chBlur .9s cubic-bezier(.22,1,.36,1) forwards;
+  animation-delay: calc(var(--d) * 55ms);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1), color .3s;
+}
+.split .ch:hover { transform: translateY(-7px); color: var(--accent-2); }
+@keyframes chBlur { to { opacity: 1; filter: blur(0); transform: translateY(0); } }
+
+/* ---------- Hero ---------- */
+.hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 64px; align-items: center; padding: 88px 0 56px; }
+.kicker { display: inline-flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 700; letter-spacing: 2.5px; color: var(--ink-3); margin-bottom: 26px; }
+.kicker i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--glow); animation: pulse 2.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .4; } }
+h1 { font-size: clamp(40px, 5vw, 58px); font-weight: 800; line-height: 1.2; letter-spacing: -1px; }
+.hero-sub { margin: 24px 0 34px; max-width: 470px; font-size: 15.5px; line-height: 2; color: var(--ink-2); }
+.hero-sub b { color: var(--accent-2); }
+.hero-cta { display: flex; gap: 14px; flex-wrap: wrap; }
+.hero-stats { display: flex; gap: 44px; margin-top: 56px; }
+.hero-stats b { font-size: 30px; font-weight: 800; font-family: var(--mono); color: var(--ink); }
+.hero-stats span { display: block; font-size: 12px; color: var(--ink-3); margin-top: 4px; letter-spacing: 1px; }
+
+/* 指纹可视化卡 */
+.finger {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  padding: 28px; box-shadow: 0 24px 60px rgba(0,0,0,.4);
+}
+.finger h5 { font-size: 11.5px; font-weight: 700; letter-spacing: 2.5px; color: var(--ink-3); margin-bottom: 20px; }
+.finger-flow { display: flex; align-items: center; gap: 16px; }
+.finger-ph { width: 88px; height: 88px; border-radius: 12px; background: var(--elev); display: grid; place-items: center; flex: none; border: 1px solid var(--line); }
+.pixels { display: grid; grid-template-columns: repeat(8,1fr); gap: 2.5px; width: 100px; height: 100px; flex: none; }
+.pixels i { border-radius: 2.5px; }
+.pixels i.d { background: var(--accent); box-shadow: 0 0 6px rgba(52,227,195,.5); }
+.pixels i.l { background: #232E3A; }
+.finger-meta { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.finger-meta .hex { font-family: var(--mono); font-size: 12.5px; color: var(--accent-2); word-break: break-all; line-height: 1.75; }
+.finger-meta small { font-size: 11.5px; color: var(--ink-3); line-height: 1.7; }
+.finger-foot { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); }
+.finger-foot b { color: var(--accent); font-family: var(--mono); }
+
+/* ---------- 按钮交互速览 ---------- */
+.btn-lab { padding: 40px 0 8px; }
+.btn-lab-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+.btn-lab-head h2 { font-size: 21px; font-weight: 800; }
+.btn-lab-head span { font-size: 12.5px; color: var(--ink-3); }
+.lab-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+.lab-cell { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 26px 18px 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.lab-cell p { font-size: 12px; color: var(--ink-2); line-height: 1.7; text-align: center; }
+.lab-cell p b { color: var(--ink); }
+
+/* ---------- 分类 ---------- */
+.cats { display: flex; flex-wrap: wrap; gap: 10px; padding: 44px 0 10px; }
+.chip {
+  padding: 9px 17px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink-2);
+  font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all .18s;
+  font-variant-numeric: tabular-nums;
+}
+.chip small { color: var(--ink-3); margin-left: 5px; font-variant-numeric: tabular-nums; }
+.chip:hover { color: var(--accent-2); border-color: rgba(52,227,195,.4); transform: translateY(-2px); }
+.chip.on { background: var(--accent-dim); border-color: rgba(52,227,195,.5); color: var(--accent-2); }
+.chip.on small { color: var(--accent); }
+
+/* ---------- 卡片（Spotlight 聚光灯） ---------- */
+.sec { padding: 40px 0 8px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; }
+.sec-head h2 { font-size: 24px; font-weight: 800; letter-spacing: -.3px; }
+.sec-head .more { font-size: 13.5px; font-weight: 600; color: var(--ink-3); }
+.sec-head .more:hover { color: var(--accent-2); }
+.grid-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+.item-card {
+  position: relative; display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  transition: transform .2s ease, border-color .2s ease;
+}
+.item-card:hover { transform: translateY(-4px); border-color: rgba(52,227,195,.35); }
+/* Spotlight Card：鼠标跟随径向光 */
+.item-card .spot {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: radial-gradient(240px circle at var(--mx,50%) var(--my,50%), rgba(52,227,195,.12), transparent 65%);
+  opacity: 0; transition: opacity .25s;
+}
+.item-card:hover .spot { opacity: 1; }
+.cover { position: relative; aspect-ratio: 4/3; display: grid; place-items: center; background: var(--elev); }
+.status { position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; padding: 5px 11px; border-radius: 7px; }
+.status.lost { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(255,180,84,.35); }
+.status.found { background: var(--accent-dim); color: var(--accent-2); border: 1px solid rgba(52,227,195,.35); }
+.fav { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 9px; background: rgba(14,20,27,.7); color: var(--ink-3); font-size: 13px; transition: all .18s; }
+.fav:hover { color: var(--accent-2); border-color: rgba(52,227,195,.4); }
+.fav.on { color: var(--accent); }
+.body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.body h3 { font-size: 15px; font-weight: 700; }
+.cat-line { font-size: 11.5px; color: var(--ink-3); letter-spacing: 1px; }
+.meta { display: flex; gap: 14px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.foot { margin-top: auto; padding-top: 12px; display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-3); }
+.foot .go { color: var(--accent-2); font-weight: 700; }
+
+/* ---------- 以图搜图 ---------- */
+.search-sec { margin: 64px 0 0; padding: 52px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; display: grid; grid-template-columns: .95fr 1.05fr; gap: 52px; }
+.search-sec h2 { font-size: 27px; font-weight: 800; margin-bottom: 14px; }
+.search-sec .desc { font-size: 14.5px; line-height: 1.95; color: var(--ink-2); margin-bottom: 26px; }
+.steps { display: flex; flex-direction: column; gap: 12px; }
+.step { display: flex; gap: 15px; align-items: flex-start; background: var(--elev); border: 1px solid var(--line); border-radius: 12px; padding: 15px 18px; }
+.step-dot { flex: none; width: 26px; height: 26px; border-radius: 8px; background: var(--accent-dim); color: var(--accent-2); font-size: 12px; font-weight: 800; display: grid; place-items: center; margin-top: 1px; font-family: var(--mono); }
+.step h4 { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+.step p { font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+.step p code { font-family: var(--mono); font-size: 11.5px; color: var(--accent-2); }
+.result-list { display: flex; flex-direction: column; gap: 10px; }
+.result-head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-3); letter-spacing: 1px; margin-bottom: 4px; }
+.result-head .ms { font-family: var(--mono); color: var(--accent-2); }
+.result { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-radius: 12px; background: var(--elev); border: 1px solid var(--line); transition: all .16s; }
+.result:hover { border-color: rgba(52,227,195,.4); transform: translateX(4px); }
+.result .thumb { width: 54px; height: 54px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; flex: none; }
+.result .info { flex: 1; min-width: 0; }
+.result .info b { font-size: 14px; display: block; margin-bottom: 3px; }
+.result .info span { font-size: 12px; color: var(--ink-3); }
+.sim-badge { flex: none; font-family: var(--mono); font-weight: 700; font-size: 13px; padding: 6px 12px; border-radius: 8px; }
+.sim-badge.hi { background: var(--accent); color: #0B1219; box-shadow: 0 0 14px var(--glow); }
+.sim-badge.mid { background: var(--accent-dim); color: var(--accent-2); }
+.sim-badge.lo { background: #232E3A; color: var(--ink-2); }
+
+/* ---------- Footer ---------- */
+.footer { margin-top: 88px; padding: 42px 0 50px; border-top: 1px solid var(--line); background: #0B1117; }
+.footer-inner { display: flex; align-items: center; gap: 28px; }
+.footer b.brand-f { font-size: 16px; font-weight: 800; }
+.footer-links { display: flex; gap: 24px; margin-left: auto; font-size: 13px; color: var(--ink-2); }
+.footer-links a:hover { color: var(--accent-2); }
+.footer-note { margin-top: 18px; font-size: 12px; color: var(--ink-3); }
+
+.mock-tag {
+  position: fixed; left: 18px; bottom: 18px; z-index: 99;
+  padding: 8px 14px; border-radius: 8px;
+  background: rgba(20,28,37,.94); border: 1px solid rgba(52,227,195,.4); color: var(--accent-2);
+  font-size: 12px; letter-spacing: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split .ch { opacity: 1; filter: none; transform: none; animation: none; }
+  .btn-beam::before { animation: none; background: none; }
+  .btn-beam { background: var(--accent); }
+  .kicker i { animation: none; }
+}
+@media (max-width: 1020px) {
+  .hero { grid-template-columns: 1fr; }
+  .grid-cards { grid-template-columns: 1fr 1fr; }
+  .search-sec { grid-template-columns: 1fr; padding: 30px; }
+  .lab-row { grid-template-columns: 1fr 1fr; }
+  .finger-flow { flex-wrap: wrap; }
+}
+@media (max-width: 600px) {
+  .grid-cards, .lab-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- 导航 -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#">
+      <span class="brand-logo">拾</span>
+      <span><b>拾光</b><small>CAMPUS LOST &amp; FOUND</small></span>
+    </a>
+    <nav class="nav-links">
+      <a class="on" href="#">首页</a>
+      <a href="#">失物墙</a>
+      <a href="#">招领墙</a>
+      <a href="#">以图搜图</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="btn btn-beam btn-sm"><span class="inner">发布启事</span></button>
+      <span class="avatar">林</span>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero container">
+  <div>
+    <p class="kicker"><i></i>校园失物招领平台 · LOST &amp; FOUND</p>
+    <h1 class="split">
+      <span data-split>丢了东西？</span><br />
+      <span data-split>一张照片帮你找回</span>
+    </h1>
+    <p class="hero-sub">
+      上传物品照片，<b>感知哈希 pHash</b> 为它生成 64 位长相指纹，与全校启事逐条比对汉明距离，秒级返回最像的结果。
+    </p>
+    <div class="hero-cta">
+      <button class="btn btn-beam"><span class="inner">上传照片搜一搜</span></button>
+      <button class="btn btn-glass">浏览失物墙</button>
+      <button class="btn btn-neon">匹配原理</button>
+    </div>
+    <div class="hero-stats">
+      <div><b>128</b><span>件失物已找回</span></div>
+      <div><b>342</b><span>条寻物启事</span></div>
+      <div><b>276</b><span>条招领启事</span></div>
+    </div>
+  </div>
+
+  <div class="finger">
+    <h5>指纹库 · FINGERPRINT INDEX</h5>
+    <div class="finger-flow">
+      <div class="finger-ph">
+        <svg width="54" height="48" viewBox="0 0 150 130">
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#233040"/>
+          <rect x="38" y="34" width="74" height="22" rx="11" fill="#1A2532"/>
+          <circle cx="60" cy="80" r="9" fill="#34E3C3"/>
+          <circle cx="90" cy="80" r="9" fill="#34E3C3"/>
+        </svg>
+      </div>
+      <svg width="20" height="14" viewBox="0 0 22 14" fill="none" stroke="#5E7083" stroke-width="2"><path d="M1 7h18M14 1l6 6-6 6"/></svg>
+      <div class="pixels">
+        <i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="l"></i><i class="d"></i><i class="d"></i>
+        <i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="l"></i>
+        <i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i>
+        <i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="l"></i><i class="d"></i>
+        <i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="l"></i>
+        <i class="d"></i><i class="l"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i>
+        <i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i>
+        <i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="d"></i>
+      </div>
+      <svg width="20" height="14" viewBox="0 0 22 14" fill="none" stroke="#5E7083" stroke-width="2"><path d="M1 7h18M14 1l6 6-6 6"/></svg>
+      <div class="finger-meta">
+        <span class="hex">1010 0101 1100 0110<br />1001 0011 0010 1101<br />0100 1101 1011 0100<br />0110 1001 0100 1110</span>
+        <small>64 位 pHash · 每一位都是一次 DCT 低频二值化</small>
+      </div>
+    </div>
+    <div class="finger-foot">
+      <span>当前指纹库</span>
+      <span><b>618</b> 张已索引 · 阈值 ≤ 12</span>
+    </div>
+  </div>
+</section>
+
+<!-- 按钮交互速览 -->
+<section class="btn-lab container">
+  <div class="btn-lab-head">
+    <h2>按钮交互速览</h2>
+    <span>把鼠标放上去试试 · 参考自 21st.dev 组件动效</span>
+  </div>
+  <div class="lab-row">
+    <div class="lab-cell">
+      <button class="btn btn-beam"><span class="inner">上传照片搜一搜</span></button>
+      <p><b>主按钮 · Border Beam</b><br>流光沿边框持续旋转，悬停加速、文字泛光（Rainbow/Border Beam）</p>
+    </div>
+    <div class="lab-cell">
+      <button class="btn btn-glass">浏览失物墙</button>
+      <p><b>次按钮 · Liquid Glass</b><br>毛玻璃质感 + 顶部内高光，悬停轻浮起（Liquid Glass Button）</p>
+    </div>
+    <div class="lab-cell">
+      <button class="btn btn-neon">匹配原理</button>
+      <p><b>幽灵按钮 · Neon</b><br>悬停边框点亮 + 霓虹外发光（Neon Button）</p>
+    </div>
+    <div class="lab-cell" style="position:relative;overflow:hidden">
+      <div class="spot" style="position:absolute;inset:0;background:radial-gradient(160px circle at var(--mx,50%) var(--my,50%),rgba(52,227,195,.14),transparent 65%);opacity:1"></div>
+      <div style="width:52px;height:52px;border-radius:12px;background:var(--elev);border:1px solid var(--line);display:grid;place-items:center">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#34E3C3" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 16l-5-4-4 3-3-2-6 5"/></svg>
+      </div>
+      <p><b>卡片 · Spotlight</b><br>青色聚光灯跟随鼠标移动（Spotlight Card，同现有 ItemCard 方案）</p>
+    </div>
+  </div>
+</section>
+
+<!-- 分类 -->
+<section class="container cats">
+  <button class="chip on">全部 <small>342</small></button>
+  <button class="chip">证件卡类 <small>12</small></button>
+  <button class="chip">钥匙 <small>8</small></button>
+  <button class="chip">电子设备 <small>23</small></button>
+  <button class="chip">书籍资料 <small>17</small></button>
+  <button class="chip">衣物饰品 <small>9</small></button>
+  <button class="chip">其他 <small>11</small></button>
+</section>
+
+<!-- 失物墙 -->
+<section class="sec container">
+  <div class="sec-head">
+    <h2>最新失物与招领</h2>
+    <a class="more" href="#">查看全部 →</a>
+  </div>
+  <div class="grid-cards">
+
+    <a class="item-card" href="#">
+      <div class="spot"></div>
+      <div class="cover">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#2A3949"/>
+          <rect x="38" y="34" width="74" height="22" rx="11" fill="#1E2A38"/>
+          <circle cx="60" cy="80" r="9" fill="#34E3C3"/>
+          <circle cx="90" cy="80" r="9" fill="#34E3C3"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>黑色 AirPods Pro 耳机</h3>
+        <div class="cat-line">电子设备</div>
+        <div class="meta"><span>图书馆 · 三楼自习区</span><span>10-16 08:30</span></div>
+        <div class="foot"><span>46 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="spot"></div>
+      <div class="cover">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <rect x="42" y="28" width="66" height="86" rx="8" fill="#23445A"/>
+          <rect x="42" y="28" width="66" height="30" rx="8" fill="#1A3346"/>
+          <circle cx="75" cy="74" r="13" fill="#0E141B"/>
+          <rect x="52" y="94" width="46" height="5" rx="2.5" fill="#7CF0DC" opacity=".8"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav on">★</button>
+      </div>
+      <div class="body">
+        <h3>蓝色海豚卡套的校园卡</h3>
+        <div class="cat-line">证件卡类</div>
+        <div class="meta"><span>第二食堂 · 一楼</span><span>10-15 12:10</span></div>
+        <div class="foot"><span>132 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="spot"></div>
+      <div class="cover">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <circle cx="75" cy="52" r="18" fill="none" stroke="#5E7083" stroke-width="7"/>
+          <rect x="66" y="68" width="9" height="34" rx="3" fill="#FFB454"/>
+          <rect x="66" y="88" width="18" height="5" rx="2.5" fill="#FFB454"/>
+          <rect x="66" y="96" width="14" height="5" rx="2.5" fill="#FFB454"/>
+          <circle cx="88" cy="46" r="4.5" fill="#9AABBC"/>
+          <circle cx="60" cy="44" r="4.5" fill="#9AABBC"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>小熊挂件钥匙串（3 把钥匙）</h3>
+        <div class="cat-line">钥匙</div>
+        <div class="meta"><span>操场 · 东看台</span><span>10-15 17:45</span></div>
+        <div class="foot"><span>58 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="spot"></div>
+      <div class="cover">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <rect x="34" y="76" width="82" height="16" rx="3" fill="#44607C"/>
+          <rect x="38" y="60" width="74" height="16" rx="3" fill="#23445A"/>
+          <rect x="42" y="44" width="66" height="16" rx="3" fill="#34E3C3"/>
+          <rect x="50" y="50" width="30" height="4" rx="2" fill="#0E141B" opacity=".8"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>《高等数学》第七版（上册）</h3>
+        <div class="cat-line">书籍资料</div>
+        <div class="meta"><span>第一教学楼 · A203</span><span>10-14 19:20</span></div>
+        <div class="foot"><span>87 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="spot"></div>
+      <div class="cover">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <path d="M38 62 C 52 44, 74 44, 86 56 C 98 68, 112 66, 118 56 L118 76 C 110 88, 92 88, 80 76 C 68 64, 52 66, 38 80 Z" fill="#5E7083"/>
+          <path d="M38 62 C 52 44, 74 44, 86 56 C 98 68, 112 66, 118 56 L118 64 C 110 76, 92 76, 80 64 C 68 52, 52 54, 38 68 Z" fill="#74889C"/>
+          <rect x="36" y="76" width="4" height="12" rx="2" fill="#5E7083"/>
+          <rect x="44" y="80" width="4" height="12" rx="2" fill="#5E7083"/>
+          <rect x="112" y="72" width="4" height="12" rx="2" fill="#5E7083"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>灰色羊绒围巾</h3>
+        <div class="cat-line">衣物饰品</div>
+        <div class="meta"><span>体育馆 · 更衣室</span><span>10-14 15:05</span></div>
+        <div class="foot"><span>39 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="spot"></div>
+      <div class="cover">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <rect x="58" y="30" width="34" height="70" rx="12" fill="#2A3949"/>
+          <rect x="64" y="20" width="22" height="14" rx="5" fill="#34E3C3"/>
+          <rect x="58" y="56" width="34" height="22" fill="#141C25"/>
+          <circle cx="75" cy="67" r="8" fill="#74889C"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>白色保温杯（柴犬贴纸）</h3>
+        <div class="cat-line">其他</div>
+        <div class="meta"><span>实验楼 · 402</span><span>10-13 11:30</span></div>
+        <div class="foot"><span>64 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<!-- 以图搜图 -->
+<section class="container">
+  <div class="search-sec">
+    <div>
+      <h2>以图搜图</h2>
+      <p class="desc">
+        不打一个字，直接上传照片。三步完成匹配：读图、提指纹、算距离，全程约 50 毫秒。
+      </p>
+      <div class="steps">
+        <div class="step">
+          <span class="step-dot">1</span>
+          <div><h4>读取图片</h4><p>灰度化并压缩至 32×32，与 JImageHash 感知哈希实现一致</p></div>
+        </div>
+        <div class="step">
+          <span class="step-dot">2</span>
+          <div><h4>提取感知哈希</h4><p>DCT 变换 → 取 8×8 低频 → 二值化为 64 位 <code>pHash</code></p></div>
+        </div>
+        <div class="step">
+          <span class="step-dot">3</span>
+          <div><h4>汉明距离匹配</h4><p>与库内启事逐条比对，阈值 ≤ 12，按距离升序返回 Top-10</p></div>
+        </div>
+      </div>
+      <div style="margin-top:24px">
+        <button class="btn btn-beam"><span class="inner">上传照片开始匹配</span></button>
+      </div>
+    </div>
+    <div>
+      <div class="result-head"><span>匹配结果 · 3 条</span><span class="ms">elapsed 54ms</span></div>
+      <div class="result-list">
+        <a class="result" href="#">
+          <div class="thumb">
+            <svg width="36" height="32" viewBox="0 0 150 130">
+              <rect x="38" y="34" width="74" height="66" rx="14" fill="#2A3949"/>
+              <circle cx="60" cy="80" r="9" fill="#34E3C3"/>
+              <circle cx="90" cy="80" r="9" fill="#34E3C3"/>
+            </svg>
+          </div>
+          <div class="info"><b>白色无线耳机（盒装）</b><span>招领中 · 图书馆服务台 · 10-16 09:02</span></div>
+          <span class="sim-badge hi">93%</span>
+        </a>
+        <a class="result" href="#">
+          <div class="thumb">
+            <svg width="36" height="32" viewBox="0 0 150 130">
+              <rect x="38" y="34" width="74" height="66" rx="14" fill="#5E7083"/>
+              <circle cx="60" cy="80" r="9" fill="#0E141B"/>
+              <circle cx="90" cy="80" r="9" fill="#0E141B"/>
+            </svg>
+          </div>
+          <div class="info"><b>黑色蓝牙耳机（同款不同色）</b><span>招领中 · 实验楼 305 · 10-14 16:20</span></div>
+          <span class="sim-badge mid">87%</span>
+        </a>
+        <a class="result" href="#">
+          <div class="thumb">
+            <svg width="36" height="32" viewBox="0 0 150 130">
+              <circle cx="75" cy="65" r="26" fill="#74889C"/>
+              <rect x="70" y="30" width="10" height="20" rx="5" fill="#5E7083"/>
+            </svg>
+          </div>
+          <div class="info"><b>单只无线耳机（左耳）</b><span>招领中 · 操场看台 · 10-13 10:15</span></div>
+          <span class="sim-badge lo">74%</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <b class="brand-f">拾光 · 校园失物招领平台</b>
+      <nav class="footer-links">
+        <a href="#">失物墙</a>
+        <a href="#">招领墙</a>
+        <a href="#">以图搜图</a>
+        <a href="#">发布启事</a>
+      </nav>
+    </div>
+    <p class="footer-note">© 2026 拾光 — 软件工程课程设计，仅供学习使用</p>
+  </div>
+</footer>
+
+</div>
+<span class="mock-tag">效果图 · 方案 E 拾光暗夜（暗色质感风）</span>
+
+<script>
+// ReactBits Split Text：effect=blur 逐字聚焦（55ms 错峰），hover 单字上浮
+document.querySelectorAll('[data-split]').forEach((el, li) => {
+  const text = el.textContent
+  el.textContent = ''
+  ;[...text].forEach((c, i) => {
+    const s = document.createElement('span')
+    s.className = 'ch'
+    s.textContent = c
+    s.style.setProperty('--d', li * 6 + i)
+    el.appendChild(s)
+  })
+})
+// Spotlight Card：卡片鼠标跟随
+document.querySelectorAll('.item-card, .lab-cell').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect()
+    card.style.setProperty('--mx', (e.clientX - r.left) + 'px')
+    card.style.setProperty('--my', (e.clientY - r.top) + 'px')
+  })
+})
+</script>
+</body>
+</html>

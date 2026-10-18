@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.shiguang.lostfound.common.BusinessException;
 import com.shiguang.lostfound.common.PageResult;
+import com.shiguang.lostfound.common.TxUtil;
 import com.shiguang.lostfound.entity.*;
 import com.shiguang.lostfound.mapper.*;
 import com.shiguang.lostfound.vo.ItemVO;
@@ -140,7 +141,8 @@ public class AdminService {
         favoriteService.deleteByItem(itemId);   // E-07：级联清理收藏行
         fileDeliveryService.deleteByBiz(itemId);   // P1：级联清理交付文件（认领证明等，行+盘）
         itemMapper.deleteById(itemId);
-        for (ItemImage img : imgs) fileStorage.deleteQuietly(img.getImgUrl());
+        // 2026-10-18 审查修复：删盘推迟到事务提交后——否则提交失败回滚时，文件已删、库行还在
+        TxUtil.afterCommit(() -> imgs.forEach(img -> fileStorage.deleteQuietly(img.getImgUrl())));
         log(adminId, "delete", "item", itemId, "删除启事（含图片与关联数据）");
     }
 

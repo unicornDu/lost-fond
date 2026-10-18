@@ -193,6 +193,16 @@ public class ItemService {
         Map<Long, String> nick = loadNicknames(Set.of(item.getUserId()));
         ItemVO vo = toVO(item, nick, currentUserId);
         vo.setImages(imgs.stream().map(ItemImage::getImgUrl).collect(Collectors.toList()));
+        // 2026-10-18 审查修复：本人认领状态随详情一次返回，前端不再额外请求 /claims/my（省一次往返）
+        if (currentUserId != null && !currentUserId.equals(item.getUserId())) {
+            ClaimRecord mine = claimRecordMapper.selectOne(new QueryWrapper<ClaimRecord>()
+                    .eq("item_id", id).eq("claimant_id", currentUserId)
+                    .orderByDesc("create_time").last("LIMIT 1"));
+            if (mine != null) {
+                vo.setMyClaimStatus(mine.getStatus());
+                vo.setMyClaimReply(mine.getReply());
+            }
+        }
         return vo;
     }
 
@@ -257,10 +267,18 @@ public class ItemService {
     public List<ItemVO> myPublishes(Long userId) {
         List<Item> items = itemMapper.selectList(new QueryWrapper<Item>()
                 .eq("user_id", userId).orderByDesc("create_time"));
+        if (items.isEmpty()) return List.of();
         Map<Long, String> nick = loadNicknames(Set.of(userId));
+        // 2026-10-18 审查修复：原实现每条启事单独查一次图片（N+1）；改为一次 IN 查询后分组
+        List<Long> ids = items.stream().map(Item::getId).collect(Collectors.toList());
+        Map<Long, List<String>> imgMap = itemImageMapper.selectList(
+                        new QueryWrapper<ItemImage>().in("item_id", ids).orderByAsc("sort"))
+                .stream()
+                .collect(Collectors.groupingBy(ItemImage::getItemId,
+                        Collectors.mapping(ItemImage::getImgUrl, Collectors.toList())));
         return items.stream().map(it -> {
             ItemVO vo = toVO(it, nick, userId);
-            vo.setImages(loadImageUrls(it.getId()));
+            vo.setImages(imgMap.getOrDefault(it.getId(), List.of()));
             return vo;
         }).collect(Collectors.toList());
     }

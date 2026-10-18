@@ -28,4 +28,7 @@ public class ItemVO {
     private Long userId;        // 发布人ID（前端判断是否本人）
     private Boolean mine;       // 是否当前登录用户发布
     private Double similarity;  // 以图搜图相似度百分比
+    /** 2026-10-18 审查修复：当前登录用户对本启事的认领状态/回复（详情接口一次带回，非本人或未申请为 null）。 */
+    private String myClaimStatus;
+    private String myClaimReply;
 }

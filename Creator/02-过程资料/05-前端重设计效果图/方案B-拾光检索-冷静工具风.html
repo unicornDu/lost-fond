@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>效果图 · 方案B 拾光检索 — 冷静工具风</title>
+<style>
+/* ============================================================
+   方案 B 「拾光检索」— 冷静工具风（Operate 模式）
+   基调：把平台当"效率工具"设计：锌白中性色 + 单一强调色、
+   扁平卡片、密排网格、等宽字体呈现 pHash 指纹，
+   让"以图搜图"成为产品主角。
+   ============================================================ */
+:root {
+  --bg: #F6F6F4;
+  --surface: #FFFFFF;
+  --ink: #201F1B;
+  --ink-2: #6E6A60;
+  --ink-3: #A39E92;
+  --line: #E6E4DC;
+  --accent: #E05A10;
+  --accent-deep: #BC470A;
+  --accent-soft: #FBEADD;
+  --dark: #26241F;
+  --r: 10px;
+  --sans: 'PingFang SC', 'HarmonyOS Sans SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+.container { width: min(1200px, 94vw); margin: 0 auto; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+::selection { background: var(--accent-soft); }
+
+/* ---------- 导航 ---------- */
+.nav { position: sticky; top: 0; z-index: 50; background: var(--surface); }
+.nav-inner { display: flex; align-items: center; gap: 30px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-logo {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--dark); color: #fff;
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 17px;
+}
+.brand b { font-size: 17px; font-weight: 800; letter-spacing: .5px; }
+.brand small { display: block; font-size: 10px; color: var(--ink-3); letter-spacing: 1.5px; margin-top: 1px; }
+.nav-links { display: flex; gap: 2px; margin-left: auto; }
+.nav-links a { padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--ink-2); transition: all .15s; }
+.nav-links a:hover { color: var(--ink); background: #F1F0EB; }
+.nav-links a.on { color: var(--accent-deep); background: var(--accent-soft); }
+.nav-actions { display: flex; align-items: center; gap: 12px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 0; border-radius: 8px; font-weight: 700; font-size: 14px;
+  padding: 11px 20px; transition: all .16s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-deep); }
+.btn-dark { background: var(--dark); color: #fff; }
+.btn-dark:hover { background: #3A372F; }
+.btn-sm { padding: 9px 16px; font-size: 13px; }
+.avatar { width: 36px; height: 36px; border-radius: 8px; background: #ECEAE3; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: var(--ink-2); }
+
+/* ---------- Hero ---------- */
+.hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 64px; align-items: center; padding: 76px 0 56px; }
+.hero h1 {
+  font-size: clamp(38px, 4.6vw, 56px);
+  font-weight: 800; line-height: 1.16; letter-spacing: -1px;
+}
+.hero-sub { margin: 22px 0 30px; max-width: 470px; font-size: 15.5px; line-height: 1.95; color: var(--ink-2); }
+.hero-sub b { color: var(--ink); }
+.hero-cta { display: flex; gap: 12px; }
+.stats { display: flex; gap: 48px; margin-top: 56px; }
+.stats .num { display: flex; flex-direction: column; gap: 4px; }
+.stats b { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+.stats span { font-size: 12.5px; color: var(--ink-3); }
+
+/* 指纹卡：照片 → 8×8 像素 → 64 位哈希（产品核心可视化） */
+.finger-card {
+  background: var(--surface); border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 1px 2px rgba(32,31,27,.05), 0 16px 40px rgba(32,31,27,.08);
+}
+.finger-card h5 { font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--ink-3); margin-bottom: 20px; }
+.finger-flow { display: flex; align-items: center; gap: 18px; }
+.finger-ph {
+  width: 92px; height: 92px; border-radius: 12px; background: #F1F0EB;
+  display: grid; place-items: center; flex: none;
+}
+.flow-arrow { color: var(--ink-3); flex: none; }
+.pixels {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+  width: 104px; height: 104px; flex: none;
+}
+.pixels i { border-radius: 2px; }
+.pixels i.d { background: var(--dark); }
+.pixels i.l { background: #E9E7DF; }
+.finger-meta { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.finger-meta .hex { font-family: var(--mono); font-size: 13px; color: var(--ink); word-break: break-all; line-height: 1.7; }
+.finger-meta .hex em { font-style: normal; color: var(--accent-deep); }
+.finger-meta small { font-size: 12px; color: var(--ink-3); line-height: 1.7; }
+.finger-foot {
+  margin-top: 22px; padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-2);
+}
+.finger-foot b { color: var(--accent-deep); font-family: var(--mono); }
+
+/* ---------- 分类条 ---------- */
+.cats { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0 20px; }
+.cats .lab { font-size: 13px; color: var(--ink-3); margin-right: 4px; }
+.chip {
+  padding: 8px 16px; border-radius: 8px; border: 0;
+  background: var(--surface); color: var(--ink-2);
+  font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all .15s;
+  font-variant-numeric: tabular-nums;
+}
+.chip small { color: var(--ink-3); font-weight: 500; margin-left: 4px; }
+.chip:hover { color: var(--ink); }
+.chip.on { background: var(--dark); color: #fff; }
+.chip.on small { color: rgba(255,255,255,.6); }
+
+/* ---------- 失物墙 ---------- */
+.sec { padding: 36px 0 8px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+.sec-head h2 { font-size: 24px; font-weight: 800; letter-spacing: -.3px; }
+.sec-head .more { font-size: 13.5px; color: var(--ink-3); font-weight: 600; }
+.sec-head .more:hover { color: var(--accent-deep); }
+/* 工具栏 */
+.toolbar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.seg { display: flex; background: #ECEAE3; border-radius: 9px; padding: 3px; }
+.seg button {
+  border: 0; background: transparent; padding: 7px 16px; border-radius: 7px;
+  font-size: 13px; font-weight: 700; color: var(--ink-2); transition: all .15s;
+}
+.seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(32,31,27,.12); }
+.toolbar .spacer { flex: 1; }
+.searchbox {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border-radius: 9px; padding: 9px 14px; width: 240px;
+  color: var(--ink-3); font-size: 13.5px;
+}
+/* 网格 */
+.grid-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.item-card {
+  display: flex; flex-direction: column;
+  background: var(--surface); border-radius: var(--r); overflow: hidden;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.item-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(32,31,27,.10); }
+.cover { position: relative; aspect-ratio: 4/3; display: grid; place-items: center; }
+.cover.g1 { background: #F0EFEA; }
+.cover.g2 { background: #EDEFEA; }
+.cover.g3 { background: #F1EEE7; }
+.cover.g4 { background: #EAEEF0; }
+.status {
+  position: absolute; top: 10px; left: 10px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 1px;
+  padding: 4px 10px; border-radius: 6px;
+}
+.status.lost { background: var(--accent); color: #fff; }
+.status.found { background: var(--dark); color: #fff; }
+.fav {
+  position: absolute; top: 8px; right: 8px; width: 30px; height: 30px;
+  border: 0; border-radius: 8px; background: rgba(255,255,255,.9);
+  color: var(--ink-3); font-size: 13px;
+}
+.fav.on { color: var(--accent); }
+.body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.body h3 { font-size: 14.5px; font-weight: 700; }
+.meta { display: flex; gap: 12px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.foot {
+  margin-top: auto; padding-top: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--ink-3);
+}
+.foot .go { color: var(--accent-deep); font-weight: 700; }
+.cat-line { font-size: 11.5px; color: var(--ink-3); letter-spacing: .5px; }
+
+/* ---------- 以图搜图 ---------- */
+.search-sec {
+  margin: 64px 0 0; padding: 56px;
+  background: var(--surface); border-radius: 20px;
+  display: grid; grid-template-columns: .92fr 1.08fr; gap: 56px;
+}
+.search-sec h2 { font-size: 28px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 14px; }
+.search-sec .desc { font-size: 14.5px; line-height: 1.95; color: var(--ink-2); margin-bottom: 26px; }
+.dropzone {
+  border: 1.5px dashed #CFCBBF; border-radius: 14px;
+  background: #FAFAF7;
+  padding: 34px 20px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.dropzone svg { width: 34px; height: 34px; color: var(--accent); }
+.dropzone p { font-size: 14px; font-weight: 700; }
+.dropzone small { font-size: 12px; color: var(--ink-3); line-height: 1.7; }
+.steps { margin-top: 26px; display: flex; flex-direction: column; }
+.step { display: flex; gap: 14px; position: relative; padding-bottom: 22px; }
+.step:last-child { padding-bottom: 0; }
+.step::before {
+  content: ''; position: absolute; left: 11px; top: 26px; bottom: 4px;
+  width: 2px; background: #E9E7DF; border-radius: 2px;
+}
+.step.done::before { background: var(--accent); }
+.step-dot {
+  flex: none; width: 24px; height: 24px; border-radius: 50%;
+  background: #ECEAE3; color: var(--ink-3);
+  display: grid; place-items: center; font-size: 11px; font-weight: 800;
+  z-index: 1;
+}
+.step.done .step-dot { background: var(--accent); color: #fff; }
+.step h4 { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+.step p { font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+.step p code { font-family: var(--mono); font-size: 11.5px; color: var(--accent-deep); }
+/* 结果列表 */
+.result-list { display: flex; flex-direction: column; gap: 12px; }
+.result-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.result-head h5 { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: var(--ink-3); }
+.result-head .ms { font-family: var(--mono); font-size: 12px; color: var(--accent-deep); }
+.result {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 16px; border-radius: 12px;
+  background: #FAFAF7;
+  transition: all .15s;
+}
+.result:hover { background: var(--accent-soft); }
+.result .thumb {
+  width: 56px; height: 56px; border-radius: 10px; background: #F0EFEA;
+  display: grid; place-items: center; flex: none;
+}
+.result .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.result .info b { font-size: 14px; }
+.result .info span { font-size: 12px; color: var(--ink-3); }
+.sim-badge {
+  flex: none; text-align: center;
+  padding: 7px 12px; border-radius: 9px;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+}
+.sim-badge.hi { background: var(--accent); color: #fff; }
+.sim-badge.mid { background: var(--accent-soft); color: var(--accent-deep); }
+.sim-badge.lo { background: #ECEAE3; color: var(--ink-2); }
+
+/* ---------- Footer ---------- */
+.footer { margin-top: 80px; padding: 40px 0 48px; background: #EFEDE6; }
+.footer-inner { display: flex; align-items: center; gap: 28px; }
+.footer .brand b { font-size: 15px; }
+.footer-links { display: flex; gap: 22px; margin-left: auto; font-size: 13px; color: var(--ink-2); }
+.footer-links a:hover { color: var(--ink); }
+.footer-note { margin-top: 18px; font-size: 12px; color: var(--ink-3); }
+
+.mock-tag {
+  position: fixed; left: 18px; bottom: 18px; z-index: 99;
+  padding: 8px 14px; border-radius: 8px;
+  background: rgba(32, 31, 27, .9); color: #F1EFE8;
+  font-size: 12px; letter-spacing: 1px;
+}
+
+@media (max-width: 1020px) {
+  .hero { grid-template-columns: 1fr; }
+  .grid-cards { grid-template-columns: 1fr 1fr; }
+  .search-sec { grid-template-columns: 1fr; padding: 32px; }
+}
+@media (max-width: 600px) {
+  .grid-cards { grid-template-columns: 1fr; }
+  .finger-flow { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<!-- 导航 -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#">
+      <span class="brand-logo">拾</span>
+      <span><b>拾光</b><small>CAMPUS LOST &amp; FOUND</small></span>
+    </a>
+    <nav class="nav-links">
+      <a class="on" href="#">首页</a>
+      <a href="#">失物墙</a>
+      <a href="#">招领墙</a>
+      <a href="#">以图搜图</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="btn btn-dark btn-sm">发布启事</button>
+      <span class="avatar">林</span>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero container">
+  <div>
+    <h1>丢了东西？<br />一张照片帮你找回</h1>
+    <p class="hero-sub">
+      上传物品照片，<b>感知哈希 pHash</b> 为它生成 64 位「长相指纹」，与全校失物与招领启事逐条比对汉明距离，秒级返回最像的结果。
+    </p>
+    <div class="hero-cta">
+      <button class="btn btn-primary">上传照片搜一搜</button>
+      <button class="btn btn-dark">浏览失物墙</button>
+    </div>
+    <div class="stats">
+      <div class="num"><b>128</b><span>件失物已找回</span></div>
+      <div class="num"><b>342</b><span>条寻物启事</span></div>
+      <div class="num"><b>276</b><span>条招领启事</span></div>
+    </div>
+  </div>
+
+  <!-- 指纹卡 -->
+  <div class="finger-card">
+    <h5>匹配原理 · 一张照片如何变成指纹</h5>
+    <div class="finger-flow">
+      <div class="finger-ph">
+        <svg width="56" height="48" viewBox="0 0 150 130">
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#3A372F"/>
+          <rect x="38" y="34" width="74" height="22" rx="11" fill="#26241F"/>
+          <circle cx="60" cy="80" r="9" fill="#F6F6F4"/>
+          <circle cx="90" cy="80" r="9" fill="#F6F6F4"/>
+        </svg>
+      </div>
+      <svg class="flow-arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 7h18M14 1l6 6-6 6"/></svg>
+      <div class="pixels">
+        <i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="l"></i><i class="d"></i><i class="d"></i>
+        <i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="l"></i>
+        <i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i>
+        <i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="l"></i><i class="d"></i>
+        <i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="l"></i>
+        <i class="d"></i><i class="l"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i>
+        <i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i>
+        <i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="d"></i>
+      </div>
+      <svg class="flow-arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 7h18M14 1l6 6-6 6"/></svg>
+      <div class="finger-meta">
+        <span class="hex">pHash = <em>1110 0101 1100 0110 1001 0011 0010 1101 0100 1101 1011 0100 0110 1001 0100 1110</em></span>
+        <small>DCT 取 8×8 低频后二值化，得到 64 位指纹。两张图的指纹逐位比对，不同位数即汉明距离。</small>
+      </div>
+    </div>
+    <div class="finger-foot">
+      <span>当前指纹库</span>
+      <span><b>618</b> 张图片已索引 · 阈值 ≤ 12</span>
+    </div>
+  </div>
+</section>
+
+<!-- 分类 -->
+<section class="container cats">
+  <span class="lab">按分类筛选</span>
+  <button class="chip on">全部 <small>342</small></button>
+  <button class="chip">证件卡类 <small>12</small></button>
+  <button class="chip">钥匙 <small>8</small></button>
+  <button class="chip">电子设备 <small>23</small></button>
+  <button class="chip">书籍资料 <small>17</small></button>
+  <button class="chip">衣物饰品 <small>9</small></button>
+  <button class="chip">其他 <small>11</small></button>
+</section>
+
+<!-- 失物墙 -->
+<section class="sec container">
+  <div class="sec-head">
+    <h2>最新失物与招领</h2>
+    <a class="more" href="#">查看全部 →</a>
+  </div>
+  <div class="toolbar">
+    <div class="seg">
+      <button class="on">全部</button>
+      <button>寻物 173</button>
+      <button>招领 169</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="searchbox">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/></svg>
+      搜索标题、地点…
+    </div>
+  </div>
+  <div class="grid-cards">
+
+    <a class="item-card" href="#">
+      <div class="cover g1">
+        <svg width="120" height="100" viewBox="0 0 150 130">
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#3A372F"/>
+          <rect x="38" y="34" width="74" height="22" rx="11" fill="#26241F"/>
+          <circle cx="60" cy="80" r="9" fill="#F6F6F4"/>
+          <circle cx="90" cy="80" r="9" fill="#F6F6F4"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>黑色 AirPods Pro 耳机</h3>
+        <div class="cat-line">电子设备</div>
+        <div class="meta"><span>图书馆 · 三楼自习区</span><span>10-16 08:30</span></div>
+        <div class="foot"><span>46 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover g2">
+        <svg width="120" height="100" viewBox="0 0 150 130">
+          <rect x="42" y="28" width="66" height="86" rx="8" fill="#3E5C50"/>
+          <rect x="42" y="28" width="66" height="30" rx="8" fill="#2C443B"/>
+          <circle cx="75" cy="74" r="13" fill="#F6F6F4"/>
+          <rect x="52" y="94" width="46" height="5" rx="2.5" fill="#F6F6F4" opacity=".8"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav on">★</button>
+      </div>
+      <div class="body">
+        <h3>蓝色海豚卡套的校园卡</h3>
+        <div class="cat-line">证件卡类</div>
+        <div class="meta"><span>第二食堂 · 一楼</span><span>10-15 12:10</span></div>
+        <div class="foot"><span>132 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover g3">
+        <svg width="120" height="100" viewBox="0 0 150 130">
+          <circle cx="75" cy="52" r="18" fill="none" stroke="#8A8577" stroke-width="7"/>
+          <rect x="66" y="68" width="9" height="34" rx="3" fill="#6E6A60"/>
+          <rect x="66" y="88" width="18" height="5" rx="2.5" fill="#6E6A60"/>
+          <rect x="66" y="96" width="14" height="5" rx="2.5" fill="#6E6A60"/>
+          <circle cx="88" cy="46" r="4.5" fill="#B0AA99"/>
+          <circle cx="60" cy="44" r="4.5" fill="#B0AA99"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>小熊挂件钥匙串（3 把钥匙）</h3>
+        <div class="cat-line">钥匙</div>
+        <div class="meta"><span>操场 · 东看台</span><span>10-15 17:45</span></div>
+        <div class="foot"><span>58 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover g4">
+        <svg width="120" height="100" viewBox="0 0 150 130">
+          <rect x="34" y="76" width="82" height="16" rx="3" fill="#5E6C7C"/>
+          <rect x="38" y="60" width="74" height="16" rx="3" fill="#39485A"/>
+          <rect x="42" y="44" width="66" height="16" rx="3" fill="#B0AA99"/>
+          <rect x="50" y="50" width="30" height="4" rx="2" fill="#F6F6F4" opacity=".9"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>《高等数学》第七版（上册）</h3>
+        <div class="cat-line">书籍资料</div>
+        <div class="meta"><span>第一教学楼 · A203</span><span>10-14 19:20</span></div>
+        <div class="foot"><span>87 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover g2">
+        <svg width="120" height="100" viewBox="0 0 150 130">
+          <path d="M38 62 C 52 44, 74 44, 86 56 C 98 68, 112 66, 118 56 L118 76 C 110 88, 92 88, 80 76 C 68 64, 52 66, 38 80 Z" fill="#7C7468"/>
+          <path d="M38 62 C 52 44, 74 44, 86 56 C 98 68, 112 66, 118 56 L118 64 C 110 76, 92 76, 80 64 C 68 52, 52 54, 38 68 Z" fill="#96907F"/>
+          <rect x="36" y="76" width="4" height="12" rx="2" fill="#7C7468"/>
+          <rect x="44" y="80" width="4" height="12" rx="2" fill="#7C7468"/>
+          <rect x="112" y="72" width="4" height="12" rx="2" fill="#7C7468"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>灰色羊绒围巾</h3>
+        <div class="cat-line">衣物饰品</div>
+        <div class="meta"><span>体育馆 · 更衣室</span><span>10-14 15:05</span></div>
+        <div class="foot"><span>39 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover g1">
+        <svg width="120" height="100" viewBox="0 0 150 130">
+          <rect x="58" y="30" width="34" height="70" rx="12" fill="#DDD9CD"/>
+          <rect x="64" y="20" width="22" height="14" rx="5" fill="#8A8577"/>
+          <rect x="58" y="56" width="34" height="22" fill="#F6F6F4"/>
+          <circle cx="75" cy="67" r="8" fill="#B0AA99"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>白色保温杯（柴犬贴纸）</h3>
+        <div class="cat-line">其他</div>
+        <div class="meta"><span>实验楼 · 402</span><span>10-13 11:30</span></div>
+        <div class="foot"><span>64 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover g3">
+        <svg width="120" height="100" viewBox="0 0 150 130">
+          <path d="M45 34 L105 34 L112 96 L94 96 L88 52 L62 52 L56 96 L38 96 Z" fill="#4A5568"/>
+          <rect x="60" y="30" width="30" height="8" rx="4" fill="#3A4353"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>黑色长柄伞（木质伞柄）</h3>
+        <div class="cat-line">其他</div>
+        <div class="meta"><span>校车站</span><span>10-12 18:40</span></div>
+        <div class="foot"><span>51 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover g4">
+        <svg width="120" height="100" viewBox="0 0 150 130">
+          <rect x="40" y="40" width="70" height="58" rx="10" fill="#3E5C50"/>
+          <rect x="52" y="28" width="46" height="18" rx="6" fill="#2C443B"/>
+          <rect x="50" y="62" width="50" height="6" rx="3" fill="#F6F6F4" opacity=".85"/>
+          <rect x="58" y="74" width="34" height="5" rx="2.5" fill="#F6F6F4" opacity=".5"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>绿色帆布饭盒袋（内有餐具）</h3>
+        <div class="cat-line">其他</div>
+        <div class="meta"><span>第二食堂 · 二楼</span><span>10-12 12:25</span></div>
+        <div class="foot"><span>27 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<!-- 以图搜图 -->
+<section class="container">
+  <div class="search-sec">
+    <div>
+      <h2>以图搜图</h2>
+      <p class="desc">
+        不打一个字，直接上传照片。三步完成匹配：读图、提指纹、算距离，全程约 50 毫秒。
+      </p>
+      <div class="dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <p>拖入照片，或点击上传</p>
+        <small>支持 JPG / PNG，5MB 以内 · 也可以直接调起相机拍照</small>
+      </div>
+      <div class="steps">
+        <div class="step done">
+          <span class="step-dot">1</span>
+          <div><h4>读取图片</h4><p>灰度化并压缩至 32×32，与 JImageHash 实现一致</p></div>
+        </div>
+        <div class="step done">
+          <span class="step-dot">2</span>
+          <div><h4>提取感知哈希</h4><p>DCT 变换 → 8×8 低频 → 二值化为 64 位 <code>pHash</code></p></div>
+        </div>
+        <div class="step">
+          <span class="step-dot">3</span>
+          <div><h4>汉明距离匹配</h4><p>与库内启事逐条比对，阈值 ≤ 12，按距离升序返回 Top-10</p></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="result-head">
+        <h5>匹配结果 · 3 条</h5>
+        <span class="ms">elapsed 54ms</span>
+      </div>
+      <div class="result-list">
+        <a class="result" href="#">
+          <div class="thumb">
+            <svg width="36" height="32" viewBox="0 0 150 130">
+              <rect x="38" y="34" width="74" height="66" rx="14" fill="#3A372F"/>
+              <circle cx="60" cy="80" r="9" fill="#F6F6F4"/>
+              <circle cx="90" cy="80" r="9" fill="#F6F6F4"/>
+            </svg>
+          </div>
+          <div class="info"><b>白色无线耳机（盒装）</b><span>招领中 · 图书馆服务台 · 10-16 09:02</span></div>
+          <span class="sim-badge hi">93%</span>
+        </a>
+        <a class="result" href="#">
+          <div class="thumb">
+            <svg width="36" height="32" viewBox="0 0 150 130">
+              <rect x="38" y="34" width="74" height="66" rx="14" fill="#6E6A60"/>
+              <circle cx="60" cy="80" r="9" fill="#F6F6F4"/>
+              <circle cx="90" cy="80" r="9" fill="#F6F6F4"/>
+            </svg>
+          </div>
+          <div class="info"><b>黑色蓝牙耳机（同款不同色）</b><span>招领中 · 实验楼 305 · 10-14 16:20</span></div>
+          <span class="sim-badge mid">87%</span>
+        </a>
+        <a class="result" href="#">
+          <div class="thumb">
+            <svg width="36" height="32" viewBox="0 0 150 130">
+              <circle cx="75" cy="65" r="26" fill="#8A8577"/>
+              <rect x="70" y="30" width="10" height="20" rx="5" fill="#6E6A60"/>
+            </svg>
+          </div>
+          <div class="info"><b>单只无线耳机（左耳）</b><span>招领中 · 操场看台 · 10-13 10:15</span></div>
+          <span class="sim-badge lo">74%</span>
+        </a>
+      </div>
+      <div style="margin-top:20px">
+        <button class="btn btn-primary">生成匹配报告（PDF）</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <a class="brand" href="#">
+        <span class="brand-logo">拾</span>
+        <span><b>拾光</b><small>CAMPUS LOST &amp; FOUND</small></span>
+      </a>
+      <nav class="footer-links">
+        <a href="#">失物墙</a>
+        <a href="#">招领墙</a>
+        <a href="#">以图搜图</a>
+        <a href="#">发布启事</a>
+        <a href="#">使用指南</a>
+      </nav>
+    </div>
+    <p class="footer-note">© 2026 拾光 · 校园失物招领平台 — 软件工程课程设计，仅供学习使用</p>
+  </div>
+</footer>
+
+<span class="mock-tag">效果图 · 方案 B 拾光检索（冷静工具风）</span>
+</body>
+</html>

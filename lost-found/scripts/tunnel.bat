@@ -30,8 +30,9 @@ if not defined CF (
   echo [错误] 没找到 cloudflared.exe。
   echo        请先把 cloudflared.exe 放到项目统一软件目录：
   echo          %ROOT%\Project_operation_software\cloudflared\cloudflared.exe
-  echo        下载地址（本仓库 Releases 附件，已传好）：
-  echo          https://github.com/unicornDu/lost-fond/releases
+  echo        下载地址（Cloudflare 官方 Releases）：
+  echo          https://github.com/cloudflare/cloudflared/releases/latest
+  echo        （下载 cloudflared-windows-amd64.exe，改名为 cloudflared.exe 放进去）
   echo.
   pause
   exit /b 1

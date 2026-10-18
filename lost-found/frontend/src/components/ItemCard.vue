@@ -6,14 +6,15 @@ import { api } from '../api'
 import { assetUrl } from '../utils/asset'
 
 /**
- * 物品卡片：图片 + 贴纸分类标签 + 状态角标 + Spotlight 光晕
- * 光晕效果参考 21st.dev 社区热点组件 Spotlight Card（鼠标跟随径向渐变）
- * E-07：右上角收藏星标（未登录点击引导去登录；星标状态由本组件自管，可选用 fav-initial 传入）
+ * 物品卡片（G 版式：扁平白卡 + 左上状态方块签 + 悬停上浮/封面缩放）。
+ * E-07：右上角收藏星标（未登录点击引导去登录；星标状态由本组件自管，可选用 fav-initial 传入）。
+ * similarity：以图搜图结果页显示相似度徽标。
  */
 const props = defineProps({
   item: { type: Object, required: true },
   similarity: { type: Number, default: null }, // 以图搜图结果页显示相似度
   favInitial: { type: Boolean, default: false }, // 收藏列表页初始为已收藏
+  featured: { type: Boolean, default: false }, // 2026-10-18：特稿卡（跨列布局由父级样式负责）
 })
 
 const fav = ref(props.favInitial)
@@ -36,27 +37,19 @@ async function toggleFav() {
     }
   } catch (e) { ElMessage.error(e.message || '操作失败') }
 }
-
-function onMove(e) {
-  const el = e.currentTarget
-  const r = el.getBoundingClientRect()
-  el.style.setProperty('--mx', `${e.clientX - r.left}px`)
-  el.style.setProperty('--my', `${e.clientY - r.top}px`)
-}
 </script>
 
 <template>
-  <RouterLink :to="`/item/${item.id}`" class="item-card paper-card" @mousemove="onMove">
-    <div class="spot"></div>
-
+  <RouterLink :to="`/item/${item.id}`" class="item-card" :class="{ featured }">
     <div class="cover">
       <div class="cover-fallback">{{ catEmoji(item.category) }}</div>
       <!-- 审查 2.17：列表用缩略图，缺失回退原图 -->
       <img :src="assetUrl(item.thumb || item.img)" :alt="item.title" loading="lazy" @error="$event.target.style.display = 'none'" />
 
-      <span class="ribbon" :class="item.type">{{ item.type === 'lost' ? '寻物中' : '招领中' }}</span>
-      <span v-if="item.status !== '寻找中' && item.status !== '待认领'" class="ribbon done">{{ item.status }}</span>
-      <span class="sticker cat">{{ catEmoji(item.category) }} {{ item.category }}</span>
+      <div class="status-tags">
+        <span class="status" :class="item.type">{{ item.type === 'lost' ? '寻物中' : '招领中' }}</span>
+        <span v-if="item.status !== '寻找中' && item.status !== '待认领'" class="status done">{{ item.status }}</span>
+      </div>
       <span v-if="similarity" class="sim-badge">相似 {{ similarity }}%</span>
       <!-- E-07：收藏星标（阻止冒泡，不触发卡片跳转） -->
       <button class="fav-btn" :class="{ on: fav }" type="button" title="收藏" @click.prevent.stop="toggleFav">
@@ -65,13 +58,23 @@ function onMove(e) {
     </div>
 
     <div class="body">
+      <div class="cat-line">{{ catEmoji(item.category) }} {{ item.category }}</div>
       <p class="title">{{ item.title }}</p>
       <p class="meta">
-        <span>📍 {{ item.location }}</span>
-        <span>⏰ {{ (item.time || '').slice(5, 16) }}</span>
+        <span class="m-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-5.1 7-11a7 7 0 1 0-14 0c0 5.9 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          {{ item.location }}
+        </span>
+        <span class="m-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          {{ (item.time || '').slice(5, 16) }}
+        </span>
       </p>
       <div class="foot">
-        <span class="views">👀 {{ item.views ?? 0 }}</span>
+        <span class="views">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          {{ item.views ?? 0 }}
+        </span>
         <span class="go">查看详情 →</span>
       </div>
     </div>
@@ -80,80 +83,83 @@ function onMove(e) {
 
 <style scoped>
 .item-card {
-  position: relative; overflow: hidden;
   display: flex; flex-direction: column;
-  transition: transform .22s ease, box-shadow .22s ease;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: transform .22s cubic-bezier(.22, 1, .36, 1), box-shadow .25s ease;
   cursor: pointer;
 }
-.item-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lift); }
+.item-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lift); }
 
-/* Spotlight：跟随鼠标的暖色光晕 */
-.spot {
-  position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 158, 74, .18), transparent 65%);
-  opacity: 0; transition: opacity .25s;
-}
-.item-card:hover .spot { opacity: 1; }
-
-.cover { position: relative; aspect-ratio: 4 / 3; background: var(--cream-deep); }
-/* 图片加载失败时（img 自隐藏）露出下层的分类 emoji 渐变底 */
+.cover { position: relative; aspect-ratio: 4 / 3; background: var(--cream-deep); overflow: hidden; }
+/* 图片加载失败时（img 自隐藏）露出下层的分类 emoji 底 */
 .cover-fallback {
   position: absolute; inset: 0; display: grid; place-items: center;
   font-size: 54px;
-  background: linear-gradient(135deg, var(--orange-soft), var(--honey-soft));
+  background: var(--orange-soft);
 }
 .cover img {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .5s cubic-bezier(.22, 1, .36, 1);
 }
+.item-card:hover .cover img { transform: scale(1.06); }
 
-.ribbon {
-  position: absolute; top: 12px; right: -34px; z-index: 3;
-  padding: 5px 40px;
-  transform: rotate(38deg);
-  font-size: 12px; font-weight: 700; letter-spacing: 1px;
-  color: #FFF7EC;
-  box-shadow: 0 3px 8px rgba(120, 70, 20, .25);
+/* 状态方块签（G 版式：左上角、小圆角、实色） */
+.status-tags { position: absolute; top: 12px; left: 12px; z-index: 3; display: flex; gap: 7px; }
+.status {
+  padding: 5px 11px; border-radius: 6px;
+  font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(27, 26, 23, .18);
 }
-.ribbon.lost { background: linear-gradient(90deg, var(--orange), var(--orange-deep)); }
-.ribbon.found { background: linear-gradient(90deg, #4CC092, var(--mint)); }
-.ribbon.done { background: linear-gradient(90deg, #A9A08F, #7D7466); top: 40px; }
-
-.sticker.cat { position: absolute; left: 12px; bottom: 12px; z-index: 3; }
+.status.lost { background: var(--ink); }
+.status.found { background: var(--orange); }
+.status.done { background: var(--ink-faint); }
 
 .sim-badge {
   position: absolute; right: 10px; bottom: 10px; z-index: 3;
-  padding: 4px 10px; border-radius: 999px;
-  background: rgba(51, 41, 31, .78); color: #FFE9D6;
-  font-size: 12px; font-weight: 700;
-  backdrop-filter: blur(4px);
+  padding: 5px 12px; border-radius: 8px;
+  background: var(--orange); color: #fff;
+  font-size: 12px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 10px rgba(15, 122, 92, .35);
 }
 
 /* E-07：收藏星标 */
 .fav-btn {
-  position: absolute; top: 10px; left: 10px; z-index: 4;
-  width: 32px; height: 32px; border-radius: 50%;
-  border: 1.5px solid rgba(255, 253, 248, .7);
-  background: rgba(51, 41, 31, .45); color: #FFF7EC;
-  font-size: 17px; line-height: 1; cursor: pointer;
-  backdrop-filter: blur(4px);
-  transition: transform .15s, background .15s, color .15s;
+  position: absolute; top: 10px; right: 10px; z-index: 4;
+  width: 32px; height: 32px; border-radius: 9px;
+  border: 0;
+  background: rgba(255, 255, 255, .94); color: var(--ink-faint);
+  font-size: 15px; line-height: 1; cursor: pointer;
+  box-shadow: 0 2px 6px rgba(27, 26, 23, .14);
+  transition: transform .18s cubic-bezier(.22, 1, .36, 1), color .18s, background .18s;
 }
-.fav-btn:hover { transform: scale(1.12); background: rgba(51, 41, 31, .65); }
-.fav-btn.on { background: var(--orange); border-color: var(--orange); color: #FFF7EC; }
+.fav-btn:hover { transform: scale(1.12); color: var(--orange-deep); }
+.fav-btn.on { color: var(--orange); }
 
-.body { padding: 14px 16px 13px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+.body { padding: 15px 17px 16px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
+.cat-line { font-size: 11.5px; color: var(--ink-faint); letter-spacing: 1px; font-weight: 600; }
 .title {
-  font-size: 15.5px; font-weight: 600; line-height: 1.45;
+  font-size: 15.5px; font-weight: 700; line-height: 1.45;
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
 .meta {
   display: flex; gap: 12px; flex-wrap: wrap;
-  color: var(--ink-soft); font-size: 12.5px;
+  color: var(--ink-faint); font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
+.m-item { display: inline-flex; align-items: center; gap: 4px; }
+.m-item svg { width: 12px; height: 12px; flex: none; }
 .foot {
-  margin-top: auto; display: flex; justify-content: space-between; align-items: center;
-  color: var(--ink-faint); font-size: 12.5px;
+  margin-top: auto; padding-top: 10px; display: flex; justify-content: space-between; align-items: center;
+  color: var(--ink-faint); font-size: 12px;
 }
-.go { color: var(--orange); font-weight: 600; opacity: 0; transform: translateX(-6px); transition: all .2s; }
+.views { display: inline-flex; align-items: center; gap: 4px; }
+.views svg { width: 13px; height: 13px; }
+.go { color: var(--orange); font-weight: 700; opacity: 0; transform: translateX(-6px); transition: all .2s; }
 .item-card:hover .go { opacity: 1; transform: translateX(0); }
 </style>

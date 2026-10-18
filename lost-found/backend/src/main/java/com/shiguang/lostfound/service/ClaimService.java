@@ -1,7 +1,9 @@
 package com.shiguang.lostfound.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.shiguang.lostfound.common.BusinessException;
+import com.shiguang.lostfound.common.TxUtil;
 import com.shiguang.lostfound.dto.ClaimAuditReq;
 import com.shiguang.lostfound.dto.ClaimReq;
 import com.shiguang.lostfound.entity.ClaimRecord;
@@ -25,12 +27,17 @@ import java.util.stream.Collectors;
 /**
  * M5 认领与消息模块。
  * 审查 2.6 修正后的状态机：
- *  - apply() 白名单守卫：仅「寻找中/待认领」可申请（已下架/已关闭/已完成不可）。
+ *  - apply() 白名单守卫：仅「寻找中/待认领/认领申请中」可申请（已下架/已关闭/已完成不可）。
  *  - audit() 通过：物品置 已找回/已认领；同物品其余「审核中」申请批量置「已拒绝」并逐个通知。
  *  - audit() 拒绝：仅当同物品已无其他「审核中」申请时才回退物品状态（避免状态自相矛盾）。
  *  - audit() 守卫：物品已完成认领 / 申请已处理过 / 非发布者 → 拒绝。
  * 审查 2.5：ClaimVO 回填申请人昵称/学号/凭证/联系方式，杜绝盲审。
- * 桌面端 P1：审核通过即生成认领证明 PDF，交付失主与认领人各一份（失败仅记日志，不阻断审核主流程）。
+ *
+ * 2026-10-18 审查修复：
+ *  - 并发原子性：通过/拒绝改为「条件更新」（WHERE status='审核中' / item 状态白名单），
+ *    受影响行数为 0 即视为并发冲突抛业务异常，杜绝并发双审产生两条「已通过」。
+ *  - 认领证明 PDF 改为事务提交后生成（TxUtil.afterCommit）：原实现虽 try/catch，
+ *    但内层 @Transactional 抛异常会把外层事务标记 rollback-only，导致「PDF 失败不阻断审核」失效。
  */
 @Slf4j
 @Service
@@ -77,7 +84,7 @@ public class ClaimService {
                 "有人申请认领「" + item.getTitle() + "」，快去个人中心查看凭证并审核。", itemId);
     }
 
-    /** 审查 2.6 / 附录 D4：完整审核逻辑。 */
+    /** 审查 2.6 / 附录 D4：完整审核逻辑（2026-10-18 并发原子化）。 */
     @Transactional
     public void audit(Long claimId, Long publisherId, ClaimAuditReq req) {
         ClaimRecord c = claimMapper.selectById(claimId);
@@ -93,14 +100,25 @@ public class ClaimService {
         boolean lost = "lost".equals(item.getType());
 
         if (req.isApprove()) {
+            // ① 物品条件更新：把状态 CAS 到终态。并发双审时只有一个事务能命中状态白名单，
+            //    另一个受影响行数为 0 → 直接失败并回滚，避免"两条已通过 / 两份证明"。
+            int itemRows = itemMapper.update(null, new UpdateWrapper<Item>()
+                    .eq("id", item.getId())
+                    .in("status", "寻找中", "待认领", "认领申请中")
+                    .set("status", lost ? "已找回" : "已认领"));
+            if (itemRows == 0)
+                throw new BusinessException("该物品已完成认领或状态已变更，申请已关闭");
+
+            // ② 认领记录条件更新：已处理过的申请受影响行数为 0
+            String reply = blankTo(req.getReply(), "已通过认领，请联系交接");
+            int claimRows = claimMapper.update(null, new UpdateWrapper<ClaimRecord>()
+                    .eq("id", c.getId()).eq("status", "审核中")
+                    .set("status", "已通过").set("reply", reply));
+            if (claimRows == 0) throw new BusinessException("该申请已处理过");
             c.setStatus("已通过");
-            c.setReply(blankTo(req.getReply(), "已通过认领，请联系交接"));
-            claimMapper.updateById(c);
+            c.setReply(reply);
 
-            item.setStatus(lost ? "已找回" : "已认领");
-            itemMapper.updateById(item);
-
-            // 关闭同物品其余「审核中」申请并逐个通知
+            // ③ 关闭同物品其余「审核中」申请并逐个通知（同一事务内，先查后改；主记录已 CAS 成功）
             List<ClaimRecord> others = claimMapper.selectList(new QueryWrapper<ClaimRecord>()
                     .eq("item_id", c.getItemId()).eq("status", "审核中").ne("id", c.getId()));
             for (ClaimRecord o : others) {
@@ -113,35 +131,53 @@ public class ClaimService {
             push(c.getClaimantId(), "claim", "认领申请已通过",
                     "你对「" + item.getTitle() + "」的认领申请已通过：" + c.getReply(), item.getId());
 
-            // 桌面端 P1：生成认领证明 PDF 交付双方（失败仅记日志——证明是增值产物，不能让审核回滚）
-            try {
-                User owner = userMapper.selectById(item.getUserId());
-                User claimant = userMapper.selectById(c.getClaimantId());
-                byte[] pdf = pdfService.claimCertificate(item, c, owner, claimant);
-                String certTitle = "认领证明 #" + c.getId();
-                String desc = "物品「" + item.getTitle() + "」认领成功交接凭证";
-                String fileName = "认领证明-" + String.format("%06d", c.getId()) + ".pdf";
-                fileDeliveryService.deliver(item.getUserId(), "CLAIM_CERT", item.getId(),
-                        certTitle, desc, pdf, "pdf", "application/pdf");
-                fileDeliveryService.deliver(c.getClaimantId(), "CLAIM_CERT", item.getId(),
-                        certTitle, desc, pdf, "pdf", "application/pdf");
-            } catch (Exception e) {
-                log.warn("认领证明生成/交付失败（不阻断审核）: claimId={}", c.getId(), e);
-            }
+            // ④ 认领证明 PDF：事务提交后再生成并交付（失败仅记日志，绝不影响审核结果）
+            Long itemId = item.getId();
+            Long id = c.getId();
+            TxUtil.afterCommit(() -> issueCertificates(itemId, id));
         } else {
+            String reply = blankTo(req.getReply(), "特征不符，已拒绝");
+            int claimRows = claimMapper.update(null, new UpdateWrapper<ClaimRecord>()
+                    .eq("id", c.getId()).eq("status", "审核中")
+                    .set("status", "已拒绝").set("reply", reply));
+            if (claimRows == 0) throw new BusinessException("该申请已处理过");
             c.setStatus("已拒绝");
-            c.setReply(blankTo(req.getReply(), "特征不符，已拒绝"));
-            claimMapper.updateById(c);   // 先落库，下面的计数才会排除自身
+            c.setReply(reply);
 
-            // 仅当已无其他「审核中」申请时才回退物品状态
+            // 仅当已无其他「审核中」申请时才回退物品状态；同样走条件更新，
+            // 避免把并发中已被置为终态的物品改回「寻找中」
             Long pending = claimMapper.selectCount(new QueryWrapper<ClaimRecord>()
                     .eq("item_id", c.getItemId()).eq("status", "审核中"));
             if (pending == null || pending == 0) {
-                item.setStatus(lost ? "寻找中" : "待认领");
-                itemMapper.updateById(item);
+                itemMapper.update(null, new UpdateWrapper<Item>()
+                        .eq("id", item.getId()).eq("status", "认领申请中")
+                        .set("status", lost ? "寻找中" : "待认领"));
             }
             push(c.getClaimantId(), "claim", "认领申请未通过",
-                    "你对「" + item.getTitle() + "」的认领申请未通过：" + c.getReply(), item.getId());
+                    "你对「" + item.getTitle() + "」的申请未通过：" + c.getReply(), item.getId());
+        }
+    }
+
+    /**
+     * 事务提交后生成认领证明并交付双方（P1）。
+     * 独立重查数据，避免依赖事务内可能已变化的实体；任何失败只记日志。
+     */
+    private void issueCertificates(Long itemId, Long claimId) {
+        try {
+            Item item = itemMapper.selectById(itemId);
+            ClaimRecord c = claimMapper.selectById(claimId);
+            if (item == null || c == null) return;
+            User owner = userMapper.selectById(item.getUserId());
+            User claimant = userMapper.selectById(c.getClaimantId());
+            byte[] pdf = pdfService.claimCertificate(item, c, owner, claimant);
+            String certTitle = "认领证明 #" + c.getId();
+            String desc = "物品「" + item.getTitle() + "」认领成功交接凭证";
+            fileDeliveryService.deliver(item.getUserId(), "CLAIM_CERT", item.getId(),
+                    certTitle, desc, pdf, "pdf", "application/pdf");
+            fileDeliveryService.deliver(c.getClaimantId(), "CLAIM_CERT", item.getId(),
+                    certTitle, desc, pdf, "pdf", "application/pdf");
+        } catch (Exception e) {
+            log.warn("认领证明生成/交付失败（不阻断审核）: itemId={} claimId={}", itemId, claimId, e);
         }
     }
 

@@ -1,8 +1,12 @@
 -- =============================================================
--- 拾光 · 校园失物招领平台  数据库建表脚本
+-- 拾光 · 校园失物招领平台  数据库建表脚本【⚠️ 重置版：会清空数据】
 -- Database: lost_found   Engine: InnoDB   Charset: utf8mb4
--- 对应分工方案 M7（成员E）：user / item / item_image / claim_record / message / admin_log
+-- 对应分工方案 M7（成员E）：user / item / item_image / claim_record / message / admin_log / favorite / delivery
 -- 核心亮点：item_image.phash 存 64 位感知哈希（pHash），以图搜图 = BIT_COUNT(phash XOR query)
+--
+-- ⚠️ 2026-10-18 审查修复：本文件每张表前都有 DROP TABLE IF EXISTS，执行会删除全部业务数据。
+--    日常初始化/已有库升级请改用同目录 schema-init.sql（CREATE TABLE IF NOT EXISTS，不清数据）；
+--    本文件仅用于开发环境彻底重置，执行前请先备份（backend/scripts/backup.sh）。
 -- =============================================================
 
 CREATE DATABASE IF NOT EXISTS lost_found
@@ -42,7 +46,7 @@ CREATE TABLE `item` (
   `cover_img`    VARCHAR(255) DEFAULT NULL COMMENT '封面图（首图）相对路径',
   `views`        INT          NOT NULL DEFAULT 0 COMMENT '浏览量',
   `user_id`      BIGINT       NOT NULL COMMENT '发布人ID',
-  `audit_status` TINYINT      NOT NULL DEFAULT 1 COMMENT '审核状态：0=待审核 1=已通过 2=已驳回',
+  `audit_status` TINYINT      NOT NULL DEFAULT 0 COMMENT '审核状态：0=待审核 1=已通过 2=已驳回（默认 0 与代码口径一致，防止 SQL 直插绕过审核）',
   `create_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
   `update_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),

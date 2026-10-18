@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -33,6 +34,11 @@ class FileDeliveryServiceTest {
 
     @TempDir
     Path tempDir;
+
+    /** 2026-10-18 审查修复：符号链接目标必须放在 uploads 根之外——原 fixture 把 outside.txt
+     *  建在 tempDir（即根）内部，语义不成立，导致"期望 403 实得 404"的假失败。 */
+    @TempDir
+    Path outsideDir;
 
     private FileDeliveryService service;
     private FileProperties props;
@@ -116,15 +122,18 @@ class FileDeliveryServiceTest {
     @Test
     @DisplayName("resolveReal：符号链接指向根外 → 403（toRealPath 复检）")
     void resolveRejectsSymlink() throws Exception {
-        Path outside = tempDir.resolve("outside.txt");
+        Path outside = outsideDir.resolve("outside.txt");   // 根之外
         Files.writeString(outside, "secret");
         Path dir = Files.createDirectories(tempDir.resolve("deliveries/2026/10"));
         Path link = dir.resolve("evil.pdf");
         try {
             Files.createSymbolicLink(link, outside);
         } catch (UnsupportedOperationException | java.io.IOException e) {
-            return; // 无符号链接权限的环境跳过（Windows 非管理员常见）
+            assumeTrue(false, "当前环境不支持符号链接（Windows 非管理员常见），跳过该用例");
         }
+        // 2026-10-18 诊断补充：本机 Windows 上 createSymbolicLink 可能"静默不创建"（不抛异常、
+        // isSymbolicLink 为 false），此时断言 403 无意义——确认链接真实存在后再断言。
+        assumeTrue(Files.isSymbolicLink(link), "当前环境未真正创建符号链接，跳过该用例");
         Delivery d = row(1L, 5L, "CLAIM_CERT", "deliveries/2026/10/evil.pdf");
         assertEquals(403, assertThrows(BusinessException.class, () -> service.resolveReal(d)).getCode());
     }

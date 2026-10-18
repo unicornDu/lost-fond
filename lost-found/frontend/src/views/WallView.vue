@@ -103,15 +103,15 @@ function switchType(t) {
 
 <template>
   <div class="page container">
-    <h1 class="page-title">{{ type === 'lost' ? '🙋 失物墙' : '🎁 招领墙' }}</h1>
+    <h1 class="page-title">{{ type === 'lost' ? '失物墙' : '招领墙' }}</h1>
     <p class="page-sub">
       {{ type === 'lost' ? '同学们发布的寻物启事，看看有没有你捡到的东西' : '好心人捡到的物品都在这里，快看看有没有你的' }}
     </p>
 
-    <!-- 类型切换大按钮 -->
+    <!-- 类型切换大按钮（G 版式：实色方块、无渐变无旋转） -->
     <div class="type-switch">
-      <button :class="{ on: type === 'lost' }" @click="switchType('lost')">🙋 我丢了东西</button>
-      <button :class="{ on: type === 'found', mint: true }" @click="switchType('found')">🎁 我捡到东西</button>
+      <button :class="{ on: type === 'lost' }" @click="switchType('lost')">我丢了东西</button>
+      <button :class="{ on: type === 'found', mint: true }" @click="switchType('found')">我捡到东西</button>
     </div>
 
     <!-- 搜索栏（2026-10-17 重设计：渐变光晕胶囊搜索条，见 Prompt/前端prompt/搜索框.md） -->
@@ -172,25 +172,23 @@ function switchType(t) {
 </template>
 
 <style scoped>
-.type-switch { display: flex; gap: 14px; margin: 8px 0 20px; }
+.type-switch { display: flex; gap: 12px; margin: 8px 0 20px; }
 .type-switch button {
-  padding: 13px 30px; border-radius: 16px;
+  padding: 13px 30px; border-radius: 12px;
   border: 1.5px solid var(--line); background: var(--paper);
-  font-size: 15px; color: var(--ink-soft);
-  cursor: pointer; transition: all .2s ease;
+  font-size: 15px; font-weight: 600; color: var(--ink-soft);
+  cursor: pointer; transition: all .2s cubic-bezier(.22, 1, .36, 1);
   font-family: var(--font-body);
 }
-.type-switch button:hover { transform: translateY(-2px); border-color: var(--orange); }
+.type-switch button:hover { transform: translateY(-2px); border-color: var(--orange); color: var(--orange-deep); }
 .type-switch button.on {
-  background: linear-gradient(120deg, var(--orange), var(--orange-deep));
-  border-color: transparent; color: #FFF7EC; font-weight: 700;
-  box-shadow: 0 10px 22px rgba(255, 125, 46, .35);
-  transform: rotate(-1deg);
+  background: var(--ink); border-color: var(--ink);
+  color: #FFF; font-weight: 700;
+  box-shadow: 0 10px 22px rgba(27, 26, 23, .2);
 }
 .type-switch button.on.mint {
-  background: linear-gradient(120deg, #4CC092, var(--mint));
-  box-shadow: 0 10px 22px rgba(63, 174, 131, .35);
-  transform: rotate(1deg);
+  background: var(--orange); border-color: var(--orange);
+  box-shadow: 0 10px 22px rgba(15, 122, 92, .3);
 }
 
 .cats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }

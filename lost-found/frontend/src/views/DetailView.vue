@@ -34,6 +34,28 @@ const dmSending = ref(false)
 const typeText = computed(() => item.value?.type === 'lost' ? '寻物启事' : '招领启事')
 const previewList = computed(() => (item.value?.images?.length ? item.value.images : (item.value?.img ? [item.value.img] : [])).map(assetUrl))   // assetUrl：桌面端 /uploads 转绝对
 
+/* G 版式：认领进度时间线（启事详情直接带回本人认领状态，避免额外请求） */
+const myClaim = computed(() => {
+  const it = item.value
+  if (!it || !it.myClaimStatus) return null
+  return { claimStatus: it.myClaimStatus, reply: it.myClaimReply }
+})
+const CLAIM_TL_NODES = ['提交申请', '发布者审核', '交付确认', '已找回']
+const claimStage = computed(() => {
+  const c = myClaim.value
+  if (!c) return null
+  const done = item.value && (item.value.status === '已找回' || item.value.status === '已认领')
+  if (c.claimStatus === '已拒绝') return { fill: 1 / 3, note: `申请已被发布者拒绝${c.reply ? '：' + c.reply : ''}`, states: ['done', 'rej', '', ''] }
+  if (done) return { fill: 1, note: '物品已找回，本单闭环完成', states: ['done', 'done', 'done', 'done'] }
+  if (c.claimStatus === '已通过') return { fill: 2 / 3, note: '审核已通过，请与发布者约定线下交付（建议公共场所）', states: ['done', 'done', 'now', ''] }
+  return { fill: 1 / 3, note: '申请已送达发布者，等待审核', states: ['done', 'now', '', ''] }
+})
+const claimFillStyle = computed(() => {
+  if (!claimStage.value) return {}
+  const f = claimStage.value.fill
+  return { width: `calc(${f * 100}% - ${(f * 32).toFixed(1)}px)` }
+})
+
 async function load() {
   const id = route.params.id
   const seq = ++reqSeq
@@ -135,6 +157,21 @@ onMounted(load)
         </div>
       </div>
 
+      <!-- G 版式：认领进度时间线（本人提交过认领时展示） -->
+      <div v-if="myClaim && claimStage" class="claim-tl paper-card">
+        <div class="tl-head">
+          <h3>认领进度</h3>
+          <p>{{ claimStage.note }}</p>
+        </div>
+        <div class="tl">
+          <div class="tl-fill" :style="claimFillStyle"></div>
+          <div v-for="(label, i) in CLAIM_TL_NODES" :key="label" class="tl-node" :class="claimStage.states[i]">
+            <span class="tl-dot">{{ claimStage.states[i] === 'done' ? '✓' : i + 1 }}</span>
+            <span>{{ claimStage.states[i] === 'rej' ? '已拒绝' : label }}</span>
+          </div>
+        </div>
+      </div>
+
       <div class="section-head">
         <h2>视觉上相似 <em>（pHash 最近邻）</em></h2>
         <span class="more" @click="router.push('/search-image')">上传照片精确匹配 →</span>
@@ -201,4 +238,10 @@ onMounted(load)
 .claim-tip { color: var(--ink-soft); font-size: 13.5px; line-height: 1.7; margin-bottom: 12px; }
 .contact-row { display: flex; gap: 10px; align-items: center; }
 @media (max-width: 860px) { .detail { grid-template-columns: 1fr; } }
+
+/* G 版式：认领进度时间线卡 */
+.claim-tl { margin-top: 18px; padding: 22px 26px; }
+.tl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.tl-head h3 { font-size: 16px; }
+.tl-head p { font-size: 13px; color: var(--ink-soft); }
 </style>

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>完整实现 · 方案H 拾光网格 — Bento 信息版式</title>
+<style>
+/* ============================================================
+   方案 H 「拾光网格」— Bento 信息版式（完整实现）
+   版式：密铺 Bento 网格（grid-auto-flow: dense，零空格），
+         首屏 = 左文 + 右功能瓦片区；失物墙 = 不等宽瓦片 + CTA 收尾格
+   动效：
+   - Split Text：逐字 blur-rise（模糊聚焦），50ms 错峰，hover 单字泛色
+   - 滚动触发：IntersectionObserver 阶梯进场（--i 错峰）
+   - 瓦片悬停：上浮 + 内图缩放 + 描边变色；上传瓦片 Shiny 扫光
+   - 数字计数 rAF；管线箭头 pulse；prefers-reduced-motion 全降级
+   换肤：全部颜色集中在 :root。
+   ============================================================ */
+:root {
+  --bg: #FFF9F0;
+  --surface: #FFFEFB;
+  --ink: #23201B;
+  --ink-2: #6F675B;
+  --ink-3: #ABA292;
+  --line: #EFE6D5;
+  --accent: #E8590C;          /* 蜜柑橘（换肤只改这一处） */
+  --accent-deep: #C74807;
+  --accent-soft: #FDEBDC;
+  --found: #2E7D5B;
+  --found-soft: #E3F0E9;
+  --r: 20px;
+  --sans: 'PingFang SC', 'HarmonyOS Sans SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(800px 400px at 88% -10%, rgba(232,89,12,.06), transparent 60%);
+}
+.wrap { position: relative; z-index: 1; }
+.container { width: min(1240px, 94vw); margin: 0 auto; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+::selection { background: var(--accent-soft); color: var(--accent-deep); }
+
+/* ---------- 导航 ---------- */
+.nav { position: sticky; top: 0; z-index: 50; background: rgba(255,249,240,.9); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.nav-inner { display: flex; align-items: center; gap: 32px; height: 70px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-logo { width: 40px; height: 40px; border-radius: 13px; background: var(--accent); color: #FFF9F0; display: grid; place-items: center; font-weight: 800; font-size: 19px; box-shadow: 0 6px 14px rgba(232,89,12,.3); }
+.brand b { font-size: 18px; font-weight: 800; }
+.brand small { display: block; font-size: 10px; color: var(--ink-3); letter-spacing: 2px; }
+.nav-links { display: flex; gap: 4px; margin-left: auto; }
+.nav-links a { padding: 9px 15px; border-radius: 11px; font-size: 14px; font-weight: 600; color: var(--ink-2); transition: all .18s; }
+.nav-links a:hover { color: var(--ink); background: var(--accent-soft); }
+.nav-links a.on { color: var(--accent-deep); background: var(--accent-soft); }
+
+/* ---------- 按钮 ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  border: 0; border-radius: 14px; font-weight: 800; font-size: 15px;
+  padding: 14px 26px; position: relative; overflow: hidden;
+  transition: transform .22s var(--ease), box-shadow .25s ease, background .2s;
+}
+.btn:active { transform: scale(.96); }
+.btn-primary { background: var(--accent); color: #fff; box-shadow: 0 10px 24px rgba(232,89,12,.3); }
+.btn-primary::before {
+  content: ''; position: absolute; top: 0; left: -85%; width: 55%; height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.4), transparent);
+  transform: skewX(-18deg); transition: left .55s ease;
+}
+.btn-primary:hover::before { left: 135%; }
+.btn-primary:hover { background: var(--accent-deep); transform: translateY(-2px); box-shadow: 0 16px 32px rgba(232,89,12,.38); }
+.btn-ghost { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+.btn-ghost:hover { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent-deep); transform: translateY(-2px); }
+.btn-sm { padding: 10px 19px; font-size: 13.5px; }
+
+/* ---------- Split Text：blur-rise ---------- */
+.split .ch {
+  display: inline-block; white-space: pre;
+  opacity: 0; filter: blur(8px); transform: translateY(.8em);
+  transition: opacity .8s var(--ease), filter .8s var(--ease), transform .8s var(--ease);
+  transition-delay: calc(var(--d) * 50ms);
+}
+.split.in .ch { opacity: 1; filter: blur(0); transform: none; }
+.split .ch:hover { color: var(--accent); }
+
+/* ---------- 滚动进场 ---------- */
+.rv { opacity: 0; transform: translateY(28px) scale(.98); transition: opacity .75s var(--ease), transform .75s var(--ease); transition-delay: calc(var(--i, 0) * 80ms); }
+.rv.in { opacity: 1; transform: none; }
+
+/* ---------- Hero ---------- */
+.hero { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; padding: 84px 0 64px; }
+h1 { font-size: clamp(42px, 5.2vw, 64px); font-weight: 800; line-height: 1.16; letter-spacing: -1px; }
+.kicker { display: inline-flex; align-items: center; gap: 9px; padding: 7px 15px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-deep); font-size: 12.5px; font-weight: 800; margin-bottom: 24px; }
+.hero-sub { margin: 24px 0 32px; max-width: 470px; font-size: 15.5px; line-height: 1.95; color: var(--ink-2); }
+.hero-sub b { color: var(--ink); }
+.hero-cta { display: flex; gap: 13px; flex-wrap: wrap; }
+
+/* 右侧 Bento 功能瓦片（2×2） */
+.bento-hero { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 118px; gap: 14px; }
+.tile {
+  background: var(--surface); border-radius: var(--r);
+  box-shadow: 0 1px 2px rgba(35,32,27,.05), 0 14px 34px rgba(35,32,27,.07);
+  padding: 20px; display: flex; flex-direction: column; justify-content: space-between;
+  transition: transform .25s var(--ease), box-shadow .25s ease;
+  overflow: hidden; position: relative;
+}
+.tile:hover { transform: translateY(-4px); box-shadow: 0 22px 44px rgba(35,32,27,.12); }
+.tile-upload {
+  grid-row: span 2; background: var(--accent); color: #fff;
+  box-shadow: 0 18px 40px rgba(232,89,12,.32);
+  cursor: pointer;
+}
+.tile-upload::before {
+  content: ''; position: absolute; top: 0; left: -85%; width: 50%; height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.28), transparent);
+  transform: skewX(-18deg); transition: left .7s ease;
+}
+.tile-upload:hover::before { left: 135%; }
+.tile-upload .up-ico { width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,.18); display: grid; place-items: center; }
+.tile-upload h3 { font-size: 19px; font-weight: 800; line-height: 1.5; }
+.tile-upload p { font-size: 12.5px; opacity: .85; line-height: 1.7; margin-top: 6px; }
+.tile h5 { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--ink-3); }
+.tile .big { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+.tile .big i { font-style: normal; font-size: 13px; color: var(--ink-3); font-weight: 600; margin-left: 4px; }
+/* 指纹瓦片 */
+.pixels { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; width: 72px; height: 72px; }
+.pixels i { border-radius: 2px; }
+.pixels i.d { background: var(--accent); }
+.pixels i.l { background: #F3E8D7; }
+.tile-hash { flex-direction: row; align-items: center; gap: 14px; }
+.tile-hash .hex { font-family: var(--mono); font-size: 11px; color: var(--ink-2); line-height: 1.7; word-break: break-all; }
+
+/* ---------- 失物墙：Bento 密铺（4 列 × 3 行 = 12 格，零空格） ---------- */
+.sec { padding: 80px 0 8px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 26px; }
+.sec-head h2 { font-size: clamp(26px, 3vw, 32px); font-weight: 800; letter-spacing: -.5px; }
+.sec-head .more { font-size: 14px; font-weight: 700; color: var(--accent); }
+.sec-head .more:hover { color: var(--accent-deep); }
+.wall {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 190px; gap: 16px; grid-auto-flow: dense;
+}
+.witem {
+  position: relative; border-radius: var(--r); overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(35,32,27,.05), 0 10px 26px rgba(35,32,27,.06);
+  transition: transform .25s var(--ease), box-shadow .25s ease;
+  display: flex; flex-direction: column;
+}
+.witem:hover { transform: translateY(-4px); box-shadow: 0 20px 42px rgba(35,32,27,.12); }
+.witem .ph { flex: 1; display: grid; place-items: center; overflow: hidden; }
+.witem .ph svg { transition: transform .5s var(--ease); }
+.witem:hover .ph svg { transform: scale(1.07); }
+.witem .cap { padding: 12px 16px 14px; background: var(--surface); }
+.witem .cap b { font-size: 13.5px; display: block; }
+.witem .cap span { font-size: 11.5px; color: var(--ink-3); display: block; margin-top: 3px; }
+.witem .status { position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 5px 11px; border-radius: 999px; color: #fff; }
+.witem .status.lost { background: var(--accent); }
+.witem .status.found { background: var(--found); }
+/* 跨度定义 */
+.w-a { grid-column: span 2; grid-row: span 2; }   /* 特稿大图 */
+.w-b, .w-c, .w-e, .w-f { grid-column: span 1; grid-row: span 1; }
+.w-d { grid-column: span 2; grid-row: span 1; }   /* 横幅 */
+.w-cta {
+  grid-column: span 2; grid-row: span 1;
+  background: var(--ink); color: #fff; display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: center; gap: 8px; padding: 24px 28px;
+}
+.w-cta:hover { transform: translateY(-4px); }
+.w-cta b { font-size: 18px; font-weight: 800; }
+.w-cta span { font-size: 12.5px; color: #C9C2B4; }
+/* 背景色轮换 */
+.ph.t1 { background: var(--accent-soft); }
+.ph.t2 { background: var(--found-soft); }
+.ph.t3 { background: #F7EEDC; }
+.ph.t4 { background: #E8EEF2; }
+
+/* ---------- 以图搜图：横向管线 ---------- */
+.search-sec { margin: 84px 0 0; padding: 56px; background: var(--surface); border-radius: 28px; box-shadow: 0 1px 2px rgba(35,32,27,.05), 0 20px 50px rgba(35,32,27,.07); }
+.search-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 30px; flex-wrap: wrap; }
+.search-top h2 { font-size: 28px; font-weight: 800; letter-spacing: -.4px; }
+.search-top p { font-size: 14px; color: var(--ink-2); max-width: 460px; line-height: 1.9; margin-top: 10px; }
+.pipeline { display: grid; grid-template-columns: 1fr 44px 1fr 44px 1fr; align-items: stretch; gap: 0 0; }
+.pipe {
+  background: var(--bg); border-radius: 18px; padding: 20px 22px;
+  transition: transform .25s var(--ease), box-shadow .25s ease;
+}
+.pipe:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(35,32,27,.08); }
+.pipe .ico { width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-deep); display: grid; place-items: center; margin-bottom: 14px; }
+.pipe h4 { font-size: 15px; font-weight: 800; margin-bottom: 5px; }
+.pipe p { font-size: 12.5px; color: var(--ink-2); line-height: 1.75; }
+.pipe p code { font-family: var(--mono); font-size: 11.5px; color: var(--accent-deep); }
+.pipe-arrow { display: grid; place-items: center; color: var(--accent); animation: nudge 2.2s ease-in-out infinite; }
+@keyframes nudge { 50% { transform: translateX(5px); } }
+.result-list { display: flex; flex-direction: column; gap: 10px; margin-top: 26px; }
+.result-head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-3); letter-spacing: 1px; margin-bottom: 2px; }
+.result-head .ms { font-family: var(--mono); color: var(--accent-deep); }
+.result { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-radius: 14px; background: var(--bg); transition: all .2s var(--ease); }
+.result:hover { background: var(--accent-soft); transform: translateX(5px); }
+.result .thumb { width: 52px; height: 52px; border-radius: 12px; background: var(--surface); display: grid; place-items: center; flex: none; box-shadow: 0 1px 2px rgba(35,32,27,.06); }
+.result .info { flex: 1; min-width: 0; }
+.result .info b { font-size: 14px; display: block; margin-bottom: 3px; }
+.result .info span { font-size: 12px; color: var(--ink-3); }
+.sim-badge { flex: none; font-family: var(--mono); font-weight: 800; font-size: 13px; padding: 6px 13px; border-radius: 999px; }
+.sim-badge.hi { background: var(--accent); color: #fff; }
+.sim-badge.mid { background: var(--accent-soft); color: var(--accent-deep); }
+.sim-badge.lo { background: var(--found-soft); color: var(--found); }
+
+/* ---------- Footer ---------- */
+.footer { margin-top: 92px; padding: 48px 0 44px; background: var(--ink); color: #E9E1D2; border-radius: 28px 28px 0 0; }
+.footer-inner { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.footer b.brand-f { font-size: 17px; font-weight: 800; color: #fff; }
+.footer-links { display: flex; gap: 24px; margin-left: auto; font-size: 13px; }
+.footer-links a:hover { color: #fff; }
+.footer-note { margin-top: 20px; font-size: 12px; color: #948B7C; }
+
+.mock-tag { position: fixed; left: 18px; bottom: 18px; z-index: 99; padding: 8px 14px; border-radius: 999px; background: rgba(35,32,27,.92); color: #FFF9F0; font-size: 12px; letter-spacing: 1px; }
+
+/* ---------- 降级与响应式 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .split .ch { opacity: 1; filter: none; transform: none; transition: none; }
+  .rv { opacity: 1; transform: none; transition: none; }
+  .btn-primary::before, .tile-upload::before { display: none; }
+  .pipe-arrow { animation: none; }
+}
+@media (max-width: 1020px) {
+  .hero { grid-template-columns: 1fr; }
+  .wall { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 200px; }
+  .w-a { grid-column: span 2; }
+  .pipeline { grid-template-columns: 1fr; gap: 12px; }
+  .pipe-arrow { display: none; }
+}
+@media (max-width: 640px) {
+  .wall { grid-template-columns: 1fr; grid-auto-rows: 220px; }
+  .w-a, .w-d, .w-cta { grid-column: span 1; }
+  .bento-hero { grid-template-columns: 1fr; grid-auto-rows: auto; }
+  .tile-upload { grid-row: span 1; }
+  .nav-links { display: none; }
+  .search-sec { padding: 30px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- 导航 -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#">
+      <span class="brand-logo">拾</span>
+      <span><b>拾光</b><small>校园失物招领平台</small></span>
+    </a>
+    <nav class="nav-links">
+      <a class="on" href="#">首页</a>
+      <a href="#wall">失物墙</a>
+      <a href="#wall">招领墙</a>
+      <a href="#search">以图搜图</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="btn btn-primary btn-sm"><span>发布启事</span></button>
+    </div>
+  </div>
+</header>
+
+<!-- Hero：左文 + 右 Bento 功能瓦片 -->
+<section class="hero container">
+  <div>
+    <p class="kicker rv">pHash 感知哈希 · 长相识别</p>
+    <h1 class="split">
+      <span data-split>丢了东西？</span><br />
+      <span data-split>一张照片帮你找回</span>
+    </h1>
+    <p class="hero-sub rv" style="--i:2">
+      上传物品照片，<b>感知哈希 pHash</b> 为它生成 64 位长相指纹，与全校启事逐条比对汉明距离，秒级返回最像的结果。
+    </p>
+    <div class="hero-cta rv" style="--i:3">
+      <button class="btn btn-primary"><span>上传照片搜一搜</span></button>
+      <button class="btn btn-ghost">浏览失物墙</button>
+    </div>
+  </div>
+
+  <div class="bento-hero">
+    <div class="tile tile-upload rv" style="--i:1">
+      <span class="up-ico">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+      </span>
+      <div>
+        <h3>拖张照片进来，马上匹配</h3>
+        <p>支持 JPG / PNG，5MB 以内。读图 → 提指纹 → 算距离，约 50ms。</p>
+      </div>
+    </div>
+    <div class="tile rv" style="--i:2">
+      <h5>已找回</h5>
+      <span class="big"><span data-count="128">0</span><i>件</i></span>
+    </div>
+    <div class="tile rv" style="--i:3">
+      <h5>指纹库</h5>
+      <span class="big"><span data-count="618">0</span><i>张已索引</i></span>
+    </div>
+    <div class="tile tile-hash rv" style="--i:4; grid-column: span 2;">
+      <div class="pixels">
+        <i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="l"></i><i class="d"></i><i class="d"></i>
+        <i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="l"></i>
+        <i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i>
+        <i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="l"></i><i class="d"></i>
+        <i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="l"></i>
+        <i class="d"></i><i class="l"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i>
+        <i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i>
+        <i class="d"></i><i class="l"></i><i class="d"></i><i class="d"></i><i class="l"></i><i class="d"></i><i class="l"></i><i class="d"></i>
+      </div>
+      <div>
+        <h5>示例指纹</h5>
+        <span class="hex">pHash = 1010 0101 1100 0110 1001 0011</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 失物墙：Bento 密铺 -->
+<section class="sec container" id="wall">
+  <div class="sec-head rv" style="--i:0">
+    <h2>最新失物与招领</h2>
+    <a class="more" href="#">查看全部 →</a>
+  </div>
+  <div class="wall">
+
+    <a class="witem w-a rv" style="--i:0" href="#">
+      <div class="ph t1">
+        <svg width="190" height="160" viewBox="0 0 150 130">
+          <ellipse cx="75" cy="114" rx="50" ry="7" fill="rgba(232,89,12,.12)"/>
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#E8590C"/>
+          <rect x="38" y="34" width="74" height="22" rx="11" fill="#C74807"/>
+          <circle cx="60" cy="80" r="9" fill="#FFF9F0"/>
+          <circle cx="90" cy="80" r="9" fill="#FFF9F0"/>
+        </svg>
+      </div>
+      <span class="status lost">寻物中</span>
+      <div class="cap"><b>黑色 AirPods Pro 耳机</b><span>电子设备 · 图书馆三楼自习区 · 10-16 08:30 · 46 次浏览</span></div>
+    </a>
+
+    <a class="witem w-b rv" style="--i:1" href="#">
+      <div class="ph t2">
+        <svg width="92" height="80" viewBox="0 0 150 130">
+          <rect x="42" y="28" width="66" height="86" rx="8" fill="#2E7D5B"/>
+          <rect x="42" y="28" width="66" height="30" rx="8" fill="#21593F"/>
+          <circle cx="75" cy="74" r="13" fill="#FFF9F0"/>
+        </svg>
+      </div>
+      <span class="status found">招领中</span>
+      <div class="cap"><b>蓝色海豚卡套的校园卡</b><span>证件卡类 · 第二食堂</span></div>
+    </a>
+
+    <a class="witem w-c rv" style="--i:2" href="#">
+      <div class="ph t3">
+        <svg width="92" height="80" viewBox="0 0 150 130">
+          <circle cx="75" cy="52" r="18" fill="none" stroke="#C74807" stroke-width="7"/>
+          <rect x="66" y="68" width="9" height="34" rx="3" fill="#E8590C"/>
+          <rect x="66" y="88" width="18" height="5" rx="2.5" fill="#E8590C"/>
+          <rect x="66" y="96" width="14" height="5" rx="2.5" fill="#E8590C"/>
+        </svg>
+      </div>
+      <span class="status lost">寻物中</span>
+      <div class="cap"><b>小熊挂件钥匙串</b><span>钥匙 · 操场东看台</span></div>
+    </a>
+
+    <a class="witem w-d rv" style="--i:1" href="#">
+      <div class="ph t4">
+        <svg width="150" height="80" viewBox="0 0 150 130">
+          <rect x="34" y="76" width="82" height="16" rx="3" fill="#6B7F92"/>
+          <rect x="38" y="60" width="74" height="16" rx="3" fill="#3D5268"/>
+          <rect x="42" y="44" width="66" height="16" rx="3" fill="#E8590C"/>
+          <rect x="50" y="50" width="30" height="4" rx="2" fill="#FFF9F0" opacity=".9"/>
+        </svg>
+      </div>
+      <span class="status found">招领中</span>
+      <div class="cap"><b>《高等数学》第七版（上册）</b><span>书籍资料 · 第一教学楼 A203 · 87 次浏览</span></div>
+    </a>
+
+    <a class="witem w-e rv" style="--i:2" href="#">
+      <div class="ph t2">
+        <svg width="92" height="80" viewBox="0 0 150 130">
+          <path d="M38 62 C 52 44, 74 44, 86 56 C 98 68, 112 66, 118 56 L118 76 C 110 88, 92 88, 80 76 C 68 64, 52 66, 38 80 Z" fill="#57A583"/>
+          <path d="M38 62 C 52 44, 74 44, 86 56 C 98 68, 112 66, 118 56 L118 64 C 110 76, 92 76, 80 64 C 68 52, 52 54, 38 68 Z" fill="#79C0A0"/>
+        </svg>
+      </div>
+      <span class="status lost">寻物中</span>
+      <div class="cap"><b>灰色羊绒围巾</b><span>衣物饰品 · 体育馆</span></div>
+    </a>
+
+    <a class="witem w-f rv" style="--i:3" href="#">
+      <div class="ph t3">
+        <svg width="92" height="80" viewBox="0 0 150 130">
+          <rect x="58" y="30" width="34" height="70" rx="12" fill="#EDE1CB"/>
+          <rect x="64" y="20" width="22" height="14" rx="5" fill="#E8590C"/>
+          <rect x="58" y="56" width="34" height="22" fill="#FFF9F0"/>
+        </svg>
+      </div>
+      <span class="status found">招领中</span>
+      <div class="cap"><b>白色保温杯（柴犬贴纸）</b><span>其他 · 实验楼 402</span></div>
+    </a>
+
+    <a class="witem w-cta rv" style="--i:2" href="#wall">
+      <b>还有 337 条启事 →</b>
+      <span>按分类、地点、时间筛选，或直接以图搜图</span>
+    </a>
+
+  </div>
+</section>
+
+<!-- 以图搜图 -->
+<section class="container" id="search">
+  <div class="search-sec rv">
+    <div class="search-top">
+      <div>
+        <h2>以图搜图</h2>
+        <p>不打一个字，直接上传照片。三步完成匹配：读图、提指纹、算距离，全程约 50 毫秒。</p>
+      </div>
+      <button class="btn btn-primary"><span>上传照片开始匹配</span></button>
+    </div>
+    <div class="pipeline">
+      <div class="pipe rv" style="--i:0">
+        <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 16l-5-4-4 3-3-2-6 5"/></svg></span>
+        <h4>读取图片</h4>
+        <p>灰度化并压缩至 32×32，与 JImageHash 感知哈希实现一致</p>
+      </div>
+      <div class="pipe-arrow"><svg width="20" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 7h18M14 1l6 6-6 6"/></svg></div>
+      <div class="pipe rv" style="--i:1">
+        <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></span>
+        <h4>提取感知哈希</h4>
+        <p>DCT 变换 → 取 8×8 低频 → 二值化为 64 位 <code>pHash</code></p>
+      </div>
+      <div class="pipe-arrow"><svg width="20" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 7h18M14 1l6 6-6 6"/></svg></div>
+      <div class="pipe rv" style="--i:2">
+        <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/></svg></span>
+        <h4>汉明距离匹配</h4>
+        <p>与库内启事逐条比对，阈值 ≤ 12，按距离升序返回 Top-10</p>
+      </div>
+    </div>
+    <div class="result-list">
+      <div class="result-head"><span>匹配结果 · 3 条</span><span class="ms">elapsed 54ms</span></div>
+      <a class="result rv" style="--i:0" href="#">
+        <div class="thumb">
+          <svg width="36" height="32" viewBox="0 0 150 130">
+            <rect x="38" y="34" width="74" height="66" rx="14" fill="#E8590C"/>
+            <circle cx="60" cy="80" r="9" fill="#FFF9F0"/>
+            <circle cx="90" cy="80" r="9" fill="#FFF9F0"/>
+          </svg>
+        </div>
+        <div class="info"><b>白色无线耳机（盒装）</b><span>招领中 · 图书馆服务台 · 10-16 09:02</span></div>
+        <span class="sim-badge hi">93%</span>
+      </a>
+      <a class="result rv" style="--i:1" href="#">
+        <div class="thumb">
+          <svg width="36" height="32" viewBox="0 0 150 130">
+            <rect x="38" y="34" width="74" height="66" rx="14" fill="#6F675B"/>
+            <circle cx="60" cy="80" r="9" fill="#FFF9F0"/>
+            <circle cx="90" cy="80" r="9" fill="#FFF9F0"/>
+          </svg>
+        </div>
+        <div class="info"><b>黑色蓝牙耳机（同款不同色）</b><span>招领中 · 实验楼 305 · 10-14 16:20</span></div>
+        <span class="sim-badge mid">87%</span>
+      </a>
+      <a class="result rv" style="--i:2" href="#">
+        <div class="thumb">
+          <svg width="36" height="32" viewBox="0 0 150 130">
+            <circle cx="75" cy="65" r="26" fill="#ABA292"/>
+            <rect x="70" y="30" width="10" height="20" rx="5" fill="#6F675B"/>
+          </svg>
+        </div>
+        <div class="info"><b>单只无线耳机（左耳）</b><span>招领中 · 操场看台 · 10-13 10:15</span></div>
+        <span class="sim-badge lo">74%</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <b class="brand-f">拾光 · 校园失物招领平台</b>
+      <nav class="footer-links">
+        <a href="#">失物墙</a><a href="#">招领墙</a><a href="#">以图搜图</a><a href="#">发布启事</a>
+      </nav>
+    </div>
+    <p class="footer-note">© 2026 拾光 — 软件工程课程设计，仅供学习使用</p>
+  </div>
+</footer>
+
+</div>
+<span class="mock-tag">完整实现 · 方案 H 拾光网格（Bento 信息版式）</span>
+
+<script>
+(function () {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  // 1. Split Text：逐字 blur-rise（50ms 错峰）
+  document.querySelectorAll('[data-split]').forEach((el, li) => {
+    const text = el.textContent
+    el.textContent = ''
+    ;[...text].forEach((c, i) => {
+      const s = document.createElement('span')
+      s.className = 'ch'
+      s.textContent = c
+      s.style.setProperty('--d', li * 6 + i)
+      el.appendChild(s)
+    })
+  })
+
+  // 2. 滚动触发：IntersectionObserver 一次性阶梯进场
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) }
+    })
+  }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' })
+  document.querySelectorAll('.rv, .split').forEach(el => io.observe(el))
+  if (reduced) document.querySelectorAll('.rv, .split').forEach(el => el.classList.add('in'))
+
+  // 3. 数字计数：rAF 缓动
+  const cntIO = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return
+      cntIO.unobserve(e.target)
+      const target = +e.target.dataset.count
+      if (reduced) { e.target.textContent = target; return }
+      const t0 = performance.now(), dur = 1300
+      const tick = (t) => {
+        const p = Math.min((t - t0) / dur, 1)
+        e.target.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)))
+        if (p < 1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+  }, { threshold: 0.6 })
+  document.querySelectorAll('[data-count]').forEach(el => cntIO.observe(el))
+})()
+</script>
+</body>
+</html>

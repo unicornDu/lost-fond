@@ -40,6 +40,10 @@ public class UserService {
         userMapper.updateById(u);
     }
 
+    /** 2026-10-18 审查修复：头像限定为内置集合（与注册/个人中心选择器一致，含种子数据的历史头像）。 */
+    private static final java.util.Set<String> AVATARS = java.util.Set.of(
+            "🦊", "🐰", "🐼", "🐯", "🦁", "🐨", "🐷", "🐸", "🐵", "🦄");
+
     /** 部分更新：req 中为 null 的字段不修改。返回更新后的 VO（含 account/role，供前端刷新 store）。 */
     public UserVO updateProfile(Long userId, UpdateProfileReq req) {
         User u = userMapper.selectById(userId);
@@ -53,7 +57,11 @@ public class UserService {
             String phone = req.getPhone().trim();
             u.setPhone(phone.isEmpty() ? null : phone);   // 空串 = 清空手机号（回写 NULL，与列默认一致）
         }
-        if (req.getAvatar() != null && !req.getAvatar().isBlank()) u.setAvatar(req.getAvatar().trim());
+        if (req.getAvatar() != null && !req.getAvatar().isBlank()) {
+            String avatar = req.getAvatar().trim();
+            if (!AVATARS.contains(avatar)) throw new BusinessException(400, "头像不在可选范围内");
+            u.setAvatar(avatar);
+        }
         userMapper.updateById(u);
         return toVO(u);
     }

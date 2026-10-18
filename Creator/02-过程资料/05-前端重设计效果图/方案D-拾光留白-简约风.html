@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>效果图 · 方案D 拾光留白 — 简约风</title>
+<style>
+/* ============================================================
+   方案 D 「拾光留白」— 简约风（瑞士网格 · 大量留白）
+   纯白 + 墨黑 + 单一钴蓝强调。按钮动效参考：
+   - 21st.dev Shiny Button：主按钮悬停细扫光
+   - 21st.dev Interactive Hover Button：次按钮悬停填充 + 箭头滑入
+   - ReactBits Split Text：标题 effect=mask-rise 逐字显影（克制版）
+   ============================================================ */
+:root {
+  --bg: #FAFAF8;
+  --surface: #FFFFFF;
+  --ink: #141414;
+  --ink-2: #6B6B66;
+  --ink-3: #A6A6A0;
+  --line: #E9E9E4;
+  --accent: #2743E0;
+  --accent-ink: #1B31B4;
+  --accent-soft: #E9EDFF;
+  --r: 6px;
+  --sans: 'PingFang SC', 'HarmonyOS Sans SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+.container { width: min(1200px, 94vw); margin: 0 auto; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+::selection { background: var(--accent-soft); color: var(--accent-ink); }
+
+/* ---------- 导航（极简：字标 + 链接 + 黑色按钮） ---------- */
+.nav { position: sticky; top: 0; z-index: 50; background: rgba(250,250,248,.92); backdrop-filter: blur(8px); }
+.nav-inner { display: flex; align-items: center; gap: 36px; height: 68px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand b { font-size: 19px; font-weight: 800; letter-spacing: 1px; }
+.brand small { font-size: 10.5px; color: var(--ink-3); letter-spacing: 2.5px; }
+.nav-links { display: flex; gap: 30px; margin-left: auto; }
+.nav-links a { font-size: 14px; font-weight: 600; color: var(--ink-2); position: relative; padding: 4px 0; }
+/* 文字链接：下划线从左滑入（简约风的"动效克制"表达） */
+.nav-links a::after {
+  content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%;
+  background: var(--accent); transform: scaleX(0); transform-origin: left;
+  transition: transform .28s cubic-bezier(.22,1,.36,1);
+}
+.nav-links a:hover { color: var(--ink); }
+.nav-links a:hover::after, .nav-links a.on::after { transform: scaleX(1); }
+.nav-links a.on { color: var(--ink); }
+.nav-actions { display: flex; align-items: center; gap: 16px; }
+
+/* ---------- 按钮体系 ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  border: 0; border-radius: var(--r);
+  font-weight: 700; font-size: 14.5px; letter-spacing: .3px;
+  padding: 13px 26px; position: relative; overflow: hidden;
+  transition: transform .16s ease, background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.btn:active { transform: scale(.97); }
+/* 主按钮：墨黑，悬停 Shiny Button 细扫光（对角高光带掠过） */
+.btn-primary { background: var(--ink); color: #fff; }
+.btn-primary::before {
+  content: ''; position: absolute; top: 0; left: -80%; width: 55%; height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.32), transparent);
+  transform: skewX(-18deg); transition: left .55s ease;
+}
+.btn-primary:hover::before { left: 130%; }
+.btn-primary:hover { background: #000; box-shadow: 0 8px 22px rgba(20,20,20,.18); transform: translateY(-1px); }
+/* 主按钮·蓝：用于核心 CTA（以图搜图） */
+.btn-blue { background: var(--accent); color: #fff; }
+.btn-blue::before {
+  content: ''; position: absolute; top: 0; left: -80%; width: 55%; height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.38), transparent);
+  transform: skewX(-18deg); transition: left .55s ease;
+}
+.btn-blue:hover::before { left: 130%; }
+.btn-blue:hover { background: var(--accent-ink); box-shadow: 0 10px 24px rgba(39,67,224,.28); transform: translateY(-1px); }
+/* 次按钮：Interactive Hover Button —— 悬停底层填充升起 + 箭头滑入 */
+.btn-ghost {
+  background: transparent; color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.btn-ghost .fill {
+  position: absolute; inset: 0; background: var(--ink);
+  transform: translateY(101%); transition: transform .32s cubic-bezier(.22,1,.36,1);
+}
+.btn-ghost .arr { display: inline-block; width: 0; overflow: hidden; opacity: 0; transition: all .32s cubic-bezier(.22,1,.36,1); }
+.btn-ghost:hover { color: #fff; box-shadow: inset 0 0 0 1px var(--ink); }
+.btn-ghost:hover .fill { transform: translateY(0); }
+.btn-ghost:hover .arr { width: 16px; opacity: 1; margin-left: 2px; }
+.btn-ghost span { position: relative; z-index: 1; }
+.btn-sm { padding: 10px 18px; font-size: 13px; }
+
+/* ---------- Split Text（ReactBits 风格：mask-rise 逐字显影） ---------- */
+.split .ch {
+  display: inline-block; white-space: pre;
+  opacity: 0; transform: translateY(.9em);
+  animation: chRise .8s cubic-bezier(.22,1,.36,1) forwards;
+  animation-delay: calc(var(--d) * 45ms);
+}
+.split .line-mask { display: inline-block; overflow: hidden; vertical-align: bottom; }
+@keyframes chRise { to { opacity: 1; transform: translateY(0); } }
+
+/* ---------- Hero ---------- */
+.hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 72px; align-items: center; padding: 96px 0 64px; }
+.kicker { font-size: 12.5px; font-weight: 700; letter-spacing: 3px; color: var(--ink-3); margin-bottom: 28px; }
+.kicker i { color: var(--accent); font-style: normal; }
+h1 { font-size: clamp(40px, 5vw, 60px); font-weight: 800; line-height: 1.18; letter-spacing: -1px; }
+.hero-sub { margin: 26px 0 36px; max-width: 460px; font-size: 15.5px; line-height: 2; color: var(--ink-2); }
+.hero-sub b { color: var(--ink); }
+.hero-cta { display: flex; gap: 12px; }
+.hero-stats { display: flex; gap: 56px; margin-top: 64px; }
+.hero-stats .num { display: flex; flex-direction: column; gap: 6px; }
+.hero-stats b { font-size: 34px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.hero-stats span { font-size: 12.5px; color: var(--ink-3); letter-spacing: 1px; }
+/* 右侧：单件物品 + 极简相框（留白说话） */
+.hero-object { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.object-frame {
+  width: min(340px, 100%); aspect-ratio: 1/1.08;
+  background: var(--surface); border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(20,20,20,.04), 0 24px 60px rgba(20,20,20,.10);
+  display: grid; place-items: center;
+}
+.object-cap { text-align: center; }
+.object-cap b { display: block; font-size: 14px; font-weight: 700; }
+.object-cap span { font-size: 12.5px; color: var(--ink-3); }
+
+/* ---------- 按钮交互速览 ---------- */
+.btn-lab { padding: 40px 0 8px; }
+.btn-lab-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; }
+.btn-lab-head h2 { font-size: 21px; font-weight: 800; letter-spacing: -.3px; }
+.btn-lab-head span { font-size: 12.5px; color: var(--ink-3); }
+.lab-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.lab-cell {
+  background: var(--surface); border-radius: 10px; padding: 26px 20px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  box-shadow: 0 1px 2px rgba(20,20,20,.04);
+}
+.lab-cell p { font-size: 12px; color: var(--ink-2); line-height: 1.7; text-align: center; }
+.lab-cell p b { color: var(--ink); font-size: 12.5px; }
+
+/* ---------- 分类 ---------- */
+.cats { display: flex; flex-wrap: wrap; gap: 10px; padding: 48px 0 10px; }
+.chip {
+  padding: 10px 18px; border-radius: var(--r); border: 0;
+  background: var(--surface); color: var(--ink-2);
+  font-size: 13.5px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(20,20,20,.04);
+  transition: all .18s ease; font-variant-numeric: tabular-nums;
+}
+.chip small { color: var(--ink-3); font-weight: 500; margin-left: 5px; }
+.chip:hover { color: var(--ink); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(20,20,20,.08); }
+.chip.on { background: var(--ink); color: #fff; }
+.chip.on small { color: rgba(255,255,255,.55); }
+
+/* ---------- 失物墙 ---------- */
+.sec { padding: 44px 0 8px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 24px; }
+.sec-head h2 { font-size: 24px; font-weight: 800; letter-spacing: -.4px; }
+.sec-head .more { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.sec-head .more:hover { color: var(--accent); }
+.grid-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.item-card {
+  display: flex; flex-direction: column;
+  background: var(--surface); border-radius: 10px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(20,20,20,.04);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.item-card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(20,20,20,.10); }
+.cover { position: relative; aspect-ratio: 4/3; display: grid; place-items: center; background: #F3F3F0; }
+.cover.c2 { background: #EEF1F6; }
+.cover.c3 { background: #F3F0EA; }
+.status {
+  position: absolute; top: 12px; left: 12px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  padding: 5px 10px; border-radius: 4px;
+}
+.status.lost { background: var(--ink); color: #fff; }
+.status.found { background: var(--accent); color: #fff; }
+.fav {
+  position: absolute; top: 10px; right: 10px; width: 32px; height: 32px;
+  border: 0; border-radius: 6px; background: rgba(255,255,255,.92);
+  color: var(--ink-3); font-size: 14px;
+  transition: all .18s;
+}
+.fav:hover { color: var(--accent); transform: scale(1.1); }
+.fav.on { color: var(--accent); }
+.body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.body h3 { font-size: 15px; font-weight: 700; }
+.cat-line { font-size: 11.5px; color: var(--ink-3); letter-spacing: 1px; }
+.meta { display: flex; gap: 14px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.foot { margin-top: auto; padding-top: 12px; display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-3); }
+.foot .go { color: var(--accent); font-weight: 700; }
+
+/* ---------- 以图搜图 ---------- */
+.search-sec { margin: 64px 0 0; padding: 56px; background: var(--surface); border-radius: 16px; box-shadow: 0 1px 2px rgba(20,20,20,.04); display: grid; grid-template-columns: .95fr 1.05fr; gap: 56px; }
+.search-sec h2 { font-size: 27px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 14px; }
+.search-sec .desc { font-size: 14.5px; line-height: 1.95; color: var(--ink-2); margin-bottom: 28px; }
+.steps { display: flex; flex-direction: column; gap: 0; }
+.step { display: flex; gap: 14px; padding: 14px 0; align-items: flex-start; }
+.step + .step { border-top: 1px solid var(--line); }
+.step-no { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 800; display: grid; place-items: center; margin-top: 2px; }
+.step h4 { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+.step p { font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+.step p code { font-family: Consolas, monospace; font-size: 11.5px; color: var(--accent-ink); }
+.result-list { display: flex; flex-direction: column; gap: 10px; }
+.result-head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-3); letter-spacing: 1px; margin-bottom: 4px; }
+.result-head .ms { font-family: Consolas, monospace; color: var(--accent-ink); }
+.result { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-radius: 10px; background: #FAFAF8; transition: all .16s; }
+.result:hover { background: var(--accent-soft); transform: translateX(4px); }
+.result .thumb { width: 54px; height: 54px; border-radius: 8px; background: #F0F0EC; display: grid; place-items: center; flex: none; }
+.result .info { flex: 1; min-width: 0; }
+.result .info b { font-size: 14px; display: block; margin-bottom: 3px; }
+.result .info span { font-size: 12px; color: var(--ink-3); }
+.sim-badge { flex: none; font-family: Consolas, monospace; font-weight: 700; font-size: 13px; padding: 6px 12px; border-radius: 6px; }
+.sim-badge.hi { background: var(--accent); color: #fff; }
+.sim-badge.mid { background: var(--accent-soft); color: var(--accent-ink); }
+.sim-badge.lo { background: #EFEFEA; color: var(--ink-2); }
+
+/* ---------- Footer ---------- */
+.footer { margin-top: 88px; padding: 44px 0 52px; background: var(--ink); color: #DBDBD4; }
+.footer-inner { display: flex; align-items: center; gap: 28px; }
+.footer b.brand-f { font-size: 17px; font-weight: 800; letter-spacing: 1px; color: #fff; }
+.footer-links { display: flex; gap: 24px; margin-left: auto; font-size: 13px; }
+.footer-links a:hover { color: #fff; }
+.footer-note { margin-top: 20px; font-size: 12px; color: #8B8B84; }
+
+.mock-tag {
+  position: fixed; left: 18px; bottom: 18px; z-index: 99;
+  padding: 8px 14px; border-radius: 6px;
+  background: rgba(20,20,20,.92); color: #F2F2EE;
+  font-size: 12px; letter-spacing: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split .ch { opacity: 1; transform: none; animation: none; }
+  .btn-primary::before, .btn-blue::before { display: none; }
+}
+@media (max-width: 1020px) {
+  .hero { grid-template-columns: 1fr; }
+  .grid-cards { grid-template-columns: 1fr 1fr; }
+  .search-sec { grid-template-columns: 1fr; padding: 32px; }
+  .lab-row { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .grid-cards, .lab-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- 导航 -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#"><b>拾光</b><small>CAMPUS LOST &amp; FOUND</small></a>
+    <nav class="nav-links">
+      <a class="on" href="#">首页</a>
+      <a href="#">失物墙</a>
+      <a href="#">招领墙</a>
+      <a href="#">以图搜图</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="btn btn-primary btn-sm"><span>发布启事</span></button>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero container">
+  <div>
+    <p class="kicker"><i>—</i> 校园失物招领平台</p>
+    <h1 class="split">
+      <span class="line-mask"><span data-split>丢了东西？</span></span><br />
+      <span class="line-mask"><span data-split>一张照片帮你找回</span></span>
+    </h1>
+    <p class="hero-sub">
+      上传物品照片，<b>感知哈希 pHash</b> 为它生成 64 位长相指纹，与全校启事逐条比对汉明距离，秒级返回最像的结果。
+    </p>
+    <div class="hero-cta">
+      <button class="btn btn-blue"><span>上传照片搜一搜</span></button>
+      <button class="btn btn-ghost"><i class="fill"></i><span>浏览失物墙</span><span class="arr">→</span></button>
+    </div>
+    <div class="hero-stats">
+      <div class="num"><b>128</b><span>件失物已找回</span></div>
+      <div class="num"><b>342</b><span>条寻物启事</span></div>
+      <div class="num"><b>276</b><span>条招领启事</span></div>
+    </div>
+  </div>
+
+  <div class="hero-object">
+    <div class="object-frame">
+      <svg width="180" height="160" viewBox="0 0 150 130">
+        <ellipse cx="75" cy="116" rx="50" ry="6" fill="rgba(20,20,20,.06)"/>
+        <circle cx="75" cy="54" r="19" fill="none" stroke="#141414" stroke-width="7"/>
+        <rect x="66" y="72" width="9" height="34" rx="3" fill="#2743E0"/>
+        <rect x="66" y="92" width="18" height="5" rx="2.5" fill="#2743E0"/>
+        <rect x="66" y="100" width="14" height="5" rx="2.5" fill="#2743E0"/>
+        <circle cx="89" cy="47" r="4.5" fill="#141414"/>
+        <circle cx="60" cy="45" r="4.5" fill="#141414"/>
+      </svg>
+    </div>
+    <div class="object-cap"><b>操场东看台 · 捡到一串钥匙</b><span>今天 17:45 发布 · 已有 58 人查看</span></div>
+  </div>
+</section>
+
+<!-- 按钮交互速览 -->
+<section class="btn-lab container">
+  <div class="btn-lab-head">
+    <h2>按钮交互速览</h2>
+    <span>把鼠标放上去试试 · 参考自 21st.dev 组件动效</span>
+  </div>
+  <div class="lab-row">
+    <div class="lab-cell">
+      <button class="btn btn-blue"><span>上传照片搜一搜</span></button>
+      <p><b>主按钮 · Shiny</b><br>悬停一道高光斜扫而过（21st.dev Shiny Button），按下轻微缩放</p>
+    </div>
+    <div class="lab-cell">
+      <button class="btn btn-ghost"><i class="fill"></i><span>浏览失物墙</span><span class="arr">→</span></button>
+      <p><b>次按钮 · Hover Fill</b><br>悬停墨色自底部升起填充、箭头滑入（Interactive Hover Button）</p>
+    </div>
+    <div class="lab-cell">
+      <a class="nav-links" style="display:block"><span style="font-size:14.5px;font-weight:600;color:var(--ink-2);position:relative;padding:4px 0;display:inline-block">查看匹配原理<em style="position:absolute;left:0;bottom:0;height:2px;width:100%;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .28s cubic-bezier(.22,1,.36,1);font-style:normal"></em></span></a>
+      <p><b>文字链接 · Underline Slide</b><br>悬停钴蓝下划线从左滑入，与导航同语言</p>
+    </div>
+    <div class="lab-cell">
+      <button class="fav" style="position:static;width:44px;height:44px;font-size:17px">☆</button>
+      <p><b>图标按钮 · 收藏</b><br>悬停放大 + 变蓝，收藏后实心常驻</p>
+    </div>
+  </div>
+</section>
+
+<!-- 分类 -->
+<section class="container cats">
+  <button class="chip on">全部 <small>342</small></button>
+  <button class="chip">证件卡类 <small>12</small></button>
+  <button class="chip">钥匙 <small>8</small></button>
+  <button class="chip">电子设备 <small>23</small></button>
+  <button class="chip">书籍资料 <small>17</small></button>
+  <button class="chip">衣物饰品 <small>9</small></button>
+  <button class="chip">其他 <small>11</small></button>
+</section>
+
+<!-- 失物墙 -->
+<section class="sec container">
+  <div class="sec-head">
+    <h2>最新失物与招领</h2>
+    <a class="more" href="#">查看全部 →</a>
+  </div>
+  <div class="grid-cards">
+
+    <a class="item-card" href="#">
+      <div class="cover">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <rect x="38" y="34" width="74" height="66" rx="14" fill="#141414"/>
+          <rect x="38" y="34" width="74" height="22" rx="11" fill="#000"/>
+          <circle cx="60" cy="80" r="9" fill="#FAFAF8"/>
+          <circle cx="90" cy="80" r="9" fill="#FAFAF8"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>黑色 AirPods Pro 耳机</h3>
+        <div class="cat-line">电子设备</div>
+        <div class="meta"><span>图书馆 · 三楼自习区</span><span>10-16 08:30</span></div>
+        <div class="foot"><span>46 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover c2">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <rect x="42" y="28" width="66" height="86" rx="8" fill="#2743E0"/>
+          <rect x="42" y="28" width="66" height="30" rx="8" fill="#1B31B4"/>
+          <circle cx="75" cy="74" r="13" fill="#FAFAF8"/>
+          <rect x="52" y="94" width="46" height="5" rx="2.5" fill="#FAFAF8" opacity=".8"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav on">★</button>
+      </div>
+      <div class="body">
+        <h3>蓝色海豚卡套的校园卡</h3>
+        <div class="cat-line">证件卡类</div>
+        <div class="meta"><span>第二食堂 · 一楼</span><span>10-15 12:10</span></div>
+        <div class="foot"><span>132 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover c3">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <circle cx="75" cy="52" r="18" fill="none" stroke="#6B6B66" stroke-width="7"/>
+          <rect x="66" y="68" width="9" height="34" rx="3" fill="#141414"/>
+          <rect x="66" y="88" width="18" height="5" rx="2.5" fill="#141414"/>
+          <rect x="66" y="96" width="14" height="5" rx="2.5" fill="#141414"/>
+          <circle cx="88" cy="46" r="4.5" fill="#A6A6A0"/>
+          <circle cx="60" cy="44" r="4.5" fill="#A6A6A0"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>小熊挂件钥匙串（3 把钥匙）</h3>
+        <div class="cat-line">钥匙</div>
+        <div class="meta"><span>操场 · 东看台</span><span>10-15 17:45</span></div>
+        <div class="foot"><span>58 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover c2">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <rect x="34" y="76" width="82" height="16" rx="3" fill="#6B6B66"/>
+          <rect x="38" y="60" width="74" height="16" rx="3" fill="#141414"/>
+          <rect x="42" y="44" width="66" height="16" rx="3" fill="#2743E0"/>
+          <rect x="50" y="50" width="30" height="4" rx="2" fill="#FAFAF8" opacity=".9"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>《高等数学》第七版（上册）</h3>
+        <div class="cat-line">书籍资料</div>
+        <div class="meta"><span>第一教学楼 · A203</span><span>10-14 19:20</span></div>
+        <div class="foot"><span>87 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover c3">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <path d="M38 62 C 52 44, 74 44, 86 56 C 98 68, 112 66, 118 56 L118 76 C 110 88, 92 88, 80 76 C 68 64, 52 66, 38 80 Z" fill="#6B6B66"/>
+          <path d="M38 62 C 52 44, 74 44, 86 56 C 98 68, 112 66, 118 56 L118 64 C 110 76, 92 76, 80 64 C 68 52, 52 54, 38 68 Z" fill="#8A8A84"/>
+          <rect x="36" y="76" width="4" height="12" rx="2" fill="#6B6B66"/>
+          <rect x="44" y="80" width="4" height="12" rx="2" fill="#6B6B66"/>
+          <rect x="112" y="72" width="4" height="12" rx="2" fill="#6B6B66"/>
+        </svg>
+        <span class="status lost">寻物中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>灰色羊绒围巾</h3>
+        <div class="cat-line">衣物饰品</div>
+        <div class="meta"><span>体育馆 · 更衣室</span><span>10-14 15:05</span></div>
+        <div class="foot"><span>39 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+    <a class="item-card" href="#">
+      <div class="cover">
+        <svg width="130" height="110" viewBox="0 0 150 130">
+          <rect x="58" y="30" width="34" height="70" rx="12" fill="#DBDBD4"/>
+          <rect x="64" y="20" width="22" height="14" rx="5" fill="#2743E0"/>
+          <rect x="58" y="56" width="34" height="22" fill="#FAFAF8"/>
+          <circle cx="75" cy="67" r="8" fill="#A6A6A0"/>
+        </svg>
+        <span class="status found">招领中</span>
+        <button class="fav">☆</button>
+      </div>
+      <div class="body">
+        <h3>白色保温杯（柴犬贴纸）</h3>
+        <div class="cat-line">其他</div>
+        <div class="meta"><span>实验楼 · 402</span><span>10-13 11:30</span></div>
+        <div class="foot"><span>64 次浏览</span><span class="go">查看详情 →</span></div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<!-- 以图搜图 -->
+<section class="container">
+  <div class="search-sec">
+    <div>
+      <h2>以图搜图</h2>
+      <p class="desc">
+        不打一个字，直接上传照片。三步完成匹配：读图、提指纹、算距离，全程约 50 毫秒。
+      </p>
+      <div class="steps">
+        <div class="step">
+          <span class="step-no">1</span>
+          <div><h4>读取图片</h4><p>灰度化并压缩至 32×32，与 JImageHash 感知哈希实现一致</p></div>
+        </div>
+        <div class="step">
+          <span class="step-no">2</span>
+          <div><h4>提取感知哈希</h4><p>DCT 变换 → 取 8×8 低频 → 二值化为 64 位 <code>pHash</code></p></div>
+        </div>
+        <div class="step">
+          <span class="step-no">3</span>
+          <div><h4>汉明距离匹配</h4><p>与库内启事逐条比对，阈值 ≤ 12，按距离升序返回 Top-10</p></div>
+        </div>
+      </div>
+      <div style="margin-top:26px">
+        <button class="btn btn-blue"><span>上传照片开始匹配</span></button>
+      </div>
+    </div>
+    <div>
+      <div class="result-head"><span>匹配结果 · 3 条</span><span class="ms">elapsed 54ms</span></div>
+      <div class="result-list">
+        <a class="result" href="#">
+          <div class="thumb">
+            <svg width="36" height="32" viewBox="0 0 150 130">
+              <rect x="38" y="34" width="74" height="66" rx="14" fill="#141414"/>
+              <circle cx="60" cy="80" r="9" fill="#FAFAF8"/>
+              <circle cx="90" cy="80" r="9" fill="#FAFAF8"/>
+            </svg>
+          </div>
+          <div class="info"><b>白色无线耳机（盒装）</b><span>招领中 · 图书馆服务台 · 10-16 09:02</span></div>
+          <span class="sim-badge hi">93%</span>
+        </a>
+        <a class="result" href="#">
+          <div class="thumb">
+            <svg width="36" height="32" viewBox="0 0 150 130">
+              <rect x="38" y="34" width="74" height="66" rx="14" fill="#6B6B66"/>
+              <circle cx="60" cy="80" r="9" fill="#FAFAF8"/>
+              <circle cx="90" cy="80" r="9" fill="#FAFAF8"/>
+            </svg>
+          </div>
+          <div class="info"><b>黑色蓝牙耳机（同款不同色）</b><span>招领中 · 实验楼 305 · 10-14 16:20</span></div>
+          <span class="sim-badge mid">87%</span>
+        </a>
+        <a class="result" href="#">
+          <div class="thumb">
+            <svg width="36" height="32" viewBox="0 0 150 130">
+              <circle cx="75" cy="65" r="26" fill="#A6A6A0"/>
+              <rect x="70" y="30" width="10" height="20" rx="5" fill="#6B6B66"/>
+            </svg>
+          </div>
+          <div class="info"><b>单只无线耳机（左耳）</b><span>招领中 · 操场看台 · 10-13 10:15</span></div>
+          <span class="sim-badge lo">74%</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <b class="brand-f">拾光 · 校园失物招领平台</b>
+      <nav class="footer-links">
+        <a href="#">失物墙</a>
+        <a href="#">招领墙</a>
+        <a href="#">以图搜图</a>
+        <a href="#">发布启事</a>
+      </nav>
+    </div>
+    <p class="footer-note">© 2026 拾光 — 软件工程课程设计，仅供学习使用</p>
+  </div>
+</footer>
+
+<span class="mock-tag">效果图 · 方案 D 拾光留白（简约风）</span>
+
+<script>
+// ReactBits Split Text 风格：逐字 mask-rise（45ms 逐字错峰）
+document.querySelectorAll('[data-split]').forEach((el, li) => {
+  const text = el.textContent
+  el.textContent = ''
+  ;[...text].forEach((c, i) => {
+    const s = document.createElement('span')
+    s.className = 'ch'
+    s.textContent = c
+    s.style.setProperty('--d', li * 6 + i)
+    el.appendChild(s)
+  })
+})
+</script>
+</body>
+</html>

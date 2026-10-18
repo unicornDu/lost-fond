@@ -1,53 +1,69 @@
 # cloudflared
 
-公网内网穿透客户端。用来把本机后端 `http://127.0.0.1:8080` 暴露成一个公网可访问的 HTTPS 域名，
-替代已停用的花生壳免费版。
+公网内网穿透客户端（Cloudflare Tunnel）。把本机后端 `http://127.0.0.1:8080` 暴露成一个
+公网可访问的 HTTPS 域名，替代已停用的花生壳免费版。
 
-## 版本
+## 版本与文件
 
-- `cloudflared 2026.10.1 (built 2026-10-15T09:15 UTC)`
-- 文件：`cloudflared.exe`（Windows amd64，约 55MB）
+| 文件 | 说明 |
+|---|---|
+| `cloudflared.exe` | v2026.10.1，Windows amd64，约 55MB |
+| `config.yml` | 内容为 `{}` 的占位文件，quick tunnel 用不到，可删 |
 
-## 获取方式
+## 获取方式（新电脑要装时）
 
-**首选：本仓库 Releases**（已传好，直接下）
+**官方 Releases**（认准 Cloudflare 官方仓库）：
 
-<https://github.com/unicornDu/lost-fond/releases> → 附件 `cloudflared-windows-amd64.exe`
+<https://github.com/cloudflare/cloudflared/releases/latest>
+→ 下载 `cloudflared-windows-amd64.exe` → 改名 `cloudflared.exe` → 放到本目录。
 
-下载后放到本目录：`Project_operation_software/cloudflared/cloudflared.exe`
-
-**备用：Cloudflare 官方**（国内直连约 70–80 KB/s，55MB 要 10 分钟以上）
+国内直连 GitHub 较慢，断了可续传：
 
 ```bash
-curl -L -C - -o cloudflared.exe \
+curl -L -C - -o cloudflared.exe ^
   "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
 ```
 
-> 中途断了用 `-C -` 续传，别从头下。
+**macOS / Linux**：`brew install cloudflared`（macOS）或 apt/yum/官方二进制（Linux）。
+命令与 Windows 完全一致，但本仓库的 `tunnel.bat` 仅适用于 Windows。
 
-**macOS / Linux 用户**：本项目自带的 `tunnel.bat` 只适用于 Windows。换平台请按官方文档装
-（macOS `brew install cloudflared`，Linux 下 apt/yum 或直接下对应架构的二进制），
-命令本身不变：`cloudflared tunnel --url http://127.0.0.1:8080`。
+## 怎么用：临时隧道（免账号，项目默认方式）
 
-## 怎么用
+> 前提：后端已在 8080 运行。没跑的话先执行
+> `cd lost-found/backend && java -jar target/lost-found-backend.jar`
 
-项目里已经封装好，**双击 `lost-found/scripts/tunnel.bat`** 就会：
+**方式 A（推荐）：双击 `lost-found/scripts/tunnel.bat`**，脚本会自动：
 
-1. 按优先级找 cloudflared（本目录 → `%USERPROFILE%\bin` → Program Files → PATH）；
-2. 先探测 `127.0.0.1:8080` 是否活着；
-3. 申请临时隧道并打印公网地址，形如 `https://xxx-yyy-zzz.trycloudflare.com`。
+1. 按「本目录 → `%USERPROFILE%\bin` → Program Files → PATH」四级找 cloudflared.exe；
+2. 探测 `127.0.0.1:8080` 是否存活（不拦着启动，但页面会 502）；
+3. 申请隧道并打印公网地址。
 
-手动等价命令：
+**方式 B：手动命令（与 A 等价）**
 
 ```bash
+cd Project_operation_software/cloudflared
 cloudflared.exe tunnel --url http://127.0.0.1:8080 --no-autoupdate
 ```
 
-## 注意
+**拿到地址后**：窗口里形如 `https://xxx-yyy-zzz.trycloudflare.com` 的那行就是公网地址，
+发给任何人，浏览器打开即完整站点（后端同源托管前端）。
 
-- **免账号临时隧道每次重启都会换域名**，关窗口 / 休眠即失效；
-- 免费、无流量上限、无请求数限制，支持 WebSocket 与大文件上传（后端 20MB 上限远低于 CF 限制）；
-- 域名一变，桌面端改 `%APPDATA%\ShiGuang\config.json` 的 `apiBase` 即可（无需重打包），
-  但 **APK 必须改 `frontend/.env.mobile` 的 `VITE_API_BASE` 后重新打包**；
-- 想要固定域名：注册 Cloudflare 账号 + 一个托管在 CF 的域名，用
-  `cloudflared tunnel login` / `create` / `route dns` 建命名隧道，依然免费、无流量限制。
+**怎么停**：关掉窗口，或在窗口里按 `Ctrl+C`。
+
+## 使用须知
+
+- **域名每次重启都会变**：重新运行就是新地址，旧地址立即作废 → 地址要"现开现发"，不要写死进任何文档；
+- **你的电脑就是服务器**：电脑关机 / 休眠 / 关窗口 = 服务下线，演示期间把电源计划睡眠设为"从不"；
+- 免费、无流量上限、自带 HTTPS、支持 WebSocket；后端 20MB 上传限制远低于 Cloudflare 侧限制；
+- **公网即公开**：拿到网址的任何人都能访问并注册账号、看到演示数据，演示完就关。
+
+## 进阶：固定域名（named tunnel，依然免费）
+
+临时隧道的域名会变；要固定网址需 Cloudflare 账号 + 一个托管在 CF 的域名：
+
+```bash
+cloudflared tunnel login                 # 浏览器授权
+cloudflared tunnel create shiguang       # 建命名隧道
+cloudflared tunnel route dns shiguang demo.你的域名.com
+cloudflared tunnel run shiguang          # 运行（域名固定）
+```

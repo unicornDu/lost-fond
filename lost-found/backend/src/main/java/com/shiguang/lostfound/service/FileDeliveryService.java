@@ -2,6 +2,7 @@ package com.shiguang.lostfound.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.shiguang.lostfound.common.BusinessException;
+import com.shiguang.lostfound.common.TxUtil;
 import com.shiguang.lostfound.config.FileProperties;
 import com.shiguang.lostfound.context.UserContext;
 import com.shiguang.lostfound.entity.Delivery;
@@ -127,23 +128,23 @@ public class FileDeliveryService {
                 .orderByDesc("create_time").last("LIMIT 50"));
     }
 
-    /** 本人删除自己的交付（行 + 盘）。 */
+    /** 本人删除自己的交付（行 + 盘）。删盘在事务提交后执行，回滚不会丢文件（2026-10-18 审查修复）。 */
     @Transactional
     public void deleteOwn(Long id, Long userId) {
         Delivery d = deliveryMapper.selectById(id);
         if (d == null || !d.getUserId().equals(userId)) throw new BusinessException(404, "交付文件不存在");
         deliveryMapper.deleteById(id);
-        deleteQuietlyOnDisk(d);
+        TxUtil.afterCommit(() -> deleteQuietlyOnDisk(d));
     }
 
-    /** 启事删除级联（对齐 B-05 风格）：按 biz_id 清 delivery 行并删盘。 */
+    /** 启事删除级联（对齐 B-05 风格）：按 biz_id 清 delivery 行，事务提交后再删盘。 */
     @Transactional
     public int deleteByBiz(Long bizId) {
         List<Delivery> rows = deliveryMapper.selectList(
                 new QueryWrapper<Delivery>().eq("biz_id", bizId));
         if (rows.isEmpty()) return 0;
         deliveryMapper.delete(new QueryWrapper<Delivery>().eq("biz_id", bizId));
-        rows.forEach(this::deleteQuietlyOnDisk);
+        TxUtil.afterCommit(() -> rows.forEach(this::deleteQuietlyOnDisk));
         return rows.size();
     }
 

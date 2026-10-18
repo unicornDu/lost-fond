@@ -36,9 +36,15 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
         // P3：托管前端构建产物（dist 不存在时注册无害——访问只会 404，不影响 API）
         String dist = Paths.get(frontendDistDir).toAbsolutePath().normalize().toString();
+        String distLoc = "file:" + dist + (dist.endsWith("\\") || dist.endsWith("/") ? "" : "/");
+        // 2026-10-18 审查修复：原来 /** 统一缓存 300s 会连 index.html 一起缓存——
+        // 重新部署后旧入口仍引用已消失的 hash 资源，表现为白屏。改为：assets 长缓存、入口不缓存。
+        registry.addResourceHandler("/assets/**")
+                .addResourceLocations(distLoc + "assets/")
+                .setCachePeriod(31536000);
         registry.addResourceHandler("/**")
-                .addResourceLocations("file:" + dist + (dist.endsWith("\\") || dist.endsWith("/") ? "" : "/"))
-                .setCachePeriod(300);
+                .addResourceLocations(distLoc)
+                .setCachePeriod(0);
     }
 
     @Override

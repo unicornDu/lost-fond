@@ -27,7 +27,7 @@ tar czf "backup\uploads_$ts.tar.gz" uploads/
 
 ## 二、恢复
 
-> ⚠️ **破坏性操作**：第 1 步会 `DROP DATABASE`，库内现有数据全部清空。只想重置演示数据请用"TRUNCATE 六表 + 重启"（见项目运行说明/启动步骤-MarkDone.md），不要走本流程。
+> ⚠️ **破坏性操作**：第 1 步会 `DROP DATABASE`，库内现有数据全部清空。只想重置演示数据请用"TRUNCATE 八表 + 重启"（见 `Creator/01-交付文档/运行说明/01-启动步骤.md` 第六节），不要走本流程。
 
 ```bash
 # 0) 确认备份文件名（脚本实际格式含时分秒，照抄下面命令时替换成真实文件名）
@@ -56,5 +56,5 @@ tar xzf "backup\uploads_20261015_213000.tar.gz" -C .
 
 - `backup/` 与 `application-local.yml` 均含敏感/运行数据，**不要提交 git**：`.gitignore` 已含 `application-local.yml` 与 `backend/backup/`（05 C-01 落实）。
 - 恢复后若新增过图片而备份较旧，缺失图片前端会显示分类 emoji 兜底（`@error` 隐藏 img），不会白屏。
-- 与"重置演示数据"区分：重置是 `TRUNCATE` 六表后重启（DataInitializer 重播种）；恢复是用备份覆盖，二者不要混用。
-- **上线前检查**（docs/12 同步修订）：不能只"执行过一次 backup.sh"，必须**实际演练过一次完整恢复**（DROP→导入→起服务→抽查一条启事与一张图），否则等于没验证。
+- 与"重置演示数据"区分：重置是 `TRUNCATE` 八表后重启（DataInitializer 重播种）；恢复是用备份覆盖，二者不要混用。
+- **上线前检查**（`Creator/01-交付文档/12-部署手册` 同步修订）：不能只"执行过一次 backup.sh"，必须**实际演练过一次完整恢复**（DROP→导入→起服务→抽查一条启事与一张图），否则等于没验证。

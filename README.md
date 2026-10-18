@@ -20,7 +20,7 @@
 | 层 | 技术 | 端口 |
 |---|---|---|
 | 后端 | Spring Boot 3.3.5 · MyBatis-Plus 3.5.7 · JJWT 0.12.6 · JImageHash 1.0.0 · Knife4j · OpenPDF | `:8080` |
-| 前端 | Vue 3.5 · Vite 6 · Pinia · Element Plus · ECharts 6 | `:5173` |
+| 前端 | Vue 3.5 · Vite 6 · Pinia · Element Plus · ECharts 6 · **设计系统 v2（方案G「编辑叙事版式」：纸白 + 墨 + 翡翠绿）** | `:5173` |
 | 数据库 | MySQL 8+（库名 `lost_found`，八表：user / item / item_image / claim_record / message / admin_log / favorite / delivery） | `:3306` |
 | 部署 | 单 Web：后端托管 `frontend/dist`，浏览器访问 :8080；可选 cloudflared 临时公网演示 | — |
 | 构建 | JDK 21 · Maven 3.9+ · Node 20+ | — |
@@ -53,13 +53,21 @@ git clone <仓库地址>
 cd 软件工程
 ```
 
-### 第 2 步：建库建表（只做一次）
+### 第 2 步：建库建表（二选一）
+
+**A. 首次初始化 / 已有库补表（推荐，可重复执行、不清数据）：**
+
+```bash
+mysql -u root -p < lost-found/backend/src/main/resources/db/schema-init.sql
+```
+
+**B. 彻底重置（⚠️ 会 DROP 全部 8 张表并清空数据，仅开发环境使用）：**
 
 ```bash
 mysql -u root -p < lost-found/backend/src/main/resources/db/schema.sql
 ```
 
-脚本开头自带 `CREATE DATABASE IF NOT EXISTS lost_found`，**幂等**，重复执行无害，不会清掉已有数据。
+> 2026-10-18 修复：`schema.sql` 每张表前都有 `DROP TABLE IF EXISTS`，**执行即清库**；日常请用 `schema-init.sql`（`CREATE TABLE IF NOT EXISTS`）。已有数据升级前先跑 `backend/scripts/backup.sh` 备份。
 
 验证：
 
@@ -131,10 +139,12 @@ curl "http://localhost:8080/api/items?page=1&size=1"    # 返回 {"code":200,...
 浏览器逐项点一遍：
 
 - [ ] `http://localhost:5173` 落地页有内容、有图（图来自 `lost-found/backend/uploads/`）
-- [ ] 登录 管理员 `10000001` / `admin123`，普通用户 `20240001` / `user123`
+- [ ] 登录 管理员 `10000001`（口令 = `application-local.yml` 的 `seed.admin-password`，模板默认 `admin123`），普通用户 `20240001`（`seed.user-password`，模板默认 `user123`）——**以你的本地配置为准，改过就不是默认值**
 - [ ] 失物墙有真实数据（60 条启事）
 - [ ] 以图搜图：上传 `lost-found/backend/uploads/_query/q-cup.jpg` → 命中该物品多条启事，相似度 ~100%
-- [ ] 导航栏出现「🛡️ 后台管理」→ 看板 / 审核 / 用户 / 日志 / 运维 五个页面能打开
+- [ ] 导航栏出现「后台管理」→ 看板 / 审核 / 用户 / 日志 / 运维 五个页面能打开
+- [ ] **导航栏「聊天会话」「通知中心」两个图标可用**：通知中心分「认领与审核 / 系统 / 私信」三栏；私信按对方聚合为会话，进入会话可直接回复
+- [ ] **认领进度时间线**：用普通账号对一条招领提交认领后，详情页出现四节点进度卡（提交申请 → 发布者审核 → 交付确认 → 已找回）
 
 自动化自测（可选，需要 Python 3 + `pip install pillow requests`）：
 
@@ -226,7 +236,24 @@ mvn test                                          # 99 用例
 
 ---
 
-## 九、继续深挖
+## 九、前端设计系统 v2（2026-10-18 落地）
+
+界面已从「暖橙贴纸手账风」切换为 **方案 G「编辑叙事版式」**：纸白底 `#FBFAF7` + 墨黑 `#1B1A17` + 单一翡翠绿 `#0F7A5C`，扁平卡片、细线框、大标题层级、编辑式留白。
+
+| 项 | 说明 |
+|---|---|
+| 换肤方式 | 颜色全部集中在 `frontend/src/styles/main.css` 的 `:root`；**旧令牌名保留并映射新色值**（`--orange*` → 翡翠绿系），改一处即可全站换肤 |
+| 组件规格 | 卡片圆角 14px、按钮 10px 圆角；主按钮带 Shiny 扫光与按压缩放；导航链接下划线从左滑入 |
+| 页面变更 | 首页改非对称 Hero（左 SplitText 标题 + 数字计数 / 右最新招领「发现现场」卡）+ 首卡跨两列特稿卡；失物墙类型切换改实色方块按钮；物品卡改左上状态方块签 + 悬停封面缩放 |
+| 新界面 | 通知中心三分栏（认领与审核 / 系统 / 私信）、私信会话化聚合与线程回复、详情页认领进度时间线（提交 → 审核 → 交付 → 已找回） |
+| 设计稿来源 | `Creator/02-过程资料/05-前端重设计效果图/`：方案 G（版式实现）、方案 H（Bento 备选）、整合版功能演示（含 9 项功能界面原型） |
+| 无障碍 | 全站尊重 `prefers-reduced-motion`：拆分字动画、滚动进场、扫光均自动降级 |
+
+> 需数据库变更的功能（守望订阅、认领暗号核验、帮转助力、找回故事墙、分享海报）**设计稿已出但未实施**，实施需新增表/字段，待确认后再做（见 `运行说明/02-项目结构.md` 待做清单）。
+
+---
+
+## 十、继续深挖
 
 | 我想…… | 看这里 |
 |---|---|

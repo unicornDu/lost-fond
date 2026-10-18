@@ -37,6 +37,15 @@ public class AuthService {
 
     /** 账号 → [失败次数, 锁定截止时间]。 */
     private final ConcurrentHashMap<String, long[]> loginFail = new ConcurrentHashMap<>();
+    /** 2026-10-18 审查修复：内存限流表加容量上限，防止"每次换未注册学号"刷爆内存。 */
+    private static final int MAX_FAIL_ENTRIES = 10000;
+
+    /** 惰性清理：仅当表超阈值时剔除"未锁定或锁已过期"的条目（不打断进行中的锁定）。 */
+    private void pruneLoginFail() {
+        if (loginFail.size() <= MAX_FAIL_ENTRIES) return;
+        long now = System.currentTimeMillis();
+        loginFail.entrySet().removeIf(e -> e.getValue()[1] != 0 && e.getValue()[1] < now);
+    }
 
     public LoginVO register(RegisterReq req) {
         Long exists = userMapper.selectCount(new QueryWrapper<User>().eq("account", req.getAccount()));
@@ -58,6 +67,7 @@ public class AuthService {
 
     public LoginVO login(LoginReq req) {
         String acc = req.getAccount().trim();
+        pruneLoginFail();
         // 审查 2.29① 限流
         long[] st = loginFail.get(acc);
         if (st != null && st[1] > System.currentTimeMillis())

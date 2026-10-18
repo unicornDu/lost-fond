@@ -54,6 +54,7 @@ public class DataInitializer implements CommandLineRunner {
     private final FileStorageService fileStorage;
     private final PHashUtil pHashUtil;
     private final FileProperties fileProperties;
+    private final org.springframework.core.env.Environment environment;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** 演示口令外置在 application-local.yml（seed.*）；为空则回退随机并打印警告（审查 2.3）。 */
@@ -205,9 +206,14 @@ public class DataInitializer implements CommandLineRunner {
         }
         log.info("演示数据初始化完成：用户 {} 个，启事 {} 条，图片 {} 张，成功计算 pHash {} 张",
                 accountToId.size(), itemCount, imgCount, hashOk);
-        // 打印演示账号，便于直接登录演示（审查 2.3 验收：不再需要手工 SQL 提权）
-        log.info("演示账号 → 管理员: {} / {} ； 普通用户示例: {} / {}",
-                adminAcc, adminPwd, sampleUser, userPwd);
+        // 2026-10-18 审查修复：演示口令只在 local profile 打印；prod 等环境仅打印账号，避免日志泄露凭据
+        if (environment.acceptsProfiles(org.springframework.core.env.Profiles.of("local"))) {
+            log.info("演示账号 → 管理员: {} / {} ； 普通用户示例: {} / {}",
+                    adminAcc, adminPwd, sampleUser, userPwd);
+        } else {
+            log.info("演示账号 → 管理员: {} ； 普通用户示例: {}（口令见配置或由管理员另行分发）",
+                    adminAcc, sampleUser);
+        }
 
         // 审查 2.10：预置认领记录（三态）与站内消息，避免演示时消息/认领列表为空
         seedRelations(insertedItems, accountToId);

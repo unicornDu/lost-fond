@@ -4,13 +4,23 @@ import { api } from '../api'
 const TK = 'shiguang_token'
 const UK = 'shiguang_user'
 
+/** 2026-10-18 审查修复：localStorage 内容损坏时不能让应用启动即崩——解析失败即清掉脏数据。 */
+function readStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem(UK) || 'null')
+  } catch {
+    localStorage.removeItem(UK)
+    return null
+  }
+}
+
 /**
  * 用户状态：登录态存 localStorage（token + 用户信息），与后端 JWT 对接。
  */
 export const useUserStore = defineStore('user', {
   state: () => ({
     token: localStorage.getItem(TK) || '',
-    info: JSON.parse(localStorage.getItem(UK) || 'null'),
+    info: readStoredUser(),
   }),
   getters: {
     logged: (s) => !!s.token && !!s.info,
