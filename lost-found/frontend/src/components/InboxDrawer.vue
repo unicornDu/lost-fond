@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '../api'
+import { t } from '../i18n'
 
 /**
  * 收件抽屉（对齐「整合版 v1」的右侧滑出交互）：
@@ -22,11 +23,11 @@ const activeConv = ref(null)
 const input = ref('')
 const sending = ref(false)
 
-const SUBS = [
-  { key: 'claim', label: '认领' },
-  { key: 'system', label: '系统' },
-  { key: 'dm', label: '私信' },
-]
+const SUBS = computed(() => [
+  { key: 'claim', label: t('inbox.sub.claim') },
+  { key: 'system', label: t('inbox.sub.system') },
+  { key: 'dm', label: t('inbox.sub.dm') },
+])
 
 const claimMsgs = computed(() => messages.value.filter((m) => m.type === 'claim' || m.type === 'audit'))
 const systemMsgs = computed(() => messages.value.filter((m) => !['claim', 'audit', 'dm'].includes(m.type)))
@@ -44,7 +45,7 @@ const conversations = computed(() => {
   const map = new Map()
   for (const m of dmMsgs.value) {
     if (!map.has(m.fromUserId)) {
-      map.set(m.fromUserId, { fromUserId: m.fromUserId, name: m.fromNickname || '对方', msgs: [] })
+      map.set(m.fromUserId, { fromUserId: m.fromUserId, name: m.fromNickname || t('inbox.peer'), msgs: [] })
     }
     map.get(m.fromUserId).msgs.push(m)
   }
@@ -96,8 +97,8 @@ async function readAll() {
     await api.readAll()
     messages.value.forEach((m) => (m.isRead = 1))
     window.dispatchEvent(new Event('shiguang-unread-changed'))
-    ElMessage.success('通知已全部标为已读')
-  } catch (e) { ElMessage.error(e.message || '操作失败') }
+    ElMessage.success(t('inbox.readAllOk'))
+  } catch (e) { ElMessage.error(e.message || t('inbox.opFail')) }
 }
 
 function openConv(c) { activeConv.value = c }
@@ -108,14 +109,14 @@ async function send() {
   const v = input.value.trim()
   if (!c || !v) return
   const last = [...c.msgs].reverse().find((m) => !m.sent)
-  if (!last) { ElMessage.warning('找不到可回复的消息'); return }
+  if (!last) { ElMessage.warning(t('inbox.noReply')); return }
   sending.value = true
   try {
     await api.replyMessage(last.id, v)
     c.msgs.push({ id: 'local-' + Date.now(), sent: true, content: v, createTime: new Date().toISOString().slice(0, 19) })
     input.value = ''
   } catch (e) {
-    ElMessage.error(e.message || '发送失败')
+    ElMessage.error(e.message || t('inbox.sendFail'))
   } finally {
     sending.value = false
   }
@@ -143,8 +144,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     <div class="drawer-mask" :class="{ open: modelValue }" @click="close"></div>
     <aside class="inbox-drawer" :class="{ open: modelValue }" :aria-hidden="!modelValue">
       <div class="inbox-head">
-        <h3>{{ mode === 'chat' ? (activeConv ? activeConv.name : '聊天会话') : '通知中心' }}</h3>
-        <button class="inbox-x" aria-label="关闭" @click="close">✕</button>
+        <h3>{{ mode === 'chat' ? (activeConv ? activeConv.name : $t('inbox.title.chat')) : $t('inbox.title.notify') }}</h3>
+        <button class="inbox-x" :aria-label="$t('inbox.close')" @click="close">✕</button>
       </div>
 
       <div class="inbox-body">
@@ -171,12 +172,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
               </div>
             </div>
             <p v-if="!listOf(sub).length" class="inbox-empty">
-              {{ loading ? '加载中…' : sub === 'dm' ? '暂无私信——去启事详情页给对方发一条吧' : '暂无此类通知' }}
+              {{ loading ? $t('common.loading') : sub === 'dm' ? $t('inbox.empty.dm') : $t('inbox.empty.other') }}
             </p>
           </div>
 
           <div class="inbox-foot">
-            <el-button round plain style="width:100%" @click="readAll">全部标为已读</el-button>
+            <el-button round plain style="width:100%" @click="readAll">{{ $t('inbox.readAll') }}</el-button>
           </div>
         </template>
 
@@ -185,7 +186,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           <!-- 会话列表 -->
           <div v-if="!activeConv" class="inbox-convs">
             <div v-for="c in conversations" :key="c.fromUserId" class="inbox-conv" @click="openConv(c)">
-              <span class="inbox-ava">{{ (c.name || '对')[0] }}</span>
+              <span class="inbox-ava">{{ (c.name || $t('inbox.peer'))[0] }}</span>
               <div class="inbox-conv-main">
                 <div class="inbox-conv-top">
                   <b>{{ c.name }}</b>
@@ -195,14 +196,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
               </div>
             </div>
             <p v-if="!conversations.length" class="inbox-empty">
-              {{ loading ? '加载中…' : '暂无私信会话——在启事详情页点「私信」即可开始' }}
+              {{ loading ? $t('common.loading') : $t('inbox.empty.conv') }}
             </p>
           </div>
 
           <!-- 会话线程 -->
           <div v-else class="inbox-thread">
             <div class="inbox-thread-head">
-              <button class="inbox-back" @click="backToList">← 返回会话列表</button>
+              <button class="inbox-back" @click="backToList">{{ $t('inbox.back') }}</button>
             </div>
 
             <!-- 启事上下文卡：防止"你说的是哪件？" -->
@@ -211,25 +212,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
               class="inbox-item-card" @click="close"
             >
               <div>
-                <b>会话关联启事</b>
-                <span>点击查看启事详情与认领进度</span>
+                <b>{{ $t('inbox.context.title') }}</b>
+                <span>{{ $t('inbox.context.desc') }}</span>
               </div>
-              <span style="margin-left:auto;color:var(--orange-deep);font-weight:700">查看 →</span>
+              <span style="margin-left:auto;color:var(--orange-deep);font-weight:700">{{ $t('inbox.view') }}</span>
             </RouterLink>
 
             <div class="inbox-msgs">
               <div v-for="m in threadMsgs" :key="m.id" class="inbox-msg" :class="m.sent ? 'me' : 'them'">
                 {{ m.content }}
-                <small>{{ m.sent ? '我' : activeConv.name }} · {{ m.sent ? '刚刚' : fmt(m.createTime) }}</small>
+                <small>{{ m.sent ? $t('inbox.me') : activeConv.name }} · {{ m.sent ? $t('inbox.now') : fmt(m.createTime) }}</small>
               </div>
             </div>
 
             <div class="inbox-input">
               <input
-                v-model="input" placeholder="输入消息…（回车发送）"
+                v-model="input" :placeholder="$t('inbox.inputPh')"
                 maxlength="200" @keyup.enter="send"
               />
-              <button :disabled="sending" @click="send">发送</button>
+              <button :disabled="sending" @click="send">{{ $t('inbox.send') }}</button>
             </div>
           </div>
         </template>

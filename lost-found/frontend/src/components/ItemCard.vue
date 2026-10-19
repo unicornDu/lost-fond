@@ -1,193 +1,153 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { catEmoji } from '../constants/catalog'
 import { api } from '../api'
+import { catDot, catEmoji } from '../constants/catalog'
+import { catLabel, t } from '../i18n'
 import { assetUrl } from '../utils/asset'
+import { avatarColor, initialOf, statusOf } from '../utils/display'
 
 /**
- * 物品卡片（G 版式：扁平白卡 + 左上状态方块签 + 悬停上浮/封面缩放）。
- * E-07：右上角收藏星标（未登录点击引导去登录；星标状态由本组件自管，可选用 fav-initial 传入）。
- * similarity：以图搜图结果页显示相似度徽标。
+ * 物品卡片（Digg 网格卡，用于失物墙 / 收藏 / 相似推荐）：
+ * 1.45:1 封面 + 分类圆点 + 14.5px 标题 + 地点 + 底栏头像与状态淡彩签。
+ * E-07 收藏星标保留（右上角白色圆钮）；similarity 用于以图搜图结果页。
+ * featured 参数保留仅为兼容旧调用（首页已改用 FeedCard，不再有跨列特稿）。
  */
 const props = defineProps({
   item: { type: Object, required: true },
-  similarity: { type: Number, default: null }, // 以图搜图结果页显示相似度
-  favInitial: { type: Boolean, default: false }, // 收藏列表页初始为已收藏
-  featured: { type: Boolean, default: false }, // 2026-10-18：特稿卡（跨列布局由父级样式负责）
+  similarity: { type: Number, default: null },
+  favInitial: { type: Boolean, default: false },
+  featured: { type: Boolean, default: false },
 })
 
 const fav = ref(props.favInitial)
 onMounted(() => { fav.value = props.favInitial })
 
-/* 帮转助力：纯前端本地态（后端助力表尚未建，先保证交互闭环，不虚构助力总数） */
-const BOOST_KEY = 'shiguang_boosted'
-const boosted = ref(false)
-function readBoosted() {
-  try { return JSON.parse(localStorage.getItem(BOOST_KEY) || '[]') } catch { return [] }
-}
-onMounted(() => { boosted.value = readBoosted().includes(props.item.id) })
-function boost() {
-  if (boosted.value) return
-  const set = readBoosted()
-  if (!set.includes(props.item.id)) set.push(props.item.id)
-  try { localStorage.setItem(BOOST_KEY, JSON.stringify(set.slice(-300))) } catch (e) { /* 隐私模式忽略 */ }
-  boosted.value = true
-  ElMessage.success('已帮转，这条启事会获得更多曝光')
-}
+const dot = computed(() => catDot(props.item.category))
+const emoji = computed(() => catEmoji(props.item.category))
+const status = computed(() => statusOf(props.item))
+const owner = computed(() => props.item.owner || t('me.student'))
 
 async function toggleFav() {
   if (!localStorage.getItem('shiguang_token')) {
-    ElMessage.warning('请先登录后收藏')
+    ElMessage.warning(t('card.needLogin'))
     return
   }
   try {
     if (fav.value) {
       await api.unfavorite(props.item.id)
       fav.value = false
-      ElMessage.success('已取消收藏')
+      ElMessage.success(t('card.unfavOk'))
     } else {
       await api.favorite(props.item.id)
       fav.value = true
-      ElMessage.success('已收藏')
+      ElMessage.success(t('card.favOk'))
     }
-  } catch (e) { ElMessage.error(e.message || '操作失败') }
+    window.dispatchEvent(new Event('shiguang-fav-changed'))
+  } catch (e) { ElMessage.error(e.message || t('card.opFail')) }
 }
 </script>
 
 <template>
-  <RouterLink :to="`/item/${item.id}`" class="item-card" :class="{ featured }">
-    <div class="cover">
-      <div class="cover-fallback">{{ catEmoji(item.category) }}</div>
-      <!-- 审查 2.17：列表用缩略图，缺失回退原图 -->
+  <RouterLink :to="`/item/${item.id}`" class="g-card">
+    <div class="g-photo">
+      <span class="g-emoji">{{ emoji }}</span>
       <img :src="assetUrl(item.thumb || item.img)" :alt="item.title" loading="lazy" @error="$event.target.style.display = 'none'" />
-
-      <div class="status-tags">
-        <span class="status" :class="item.type">{{ item.type === 'lost' ? '寻物中' : '招领中' }}</span>
-        <span v-if="item.status !== '寻找中' && item.status !== '待认领'" class="status done">{{ item.status }}</span>
-      </div>
-      <span v-if="similarity" class="sim-badge">相似 {{ similarity }}%</span>
-      <!-- E-07：收藏星标（阻止冒泡，不触发卡片跳转） -->
-      <button class="fav-btn" :class="{ on: fav }" type="button" title="收藏" @click.prevent.stop="toggleFav">
+      <button class="g-fav" :class="{ on: fav }" type="button" :title="fav ? $t('card.faved') : $t('card.fav')" @click.prevent.stop="toggleFav">
         {{ fav ? '★' : '☆' }}
       </button>
+      <span v-if="similarity" class="g-sim">{{ $t('card.similar', { n: similarity }) }}</span>
     </div>
 
-    <div class="body">
-      <div class="cat-line">{{ catEmoji(item.category) }} {{ item.category }}</div>
-      <p class="title">{{ item.title }}</p>
-      <p class="meta">
-        <span class="m-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-5.1 7-11a7 7 0 1 0-14 0c0 5.9 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
-          {{ item.location }}
-        </span>
-        <span class="m-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-          {{ (item.time || '').slice(5, 16) }}
-        </span>
-      </p>
-      <div class="foot">
-        <span class="foot-left">
-          <span class="views">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-            {{ item.views ?? 0 }}
-          </span>
-          <button
-            class="boost" :class="{ done: boosted }" type="button"
-            :title="boosted ? '已帮转' : '帮这条启事扩散'"
-            @click.prevent.stop="boost"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a1 1 0 0 0 1 1h3v-9H5a1 1 0 0 0-1 1zM10 11V5a2 2 0 0 1 4 0v5h4.5a2 2 0 0 1 2 2.4l-1.2 6a2 2 0 0 1-2 1.6H10v-9z"/></svg>
-            <span>{{ boosted ? '已帮转' : '帮转' }}</span>
-          </button>
-        </span>
-        <span class="go">查看详情 →</span>
+    <div class="g-body">
+      <div class="cat-row">
+        <i class="dot" :style="{ background: dot }"></i>
+        <span>{{ catLabel(item.category) }}</span>
       </div>
+      <h3 class="g-title">{{ item.title }}</h3>
+      <p class="g-where">{{ item.location }}</p>
+    </div>
+
+    <div class="g-foot">
+      <span class="g-ava" :style="{ background: avatarColor(owner) }">{{ initialOf(owner) }}</span>
+      <span class="g-owner">{{ owner }}</span>
+      <span class="g-status" :class="status.cls">{{ $t(status.key) }}</span>
     </div>
   </RouterLink>
 </template>
 
 <style scoped>
-.item-card {
+.g-card {
   display: flex; flex-direction: column;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: var(--shadow-card);
-  transition: transform .22s cubic-bezier(.22, 1, .36, 1), box-shadow .25s ease;
-  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
-.item-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lift); }
+.g-card:hover {
+  border-color: var(--line-2);
+  box-shadow: 0 10px 26px rgba(20, 20, 18, .07);
+  transform: translateY(-2px);
+}
 
-.cover { position: relative; aspect-ratio: 4 / 3; background: var(--cream-deep); overflow: hidden; }
-/* 图片加载失败时（img 自隐藏）露出下层的分类 emoji 底 */
-.cover-fallback {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  font-size: 54px;
-  background: var(--orange-soft);
+.g-photo {
+  position: relative;
+  aspect-ratio: 1.45 / 1;
+  display: grid; place-items: center;
+  overflow: hidden;
+  background: var(--cream-deep);
 }
-.cover img {
+.g-emoji { font-size: 44px; }
+.g-photo img {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  transition: transform .5s cubic-bezier(.22, 1, .36, 1);
+  transition: transform .45s cubic-bezier(.22, 1, .36, 1);
 }
-.item-card:hover .cover img { transform: scale(1.06); }
+.g-card:hover .g-photo img { transform: scale(1.04); }
 
-/* 状态方块签（G 版式：左上角、小圆角、实色） */
-.status-tags { position: absolute; top: 12px; left: 12px; z-index: 3; display: flex; gap: 7px; }
-.status {
-  padding: 5px 11px; border-radius: 6px;
-  font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
-  color: #fff;
-  box-shadow: 0 3px 8px rgba(27, 26, 23, .18);
+.g-fav {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 0; background: var(--paper);
+  color: var(--ink-faint); font-size: 14px; line-height: 1;
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: transform .18s ease, color .18s ease;
 }
-.status.lost { background: var(--ink); }
-.status.found { background: var(--orange); }
-.status.done { background: var(--ink-faint); }
+.g-fav:hover { transform: scale(1.1); color: var(--ink); }
+.g-fav.on { color: var(--ink); }
 
-.sim-badge {
-  position: absolute; right: 10px; bottom: 10px; z-index: 3;
-  padding: 5px 12px; border-radius: 8px;
-  background: var(--orange); color: #fff;
-  font-size: 12px; font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  box-shadow: 0 4px 10px rgba(15, 122, 92, .35);
-}
-
-/* E-07：收藏星标 */
-.fav-btn {
-  position: absolute; top: 10px; right: 10px; z-index: 4;
-  width: 32px; height: 32px; border-radius: 9px;
-  border: 0;
-  background: rgba(255, 255, 255, .94); color: var(--ink-faint);
-  font-size: 15px; line-height: 1; cursor: pointer;
-  box-shadow: 0 2px 6px rgba(27, 26, 23, .14);
-  transition: transform .18s cubic-bezier(.22, 1, .36, 1), color .18s, background .18s;
-}
-.fav-btn:hover { transform: scale(1.12); color: var(--orange-deep); }
-.fav-btn.on { color: var(--orange); }
-
-.body { padding: 15px 17px 16px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
-.cat-line { font-size: 11.5px; color: var(--ink-faint); letter-spacing: 1px; font-weight: 600; }
-.title {
-  font-size: 15.5px; font-weight: 700; line-height: 1.45;
-  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
-}
-.meta {
-  display: flex; gap: 12px; flex-wrap: wrap;
-  color: var(--ink-faint); font-size: 12px;
+.g-sim {
+  position: absolute; left: 10px; bottom: 10px; z-index: 2;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--ink); color: var(--paper);
+  font-size: 11px; font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.m-item { display: inline-flex; align-items: center; gap: 4px; }
-.m-item svg { width: 12px; height: 12px; flex: none; }
-.foot {
-  margin-top: auto; padding-top: 10px; display: flex; justify-content: space-between; align-items: center;
-  color: var(--ink-faint); font-size: 12px;
-  gap: 8px;
+
+.g-body { padding: 14px 15px 12px; display: flex; flex-direction: column; gap: 6px; }
+.cat-row { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+.g-title {
+  font-size: 14.5px; font-weight: 750; line-height: 1.45; letter-spacing: -.005em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  min-height: 2.9em;
 }
-.foot-left { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.views { display: inline-flex; align-items: center; gap: 4px; }
-.views svg { width: 13px; height: 13px; }
-.go { color: var(--orange); font-weight: 700; opacity: 0; transform: translateX(-6px); transition: all .2s; }
-.item-card:hover .go { opacity: 1; transform: translateX(0); }
+.g-where { font-size: 12px; color: var(--ink-faint); line-height: 1.5; }
+
+.g-foot {
+  display: flex; align-items: center; gap: 7px;
+  padding: 10px 15px; margin-top: auto;
+  border-top: 1px solid var(--line);
+}
+.g-ava {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center; color: #fff;
+  font-size: 10px; font-weight: 700; flex: none;
+}
+.g-owner { font-size: 11.5px; color: var(--ink-faint); }
+.g-status {
+  margin-left: auto;
+  font-size: 10.5px; font-weight: 700;
+  padding: 4px 9px; border-radius: 999px;
+}
 </style>

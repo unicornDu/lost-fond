@@ -1,0 +1,385 @@
+/* ================================================================
+ * 复刻 dsgninterior.se 视觉体系
+ * 设计变量与原站一致：深棕 #594037 / 暖米白 #F6F5F4 / 陶土橘 #E68762
+ * ================================================================ */
+
+/* ---------------- 设计变量 ---------------- */
+:root {
+  --color-text: #594037;
+  --color-bg: #F6F5F4;
+  --color-accent: #E68762;
+
+  /* 流式字号（随视口平滑缩放，无断点突变） */
+  --font-300: 1.0625rem;
+  --font-400: 1.5rem;
+  --font-450: clamp(1.75rem, 1.4659rem + 1.4205vw, 3rem);
+  --font-600: clamp(3rem, 2.7727rem + 1.1364vw, 4rem);
+  --font-700: clamp(3.75rem, 2.6136rem + 5.6818vw, 8.75rem);
+
+  /* 流式间距 */
+  --gap: clamp(0.75rem, 0.6648rem + 0.4261vw, 1.125rem);
+  --pad: clamp(1.125rem, 0.9261rem + 0.9943vw, 2rem);
+
+  --header-height: clamp(3.5rem, 3.4148rem + 0.4261vw, 3.875rem);
+  --footer-height: max(33vh, 25rem);
+  --svh-100: 100svh;
+
+  /* 缓动：expo 系列 */
+  --ease-in-out: ease-in-out;
+  --expo-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --expo-in-out: cubic-bezier(0.9, 0, 0.1, 1);
+}
+
+/* ---------------- 基础 ---------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  background: var(--color-text);          /* overscroll 露出深色，与页脚衔接 */
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: "Jost", "Cera Pro", "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: var(--font-300);
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: inherit; text-decoration: none; }
+ul { list-style: none; }
+img { display: block; max-width: 100%; }
+
+/* 焦点可见性：陶土橘描边 */
+:focus-visible {
+  outline: max(2px, 0.08rem) solid var(--color-accent);
+  outline-offset: 0;
+}
+
+/* 仅供屏幕阅读器 */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important; height: 1px !important;
+  margin: -1px !important; padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important; border: 0 !important;
+}
+
+/* ================================================================
+ * 页头：固定、透明、两列网格（左字标 / 右菜单）
+ * ================================================================ */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  height: var(--header-height);
+  color: var(--color-text);
+  transition: color 0.3s var(--ease-in-out);
+  pointer-events: none;                    /* 容器不拦截点击，子元素恢复 */
+  isolation: isolate;
+}
+.header > * { pointer-events: auto; }
+
+/* 深色背景页（如首页横幅）上页头反白 */
+body[data-header="light"] .header,
+body.menu-open .header { color: var(--color-bg); }
+
+.header-logo a {
+  display: inline-block;
+  font-weight: 400;
+  font-size: var(--font-300);
+  line-height: var(--header-height);
+  padding: 0 var(--pad);
+  white-space: nowrap;
+}
+.header-logo strong { font-weight: 700; }
+
+.header-right {
+  display: flex;
+  align-items: stretch;
+}
+
+/* ---------------- 桌面端：内联导航 ---------------- */
+.menu-desktop {
+  display: none;
+  align-items: center;
+  gap: var(--gap);
+  padding-right: var(--pad);
+}
+.menu-desktop a {
+  text-transform: lowercase;
+  font-weight: 400;
+  line-height: var(--header-height);
+  transition: opacity 0.3s var(--ease-in-out);
+}
+.menu-desktop a:hover { opacity: 0.55; }
+.menu-desktop a[aria-current="page"] { opacity: 0.55; }
+
+.languages {
+  display: flex;
+  font-size: var(--font-300);
+}
+.languages a {
+  padding: 0 var(--gap) 0 var(--gap);
+  line-height: var(--header-height);
+  transition: opacity 0.3s var(--ease-in-out);
+}
+.languages a:hover { opacity: 0.55; }
+.languages a[aria-current="true"] { display: none; }   /* 当前语言隐藏 */
+
+@media (min-width: 64rem) {
+  .menu-desktop { display: flex; }
+  .menu-toggle { display: none; }
+}
+
+/* ---------------- 移动端：菜单按钮 ---------------- */
+.menu-toggle {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: lowercase;
+  padding: 0 var(--pad);
+  display: grid;
+  place-content: center;
+  position: relative;
+  min-width: 4.5rem;
+}
+.menu-toggle span {
+  grid-area: 1 / 1;
+  transition: opacity 0.3s var(--ease-in-out), transform 0.3s var(--expo-out);
+}
+.menu-toggle .menu-toggle-close { opacity: 0; transform: translateY(0.4em); }
+body.menu-open .menu-toggle-open  { opacity: 0; transform: translateY(-0.4em); }
+body.menu-open .menu-toggle-close { opacity: 1; transform: none; }
+
+/* ---------------- 移动端：全屏菜单覆盖层 ---------------- */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--color-text);
+  color: var(--color-bg);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  padding: var(--pad);
+  padding-top: var(--header-height);
+  transform: translateY(-100%);
+  transition: transform 0.6s var(--expo-in-out);
+  visibility: hidden;
+}
+body.menu-open .menu-overlay {
+  transform: translateY(0);
+  visibility: visible;
+}
+.menu-overlay-links {
+  display: grid;
+  align-content: center;
+  gap: calc(var(--gap) * 0.5);
+}
+.menu-overlay-links a {
+  text-transform: lowercase;
+  font-size: var(--font-450);
+  line-height: 1.15;
+  opacity: 0;
+  transform: translateY(0.6em);
+  transition: opacity 0.4s var(--expo-out), transform 0.4s var(--expo-out);
+}
+body.menu-open .menu-overlay-links a { opacity: 1; transform: none; }
+body.menu-open .menu-overlay-links li:nth-child(1) a { transition-delay: 0.15s; }
+body.menu-open .menu-overlay-links li:nth-child(2) a { transition-delay: 0.22s; }
+body.menu-open .menu-overlay-links li:nth-child(3) a { transition-delay: 0.29s; }
+.menu-overlay .languages { padding-bottom: var(--pad); }
+.menu-overlay .languages a { padding: var(--pad) var(--gap) 0 0; line-height: 1; }
+
+@media (min-width: 64rem) {
+  .menu-overlay { display: none; }
+}
+
+/* ================================================================
+ * 首页：全屏轮播横幅（Swiper 纵向 + 60% 视差）
+ * ================================================================ */
+.home-banners { height: var(--svh-100); }
+
+.banner {
+  height: var(--svh-100);
+  position: relative;
+  overflow: hidden;
+  background: var(--color-text);
+  display: block;
+}
+
+.banner .media {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.05);
+  will-change: transform;
+}
+
+/* 标题层：居中超大反白字 + 极淡深棕遮罩 */
+.banner-title {
+  position: absolute;
+  inset: 0;
+  padding: var(--pad);
+  display: grid;
+  align-content: center;
+  color: var(--color-bg);
+  font-size: var(--font-700);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  margin-left: -0.05em;
+  background: hsl(23 24% 28% / 0.15);
+  will-change: transform;
+}
+.banner-title span {
+  max-width: calc(100vw - var(--pad) * 2);
+  margin: 0 auto;
+  display: block;
+}
+.banner-sub {
+  font-size: var(--font-400);
+  font-weight: 400;
+  line-height: 1.4;
+  margin-top: calc(var(--gap) * 1.5);
+  margin-left: 0;
+}
+
+/* ================================================================
+ * 列表页：作品网格 + 双色调悬停
+ * ================================================================ */
+.page-main { min-height: var(--svh-100); }
+
+.works-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(26rem, 100%), 1fr));
+  align-content: start;
+  gap: var(--gap);
+  padding: var(--pad);
+  padding-top: calc(var(--header-height) + var(--pad));
+  min-height: var(--svh-100);
+}
+
+.work { padding-bottom: var(--pad); }
+
+.work-link { display: block; overflow: hidden; }
+
+.work .media {
+  position: relative;
+  aspect-ratio: var(--ratio, 3 / 4);
+  overflow: hidden;
+  background: var(--color-text);
+}
+
+/* 双层图片：黑白版在下，彩色版在上默认透明 */
+.work .img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.05);
+  will-change: transform;
+}
+.work .img-gray { filter: grayscale(1) contrast(0.95); }
+.work .img-color {
+  opacity: 0;
+  transition: opacity 0.3s var(--ease-in-out);
+}
+.work-link:hover .img-color,
+.work-link:focus-visible .img-color { opacity: 1; }
+
+.work-title {
+  font-size: var(--font-400);
+  font-weight: 400;
+  padding: 0.5em 0;
+}
+
+/* ================================================================
+ * 工作室页：编辑排版
+ * ================================================================ */
+.office {
+  padding: var(--pad);
+  padding-top: calc(var(--header-height) + var(--pad) * 2);
+  max-width: 72rem;
+}
+.office-title {
+  font-size: var(--font-600);
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: calc(var(--pad) * 1.5);
+}
+.office-body { max-width: 40em; display: grid; gap: 1.2em; }
+.office-figure { margin: calc(var(--pad) * 1.5) calc(var(--pad) * -1) 0; }
+.office-figure .media {
+  aspect-ratio: 16 / 9;
+  background-size: cover;
+  background-position: center;
+}
+.office-figure figcaption {
+  padding: calc(var(--gap) * 0.5) var(--pad) 0;
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+/* ================================================================
+ * 页脚：深棕底、滚动淡入、滚动提示动画
+ * ================================================================ */
+.footer {
+  min-height: var(--footer-height);
+  background: var(--color-text);
+  color: var(--color-bg);
+  padding: var(--pad);
+  display: grid;
+  align-content: end;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease-in-out);
+}
+.footer.is-visible { opacity: 1; }
+
+.footer-grid {
+  display: grid;
+  gap: 1em calc(var(--gap) * 2);
+  grid-template-columns: 1fr;
+  will-change: transform;
+  transform: translateY(1.5rem);
+  transition: transform 0.6s var(--expo-out);
+}
+.footer.is-visible .footer-grid { transform: none; }
+
+@media (min-width: 48rem) {
+  .footer-grid { grid-template-columns: 1fr 1fr auto; align-items: end; }
+}
+
+.footer a { transition: opacity 0.3s var(--ease-in-out); }
+.footer a:hover { opacity: 0.55; }
+.footer .contacts a { display: block; }
+.footer .address span { display: block; }
+
+/* 滚动提示：小竖线循环动画 */
+.scroll-hint {
+  display: inline-grid;
+  gap: 0.6em;
+  justify-items: start;
+  font-size: 0.85em;
+}
+.scroll-hint::after {
+  content: "";
+  width: 1px;
+  height: 2.5em;
+  background: currentColor;
+  animation: scroll-indicator 2.2s var(--ease-in-out) infinite;
+}
+@keyframes scroll-indicator {
+  0%   { transform: translateY(-18%) scaleY(0.6); opacity: 0; }
+  33%  { transform: translateY(-10%) scaleY(1);   opacity: 1; }
+  66%  { opacity: 1; }
+  100% { transform: translateY(25%);              opacity: 0; }
+}

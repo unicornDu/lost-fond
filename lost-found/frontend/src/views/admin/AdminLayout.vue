@@ -39,8 +39,8 @@ const links = [
 }
 .a-link:hover { background: var(--cream-deep); }
 .a-link.router-link-active {
-  background: linear-gradient(120deg, var(--orange), var(--orange-deep));
-  color: #FFF7EC; box-shadow: 0 6px 16px rgba(255,125,46,.3);
+  background: var(--ink);
+  color: var(--paper); box-shadow: 0 6px 16px rgba(20,20,18,.16);
 }
 .back { margin-left: auto; color: var(--orange-deep); font-size: 13.5px; font-weight: 600; }
 .back:hover { text-decoration: underline; }

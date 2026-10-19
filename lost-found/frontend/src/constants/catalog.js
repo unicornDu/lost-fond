@@ -16,3 +16,18 @@ export const LOCATIONS = [
 ]
 
 export const catEmoji = (name) => CATEGORIES.find((c) => c.name === name)?.emoji || '📦'
+
+/**
+ * v3 设计系统（Digg 信息流）：分类小圆点是全站唯一的彩色来源。
+ * 颜色令牌见 styles/main.css 的 --c-*，这里只做「分类名 → 令牌」映射，
+ * 新增分类时同步补一行即可（缺省落到灰色「其他」）。
+ */
+const CATEGORY_DOT = {
+  证件卡类: 'var(--c-doc)',
+  钥匙: 'var(--c-key)',
+  电子设备: 'var(--c-elec)',
+  书籍资料: 'var(--c-book)',
+  衣物饰品: 'var(--c-cloth)',
+  其他: 'var(--c-other)',
+}
+export const catDot = (name) => CATEGORY_DOT[name] || 'var(--c-other)'

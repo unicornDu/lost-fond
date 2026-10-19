@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import { api } from '../api'
+import { t } from '../i18n'
 import ItemCard from '../components/ItemCard.vue'
 
 /**
@@ -39,7 +40,7 @@ async function load() {
   } catch (e) {
     profile.value = null
     items.value = []
-    failed.value = e.message || '加载失败'
+    failed.value = e.message || t('user.loadFail')
   } finally {
     loading.value = false
   }
@@ -53,29 +54,29 @@ onMounted(load)
 <template>
   <div class="page container" v-loading="loading">
     <el-empty v-if="failed" :description="failed">
-      <el-button round plain @click="router.back()">← 返回</el-button>
+      <el-button round plain @click="router.back()">{{ $t('user.back') }}</el-button>
     </el-empty>
 
     <template v-else-if="profile">
-      <el-button round plain size="small" @click="router.back()">← 返回</el-button>
+      <el-button round plain size="small" @click="router.back()">{{ $t('user.back') }}</el-button>
 
       <div class="owner paper-card">
         <span class="avatar">{{ profile.avatar || '🦊' }}</span>
         <div class="who">
-          <h1>{{ profile.nickname || '同学' }}</h1>
-          <p>🗓️ {{ (profile.createTime || '').slice(0, 10) }} 加入拾光 · 📦 {{ profile.itemCount }} 条公开启事</p>
+          <h1>{{ profile.nickname || $t('me.student') }}</h1>
+          <p>🗓️ {{ (profile.createTime || '').slice(0, 10) }} {{ $t('user.join') }} · 📦 {{ profile.itemCount }} {{ $t('user.notices') }}</p>
         </div>
-        <el-button v-if="isSelf" round plain type="primary" @click="router.push('/profile')">这是我的主页 · 去个人中心</el-button>
+        <el-button v-if="isSelf" round plain type="primary" @click="router.push('/profile')">{{ $t('user.self') }}</el-button>
       </div>
 
       <div class="section-head">
-        <h2>TA 的公开启事</h2>
-        <span class="hint">仅展示已通过审核且未下架/关闭的启事</span>
+        <h2>{{ $t('user.title') }}</h2>
+        <span class="hint">{{ $t('user.hint') }}</span>
       </div>
       <div v-if="items.length" class="grid-cards">
         <ItemCard v-for="it in items" :key="it.id" :item="it" />
       </div>
-      <el-empty v-else description="暂无公开启事" />
+      <el-empty v-else :description="$t('user.empty')" />
       <el-pagination v-if="total > size" class="pager" layout="prev, pager, next, total"
         :total="total" :page-size="size" :current-page="page" @current-change="changePage" />
     </template>

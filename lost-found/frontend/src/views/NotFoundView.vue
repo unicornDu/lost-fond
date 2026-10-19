@@ -6,11 +6,11 @@ const router = useRouter()
 <template>
   <div class="nf">
     <span class="code">404</span>
-    <p class="t">页面走丢了…</p>
-    <p class="d">你要找的页面不存在或已被移除。也许它正等着被人「以图搜图」找回来？</p>
+    <p class="t">{{ $t('nf.title') }}</p>
+    <p class="d">{{ $t('nf.desc') }}</p>
     <div class="acts">
-      <el-button type="primary" round @click="router.push('/home')">返回首页</el-button>
-      <el-button round plain @click="router.push('/search-image')">去以图搜图</el-button>
+      <el-button type="primary" round @click="router.push('/home')">{{ $t('nf.home') }}</el-button>
+      <el-button round plain @click="router.push('/search-image')">{{ $t('nf.search') }}</el-button>
     </div>
   </div>
 </template>

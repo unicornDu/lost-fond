@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>档案 | 示例工作室</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body data-page="archive">
+
+  <header class="header">
+    <div class="header-logo"><a href="index.html"></a></div>
+    <div class="header-right">
+      <nav class="menu-desktop" aria-label="主导航">
+        <ul class="menu-desktop-links" style="display:flex;gap:var(--gap)"></ul>
+        <div class="languages"></div>
+      </nav>
+      <button class="menu-toggle" aria-expanded="false" aria-controls="menu-overlay" aria-label="菜单">
+        <span class="menu-toggle-open">menu</span>
+        <span class="menu-toggle-close" aria-hidden="true">close</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="menu-overlay" id="menu-overlay" aria-label="移动端导航">
+    <ul class="menu-overlay-links"></ul>
+    <div class="languages"></div>
+  </nav>
+
+  <main class="page-main">
+    <header class="sr-only">
+      <h1></h1>
+      <p></p>
+    </header>
+    <ul class="works-grid" data-works="archive"></ul>
+  </main>
+
+  <footer class="footer">
+    <ul class="footer-grid">
+      <li class="contacts"></li>
+      <li class="address"><a href="#" target="_blank" rel="noopener"></a></li>
+      <li><span class="scroll-hint"></span></li>
+    </ul>
+  </footer>
+
+  <script src="assets/js/content.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

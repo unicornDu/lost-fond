@@ -6,6 +6,7 @@ import { useTransferStore } from '../stores/transfer'
 import { useUserStore } from '../stores/user'
 import { assetUrl } from '../utils/asset'
 import { downloadDelivery } from '../utils/delivery'
+import { t } from '../i18n'
 
 const transfer = useTransferStore()
 const user = useUserStore()   // P2：匹配报告需登录（交付落到具体用户）
@@ -13,17 +14,17 @@ const user = useUserStore()   // P2：匹配报告需登录（交付落到具体
 // P2：以图搜图匹配报告（命中结果固化为可带走的 PDF）
 const reporting = ref(false)
 async function makeReport() {
-  if (!user.logged) { ElMessage.warning('请先登录后再生成报告'); return }
+  if (!user.logged) { ElMessage.warning(t('search.msg.login')); return }
   if (!fileRaw.value) return
   reporting.value = true
   try {
     const fd = new FormData()
     fd.append('file', fileRaw.value)
     const d = await api.matchReport(fd)
-    ElMessage.success(`匹配报告已生成（${d.hits} 条命中）`)
+    ElMessage.success(t('search.msg.reportOk', { n: d.hits }))
     await downloadDelivery({ ...d, fileName: d.title + '.pdf' })
   } catch (e) {
-    ElMessage.error(e.message || '报告生成失败')
+    ElMessage.error(e.message || t('search.msg.reportFail'))
   } finally {
     reporting.value = false
   }
@@ -45,11 +46,11 @@ const threshold = ref(10)   // 03 T-03：服务端生效阈值（indexed-count �
 
 function onFileChange(file) {
   if (!file.raw.type.startsWith('image/')) {
-    ElMessage.error('请上传图片文件')
+    ElMessage.error(t('search.msg.imageOnly'))
     return
   }
   if (file.size > 5 * 1024 * 1024) {   // 审查 2.27③ 前端体积校验（原生相机路径由 1600px/q70 压缩兜底）
-    ElMessage.error('图片不能超过 5MB')
+    ElMessage.error(t('search.msg.size'))
     return
   }
   acceptImage(file.raw, file.raw.name)
@@ -82,7 +83,7 @@ async function runPipeline() {
     await nextTick()   // 渲染完成才落"完成"态，进度条与真实耗时一致
     step.value = 4
   } catch (e) {
-    ElMessage.error(e.message || '以图搜图失败')
+    ElMessage.error(e.message || t('search.msg.fail'))
     reset()
   }
 }
@@ -107,10 +108,10 @@ onMounted(() => {
 })
 
 const steps = computed(() => [
-  { n: 1, label: '读取图片', detail: '灰度化并压缩至 32×32（与 JImageHash PerceptiveHash 实现一致）' },
-  { n: 2, label: '提取感知哈希', detail: 'DCT 变换 → 取 8×8 低频 → 二值化 64 位 pHash 指纹' },
+  { n: 1, label: t('search.step1'), detail: t('search.step1d') },
+  { n: 2, label: t('search.step2'), detail: t('search.step2d') },
   // 03 T-03：阈值文案不再硬编码，与 /api/search/indexed-count 返回的生效阈值同步
-  { n: 3, label: '汉明距离匹配', detail: `与库内启事逐条比对，阈值 ≤ ${threshold.value}` },
+  { n: 3, label: t('search.step3'), detail: t('search.step3d', { n: threshold.value }) },
 ])
 
 /* 守望订阅（对齐整合版 v1）：记录"这张照片值得一直盯"的意向。
@@ -120,15 +121,15 @@ const watchOn = ref(false)
 try { watchOn.value = localStorage.getItem(WATCH_KEY) === '1' } catch (e) { /* 隐私模式 */ }
 watch(watchOn, (v) => {
   try { localStorage.setItem(WATCH_KEY, v ? '1' : '0') } catch (e) { /* 隐私模式 */ }
-  if (v) ElMessage.success('已开启守望订阅：新招领入库时会用这张照片再比对一次')
-  else ElMessage.info('已关闭守望订阅')
+  if (v) ElMessage.success(t('search.msg.watchOn'))
+  else ElMessage.info(t('search.msg.watchOff'))
 })
 </script>
 
 <template>
   <div class="page container">
-    <h1 class="page-title" v-reveal>📷 以图搜图</h1>
-    <p class="page-sub" v-reveal="{ delay: 60 }">不上传文字，直接上传物品照片——用「长相」找回你的东西（感知哈希 pHash · 汉明距离匹配）</p>
+    <h1 class="page-title" v-reveal>{{ $t('search.title') }}</h1>
+    <p class="page-sub" v-reveal="{ delay: 60 }">{{ $t('search.sub') }}</p>
 
     <div class="layout" v-reveal="{ delay: 100 }">
       <!-- 左：上传与流程 -->
@@ -137,16 +138,16 @@ watch(watchOn, (v) => {
           <el-upload drag accept="image/*" :auto-upload="false" :show-file-list="false" :on-change="onFileChange">
             <div class="up-inner">
               <span class="cam">🔍</span>
-              <p class="up-t">拖一张照片到这里，或 <em>点击上传</em></p>
-              <p class="up-d">支持 JPG / PNG，拍清物品特征效果更好</p>
+              <p class="up-t" v-html="$t('search.upload')"></p>
+              <p class="up-d">{{ $t('search.uploadHint') }}</p>
             </div>
           </el-upload>
         </div>
 
         <div v-else class="preview paper-card">
-          <img :src="fileUrl" alt="查询图片" />
+          <img :src="fileUrl" :alt="$t('search.alt')" />
           <p class="fname">🖼️ {{ fileName }}</p>
-          <el-button round plain size="small" @click="reset">← 重新上传</el-button>
+          <el-button round plain size="small" @click="reset">{{ $t('search.again') }}</el-button>
         </div>
 
         <!-- 匹配流程 -->
@@ -167,10 +168,10 @@ watch(watchOn, (v) => {
         <!-- 守望订阅（对齐整合版 v1）：这次没搜到也没关系 -->
         <div class="watch-row">
           <div class="w-txt">
-            <b>{{ watchOn ? '守望订阅 · 已开启' : '守望订阅 · 这次没搜到也没关系' }}</b>
-            <span v-if="watchOn">已记住{{ fileName || '当前这张照片' }}，新招领入库时会用它再比对一次。</span>
-            <span v-else>开启后会记住这张照片的长相指纹，新招领入库时自动为你再搜一遍。</span>
-            <span class="w-tip">自动推送能力待后端「守望订阅表」上线，当前记录订阅意向。</span>
+            <b>{{ watchOn ? $t('search.watch.on') : $t('search.watch.off') }}</b>
+            <span v-if="watchOn">{{ $t('search.watch.onDesc', { name: fileName || $t('search.watch.file') }) }}</span>
+            <span v-else>{{ $t('search.watch.offDesc') }}</span>
+            <span class="w-tip">{{ $t('search.watch.tip') }}</span>
           </div>
           <el-switch v-model="watchOn" />
         </div>
@@ -180,15 +181,15 @@ watch(watchOn, (v) => {
       <div class="right">
         <template v-if="step === 4 && results.length">
           <div class="res-head">
-            <h3>匹配到 <em>{{ results.length }}</em> 条可能相关</h3>
-            <span class="res-sub">已在 {{ totalImgs }} 张启事图片中完成比对 · 耗时 {{ elapsed }}s</span>
+            <h3><span v-html="$t('search.result.head', { n: '<em>' + results.length + '</em>' })"></span></h3>
+            <span class="res-sub">{{ $t('search.result.sub', { n: totalImgs, s: elapsed }) }}</span>
             <el-button size="small" round type="primary" plain :loading="reporting" style="margin-left: 12px" @click="makeReport">
-              🖼️ 生成匹配报告 PDF
+              {{ $t('search.report') }}
             </el-button>
           </div>
 
           <div v-for="(r, i) in results" :key="r.id" class="res-item paper-card" :class="{ top: i === 0 }">
-            <span v-if="i === 0" class="top-badge">TOP1 · 疑似同一物品</span>
+            <span v-if="i === 0" class="top-badge">{{ $t('search.top1') }}</span>
             <img :src="assetUrl(r.img)" alt="" @error="$event.target.style.opacity = 0" />
             <div class="res-info">
               <RouterLink :to="`/item/${r.id}`" class="rt">{{ r.title }}</RouterLink>
@@ -201,27 +202,25 @@ watch(watchOn, (v) => {
 
         <div v-else-if="step === 4 && !results.length" class="res-empty paper-card">
           <span class="cam">🤔</span>
-          <p>没有匹配到相似的启事</p>
-          <small>库内暂无与该照片足够相似的物品（汉明距离均 &gt; 阈值 {{ threshold }}）。<br />试试拍得更清晰、更接近物品主体，或直接去发布一条启事。</small>
+          <p>{{ $t('search.empty.title') }}</p>
+          <small>{{ $t('search.empty.desc', { n: threshold }) }}</small>
         </div>
 
         <div v-else-if="step > 0" class="res-empty paper-card">
           <el-icon class="spin"><Loading /></el-icon>
-          <p>正在匹配中…</p>
+          <p>{{ $t('search.matching') }}</p>
         </div>
 
         <div v-else class="res-empty paper-card">
           <span class="cam">🧡</span>
-          <p>上传照片后，匹配结果会显示在这里</p>
-          <small>算法：pHash 感知哈希 · 汉明距离 ≤ 10 判定为相似（阈值经实验标定）</small>
+          <p>{{ $t('search.idle.title') }}</p>
+          <small>{{ $t('search.idle.desc') }}</small>
         </div>
       </div>
     </div>
 
-    <div class="demo-tip" style="max-width:1180px;margin:26px auto 0">
-      ✅ 已接入真实后端：本页调用 <b>POST /api/search/image</b>，由 Spring Boot 端 JImageHash
-      计算查询图 64 位 pHash，与库内 <b>item_image.phash</b> 逐条做 <b>BIT_COUNT(a XOR b)</b>
-      汉明距离比对，阈值过滤后按相似度降序返回 Top-N。
+    <div class="demo-tip" style="margin:26px 0 0">
+      <span>{{ $t('search.tip') }}</span>
     </div>
   </div>
 </template>
@@ -230,10 +229,15 @@ watch(watchOn, (v) => {
 .layout { display: grid; grid-template-columns: .9fr 1.1fr; gap: 30px; align-items: start; }
 
 .upload-zone :deep(.el-upload-dragger) {
-  border: 2.5px dashed var(--orange);
-  border-radius: 18px;
-  background: radial-gradient(420px 200px at 70% 0%, rgba(255, 201, 60, .22), transparent 60%), var(--honey-soft);
+  border: 1.5px dashed var(--line-2);
+  border-radius: var(--radius);
+  background: var(--cream);
   padding: 46px 30px;
+  transition: border-color .2s ease, background-color .2s ease;
+}
+.upload-zone :deep(.el-upload-dragger:hover) {
+  border-color: var(--ink-faint);
+  background: var(--cream-deep);
 }
 .up-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .up-inner .cam { font-size: 52px; }
@@ -277,12 +281,12 @@ watch(watchOn, (v) => {
   transition: transform .18s;
 }
 .res-item:hover { transform: translateX(4px); }
-.res-item.top { border: 2px solid var(--orange); box-shadow: 0 14px 30px rgba(255, 125, 46, .22); }
+.res-item.top { border: 2px solid var(--orange); box-shadow: 0 14px 30px rgba(20, 20, 18, .12); }
 .top-badge {
   position: absolute; top: -11px; left: 14px;
   padding: 3px 12px; border-radius: 999px;
-  background: var(--orange); color: #FFF7EC; font-size: 11.5px; font-weight: 700;
-  box-shadow: 0 4px 10px rgba(255, 125, 46, .4);
+  background: var(--orange); color: #FAFAF8; font-size: 11.5px; font-weight: 700;
+  box-shadow: 0 4px 10px rgba(20, 20, 18, .22);
 }
 .res-item img {
   width: 92px; height: 72px; object-fit: cover; border-radius: 10px;

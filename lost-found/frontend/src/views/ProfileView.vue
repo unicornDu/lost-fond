@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import { api } from '../api'
+import { t, claimStatusLabel, itemStatusLabel } from '../i18n'
 import { assetUrl } from '../utils/asset'
 import { downloadDelivery, DELIVERY_ICONS, fmtSize } from '../utils/delivery'
 import ItemCard from '../components/ItemCard.vue'
@@ -36,11 +37,11 @@ const unreadCount = computed(() => messages.value.filter((m) => m.isRead === 0).
 
 // ---- G 版式：通知中心三分栏（2026-10-18 审查修复：状态提前声明，避免 immediate watcher 访问 TDZ）----
 const msgSub = ref(route.query.sub === 'dm' ? 'dm' : 'claim')
-const MSG_SUBS = [
-  { key: 'claim', label: '认领与审核' },
-  { key: 'system', label: '系统通知' },
-  { key: 'dm', label: '私信' },
-]
+const MSG_SUBS = computed(() => [
+  { key: 'claim', label: t('profile.sub.claim') },
+  { key: 'system', label: t('profile.sub.system') },
+  { key: 'dm', label: t('profile.sub.dm') },
+])
 const claimMsgs = computed(() => messages.value.filter((m) => m.type === 'claim' || m.type === 'audit'))
 const systemMsgs = computed(() => messages.value.filter((m) => m.type !== 'claim' && m.type !== 'audit' && m.type !== 'dm'))
 const dmMsgs = computed(() => messages.value.filter((m) => m.type === 'dm' && m.fromUserId))
@@ -67,7 +68,7 @@ async function loadAll() {
     deliveries.value = dels || []
     markSubRead()   // 数据加载完成后，标记"当前分栏"已读
   } catch (e) {
-    ElMessage.error(e.message || '加载个人中心失败')
+    ElMessage.error(e.message || t('profile.loadFail'))
   } finally {
     loading.value = false
   }
@@ -113,8 +114,8 @@ async function readAllNow() {
     await api.readAll()
     messages.value.forEach((m) => (m.isRead = 1))
     window.dispatchEvent(new Event('shiguang-unread-changed'))
-    ElMessage.success('通知已全部标为已读')
-  } catch (e) { ElMessage.error(e.message || '操作失败') }
+    ElMessage.success(t('profile.readAllOk'))
+  } catch (e) { ElMessage.error(e.message || t('profile.opFail')) }
 }
 
 // ---- G 版式：通知中心（分栏状态定义见上方）----
@@ -129,7 +130,7 @@ const conversations = computed(() => {
   const map = new Map()
   for (const m of dmMsgs.value) {
     if (!map.has(m.fromUserId)) {
-      map.set(m.fromUserId, { fromUserId: m.fromUserId, name: m.fromNickname || '对方', msgs: [] })
+      map.set(m.fromUserId, { fromUserId: m.fromUserId, name: m.fromNickname || t('profile.msg.me'), msgs: [] })
     }
     map.get(m.fromUserId).msgs.push(m)
   }
@@ -155,14 +156,14 @@ async function sendThread() {
   const v = threadInput.value.trim()
   if (!c || !v) return
   const last = [...c.msgs].reverse().find((m) => !m.sent)
-  if (!last) { ElMessage.warning('找不到可回复的消息'); return }
+  if (!last) { ElMessage.warning(t('profile.reply.noMsg')); return }
   sendingThread.value = true
   try {
     await api.replyMessage(last.id, v)
     c.msgs.push({ id: 'local-' + Date.now(), sent: true, content: v, createTime: new Date().toISOString().slice(0, 19) })
     threadInput.value = ''
   } catch (e) {
-    ElMessage.error(e.message || '发送失败')
+    ElMessage.error(e.message || t('profile.reply.fail'))
   } finally {
     sendingThread.value = false
   }
@@ -171,15 +172,15 @@ async function sendThread() {
 // P1：交付文件动作（桌面原生打开 / Web 受控下载；渲染层只经手 deliveryId）
 async function takeDelivery(d) {
   try { await downloadDelivery(d) }
-  catch (e) { ElMessage.error(e.message || '操作失败') }
+  catch (e) { ElMessage.error(e.message || t('profile.opFail')) }
 }
 async function removeDelivery(d) {
   try {
-    await ElMessageBox.confirm(`删除「${d.title}」？对应文件将从磁盘一并移除。`, '删除交付文件', { type: 'warning' })
+    await ElMessageBox.confirm(t('profile.deliv.confirm', { title: d.title }), t('profile.deliv.title'), { type: 'warning' })
     await api.deleteDelivery(d.id)
     deliveries.value = deliveries.value.filter((x) => x.id !== d.id)
   } catch (e) {
-    if (e !== 'cancel' && e?.message !== 'cancel') ElMessage.error(e.message || '删除失败')
+    if (e !== 'cancel' && e?.message !== 'cancel') ElMessage.error(e.message || t('profile.deliv.fail'))
   }
 }
 
@@ -187,8 +188,9 @@ async function markFound(item) {
   try {
     await api.markFound(item.id)
     item.status = item.type === 'lost' ? '已找回' : '已认领'
-    ElMessage.success('已标记为「已找回」，感谢你的反馈！')
-  } catch (e) { ElMessage.error(e.message || '操作失败') }
+    ElMessage.success(t('profile.markFoundOk'))
+    window.dispatchEvent(new Event('shiguang-items-changed'))
+  } catch (e) { ElMessage.error(e.message || t('profile.opFail')) }
 }
 
 // ---- E-01 账号设置：资料编辑 + 修改密码 ----
@@ -206,27 +208,27 @@ function initAccountForms() {
 }
 watch(() => user.info, initAccountForms, { immediate: true })
 
-const profileRules = {
+const profileRules = computed(() => ({
   nickname: [
-    { required: true, message: '昵称不能为空', trigger: 'blur' },
-    { max: 12, message: '昵称最多 12 个字', trigger: 'blur' },
+    { required: true, message: t('valid.nicknameRequired'), trigger: 'blur' },
+    { max: 12, message: t('valid.nicknameMax'), trigger: 'blur' },
   ],
-  phone: [{ max: 20, message: '手机号最多 20 位', trigger: 'blur' }],
-}
-const pwdRules = {
-  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+  phone: [{ max: 20, message: t('valid.phoneMax'), trigger: 'blur' }],
+}))
+const pwdRules = computed(() => ({
+  oldPassword: [{ required: true, message: t('valid.oldPwdRequired'), trigger: 'blur' }],
   newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, max: 32, message: '新密码 6-32 位', trigger: 'blur' },
+    { required: true, message: t('valid.newPwdRequired'), trigger: 'blur' },
+    { min: 6, max: 32, message: t('valid.newPwdLen'), trigger: 'blur' },
   ],
   confirm: [
-    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    { required: true, message: t('valid.confirmRequired'), trigger: 'blur' },
     {
-      validator: (_r, v, cb) => (v === pwdForm.value.newPassword ? cb() : cb(new Error('两次输入的新密码不一致'))),
+      validator: (_r, v, cb) => (v === pwdForm.value.newPassword ? cb() : cb(new Error(t('valid.confirmMismatch')))),
       trigger: 'blur',
     },
   ],
-}
+}))
 
 async function saveProfile() {
   await profileRef.value.validate()
@@ -237,8 +239,8 @@ async function saveProfile() {
       avatar: profileForm.value.avatar,
     })
     user.updateInfo(vo)
-    ElMessage.success('资料已更新')
-  } catch (e) { ElMessage.error(e.message || '保存失败') }
+    ElMessage.success(t('profile.account.saveOk'))
+  } catch (e) { ElMessage.error(e.message || t('profile.account.saveFail')) }
 }
 
 async function changePwd() {
@@ -246,30 +248,30 @@ async function changePwd() {
   try {
     await api.changePassword({ oldPassword: pwdForm.value.oldPassword, newPassword: pwdForm.value.newPassword })
     user.logout()
-    ElMessage.success('密码已修改，请使用新密码重新登录')
+    ElMessage.success(t('profile.account.pwdOk'))
     router.push('/auth?redirect=/profile')
-  } catch (e) { ElMessage.error(e.message || '修改失败') }
+  } catch (e) { ElMessage.error(e.message || t('profile.account.pwdFail')) }
 }
 
 async function audit(claim, approve) {
   try {
     let reply = ''
     if (!approve) {
-      const r = await ElMessageBox.prompt('可填写拒绝理由（选填）', '拒绝认领', {
-        confirmButtonText: '确定拒绝', cancelButtonText: '取消', inputPlaceholder: '例：特征描述不符',
+      const r = await ElMessageBox.prompt(t('profile.audit.rejectPrompt'), t('profile.audit.rejectTitle'), {
+        confirmButtonText: t('profile.audit.rejectOk'), cancelButtonText: t('common.cancel'), inputPlaceholder: t('profile.audit.rejectPh'),
       })
       reply = r.value || ''
     }
     await api.auditClaim(claim.claimId, { approve, reply })
-    ElMessage.success(approve ? '已通过认领申请' : '已拒绝认领申请')
+    ElMessage.success(approve ? t('profile.audit.approved') : t('profile.audit.rejected'))
     await loadAll()
   } catch (e) {
     if (e === 'cancel' || e?.message === 'cancel') return
-    ElMessage.error(e.message || '操作失败')
+    ElMessage.error(e.message || t('profile.opFail'))
   }
 }
 
-function logout() { user.logout(); ElMessage.success('已退出登录') }
+function logout() { user.logout(); ElMessage.success(t('profile.logoutOk')) }
 
 onMounted(loadAll)
 </script>
@@ -281,91 +283,91 @@ onMounted(loadAll)
         <span class="avatar">{{ user.info.avatar || '🦊' }}</span>
         <div class="who">
           <h1>{{ user.info.nickname || user.info.account }}</h1>
-          <p>学号 {{ user.info.account }}<span v-if="user.info.role === 1"> · 管理员</span></p>
+          <p>{{ $t('me.id', { n: user.info.account }) }}<span v-if="user.info.role === 1">{{ $t('profile.adminTag') }}</span></p>
         </div>
         <div class="my-stats">
-          <div><b>{{ publishCount }}</b><span>我的发布</span></div>
-          <div><b>{{ activeClaims }}</b><span>认领审核中</span></div>
-          <div><b>{{ successCount }}</b><span>成功认领</span></div>
+          <div><b>{{ publishCount }}</b><span>{{ $t('profile.stat.pub') }}</span></div>
+          <div><b>{{ activeClaims }}</b><span>{{ $t('profile.stat.claims') }}</span></div>
+          <div><b>{{ successCount }}</b><span>{{ $t('profile.stat.success') }}</span></div>
         </div>
-        <el-button round plain @click="logout">退出登录</el-button>
+        <el-button round plain @click="logout">{{ $t('profile.logout') }}</el-button>
       </div>
 
       <el-tabs class="tabs" v-model="tab">
         <!-- 我的发布 -->
-        <el-tab-pane label="我的发布" name="pub">
+        <el-tab-pane :label="$t('profile.tab.pub')" name="pub">
           <div v-for="it in myPublishes" :key="it.id" class="row paper-card">
             <img :src="assetUrl(it.thumb || it.img)" alt="" @error="$event.target.style.opacity = 0" />
             <div class="mid">
               <RouterLink :to="`/item/${it.id}`" class="t">{{ it.title }}</RouterLink>
-              <p>{{ it.location }} · {{ (it.time || '').slice(5, 16) }} · {{ it.views }} 次浏览</p>
+              <p>{{ it.location }} · {{ (it.time || '').slice(5, 16) }} · {{ $t('profile.pub.views', { n: it.views }) }}</p>
             </div>
-            <el-tag v-if="it.auditStatus === 0" type="warning" round size="small">待审核</el-tag>
+            <el-tag v-if="it.auditStatus === 0" type="warning" round size="small">{{ $t('profile.pub.pending') }}</el-tag>
             <el-tag :type="it.status === '已找回' || it.status === '已认领' ? 'info' : it.type === 'lost' ? 'warning' : 'success'" round>
-              {{ it.status }}
+              {{ itemStatusLabel(it.status) }}
             </el-tag>
             <el-button v-if="it.status === '寻找中' || it.status === '待认领'" size="small" round type="primary" plain @click="markFound(it)">
-              标记已找回
+              {{ $t('profile.pub.markFound') }}
             </el-button>
-            <el-button size="small" round plain @click="$router.push(`/item/${it.id}`)">查看</el-button>
+            <el-button size="small" round plain @click="$router.push(`/item/${it.id}`)">{{ $t('profile.pub.view') }}</el-button>
           </div>
-          <el-empty v-if="!myPublishes.length" description="你还没有发布过启事" />
+          <el-empty v-if="!myPublishes.length" :description="$t('profile.pub.empty')" />
         </el-tab-pane>
 
         <!-- 我的收藏（E-07） -->
         <el-tab-pane name="fav">
-          <template #label>我的收藏<el-badge v-if="favorites.length" :value="favorites.length" class="tab-badge" /></template>
+          <template #label>{{ $t('profile.tab.fav') }}<el-badge v-if="favorites.length" :value="favorites.length" class="tab-badge" /></template>
           <div v-if="favorites.length" class="grid-cards">
             <ItemCard v-for="it in favorites" :key="'f' + it.id" :item="it" fav-initial />
           </div>
-          <el-empty v-else description="还没有收藏任何启事——去失物墙点亮星标吧" />
+          <el-empty v-else :description="$t('profile.fav.empty')" />
         </el-tab-pane>
 
         <!-- 我的认领 -->
-        <el-tab-pane label="我的认领" name="claim">
+        <el-tab-pane :label="$t('profile.tab.claim')" name="claim">
           <div v-for="c in myClaims" :key="'c' + c.claimId" class="row paper-card">
             <img :src="assetUrl(c.img)" alt="" @error="$event.target.style.opacity = 0" />
             <div class="mid">
               <RouterLink :to="`/item/${c.id}`" class="t">{{ c.title }}</RouterLink>
-              <p>申请时间 {{ (c.time || '').slice(5, 16) }}<span v-if="c.reply"> · 回复：{{ c.reply }}</span></p>
+              <p>{{ $t('profile.claim.appliedAt', { time: (c.time || '').slice(5, 16) }) }}<span v-if="c.reply">{{ $t('profile.claim.reply', { reply: c.reply }) }}</span></p>
             </div>
             <el-tag :type="c.claimStatus === '已通过' ? 'success' : c.claimStatus === '已拒绝' ? 'danger' : 'warning'" round>
-              {{ c.claimStatus }}
+              {{ claimStatusLabel(c.claimStatus) }}
             </el-tag>
-            <el-button size="small" round plain @click="$router.push(`/item/${c.id}`)">查看</el-button>
+            <el-button size="small" round plain @click="$router.push(`/item/${c.id}`)">{{ $t('profile.pub.view') }}</el-button>
           </div>
-          <el-empty v-if="!myClaims.length" description="你还没有提交过认领申请" />
+          <el-empty v-if="!myClaims.length" :description="$t('profile.claim.empty')" />
         </el-tab-pane>
 
         <!-- 收到的认领申请（发布者审核，展示凭证杜绝盲审 审查2.5） -->
         <el-tab-pane name="recv">
-          <template #label>收到的申请<el-badge v-if="pendingReceived" :value="pendingReceived" class="tab-badge" /></template>
+          <template #label>{{ $t('profile.tab.recv') }}<el-badge v-if="pendingReceived" :value="pendingReceived" class="tab-badge" /></template>
           <div v-for="c in received" :key="'r' + c.claimId" class="row paper-card claim-row">
             <img :src="assetUrl(c.img)" alt="" @error="$event.target.style.opacity = 0" />
             <div class="mid">
               <RouterLink :to="`/item/${c.id}`" class="t">{{ c.title }}</RouterLink>
-              <p class="who-line">申请人：{{ c.claimantName || '同学' }}（{{ c.claimantAccount }}）<span v-if="c.contact"> · {{ c.contact }}</span></p>
-              <p class="proof">凭证：{{ c.proof }}</p>
-              <p>申请时间 {{ (c.time || '').slice(5, 16) }}<span v-if="c.reply"> · 已回复：{{ c.reply }}</span></p>
+              <p class="who-line">{{ $t('profile.recv.applicant', { name: c.claimantName || $t('me.student'), account: c.claimantAccount }) }}<span v-if="c.contact">{{ $t('profile.recv.contact', { contact: c.contact }) }}</span></p>
+              <p class="proof">{{ $t('profile.recv.proof', { proof: c.proof }) }}</p>
+              <p>{{ $t('profile.claim.appliedAt', { time: (c.time || '').slice(5, 16) }) }}<span v-if="c.reply">{{ $t('profile.recv.replied', { reply: c.reply }) }}</span></p>
             </div>
             <el-tag :type="c.claimStatus === '已通过' ? 'success' : c.claimStatus === '已拒绝' ? 'danger' : 'warning'" round>
-              {{ c.claimStatus }}
+              {{ claimStatusLabel(c.claimStatus) }}
             </el-tag>
             <template v-if="c.claimStatus === '审核中'">
-              <el-button size="small" round type="primary" @click="audit(c, true)">通过</el-button>
-              <el-button size="small" round plain @click="audit(c, false)">拒绝</el-button>
+              <el-button size="small" round type="primary" @click="audit(c, true)">{{ $t('profile.recv.approve') }}</el-button>
+              <el-button size="small" round plain @click="audit(c, false)">{{ $t('profile.recv.reject') }}</el-button>
             </template>
           </div>
-          <el-empty v-if="!received.length" description="暂时没有人申请认领你发布的物品" />
+          <el-empty v-if="!received.length" :description="$t('profile.recv.empty')" />
         </el-tab-pane>
 
         <!-- 消息通知（G 版式：通知中心三分栏 + 私信会话化；P1 顶部挂交付文件卡片） -->
         <el-tab-pane name="msg">
-          <template #label>消息通知<el-badge v-if="unreadCount" :value="unreadCount" class="tab-badge" /></template>
+          <template #label>{{ $t('profile.tab.msg') }}<el-badge v-if="unreadCount" :value="unreadCount" class="tab-badge" /></template>
 
           <!-- P1：交付文件（读 delivery 表渲染，与生成方解耦；桌面=原生打开，Web=受控下载） -->
           <template v-if="deliveries.length">
-            <p class="deliv-head">交付文件</p>
+            <p class="deliv-head">{{ $t('profile.msg.deliv') }}</p>
             <div v-for="d in deliveries" :key="'d' + d.id" class="msg paper-card">
               <span class="d-icon">{{ DELIVERY_ICONS[d.bizType] || '📄' }}</span>
               <div class="msg-body">
@@ -373,8 +375,8 @@ onMounted(loadAll)
                 <p v-if="d.description">{{ d.description }}</p>
                 <small>{{ fmtSize(d.fileSize) }} · {{ (d.createTime || '').replace('T', ' ').slice(0, 16) }}</small>
               </div>
-              <el-button size="small" round type="primary" plain @click.stop="takeDelivery(d)">下载</el-button>
-              <el-button size="small" round plain type="danger" @click.stop="removeDelivery(d)">删除</el-button>
+              <el-button size="small" round type="primary" plain @click.stop="takeDelivery(d)">{{ $t('profile.msg.download') }}</el-button>
+              <el-button size="small" round plain type="danger" @click.stop="removeDelivery(d)">{{ $t('profile.msg.delete') }}</el-button>
             </div>
           </template>
 
@@ -387,7 +389,7 @@ onMounted(loadAll)
                 @click="msgSub = s.key; activeConv = null"
               >{{ s.label }}<i v-if="msgSubUnread(s.key)">{{ msgSubUnread(s.key) }}</i></button>
             </div>
-            <button v-if="unreadCount" class="all-read" @click="readAllNow">全部标为已读</button>
+            <button v-if="unreadCount" class="all-read" @click="readAllNow">{{ $t('profile.msg.readAll') }}</button>
           </div>
 
           <!-- 认领与审核 / 系统通知：卡片列表 -->
@@ -402,11 +404,11 @@ onMounted(loadAll)
                 <p>{{ m.content }}</p>
                 <small>{{ (m.createTime || '').replace('T', ' ').slice(0, 16) }}</small>
               </div>
-              <el-button v-if="m.refId" size="small" round plain @click.stop="$router.push(`/item/${m.refId}`)">查看启事</el-button>
+              <el-button v-if="m.refId" size="small" round plain @click.stop="$router.push(`/item/${m.refId}`)">{{ $t('profile.msg.viewItem') }}</el-button>
             </div>
             <el-empty
               v-if="!(msgSub === 'claim' ? claimMsgs : systemMsgs).length"
-              :description="msgSub === 'claim' ? '暂无认领与审核消息' : '暂无系统通知'"
+              :description="msgSub === 'claim' ? $t('profile.msg.empty.claim') : $t('profile.msg.empty.system')"
             />
           </template>
 
@@ -414,7 +416,7 @@ onMounted(loadAll)
           <template v-else>
             <div v-if="!activeConv">
               <div v-for="c in conversations" :key="c.fromUserId" class="conv paper-card" @click="openConv(c)">
-                <span class="c-avatar" :class="{ unread: c.unread }">{{ (c.name || '对')[0] }}</span>
+                <span class="c-avatar" :class="{ unread: c.unread }">{{ (c.name || $t('inbox.peer'))[0] }}</span>
                 <div class="c-main">
                   <div class="c-top">
                     <b>{{ c.name }}</b>
@@ -422,83 +424,83 @@ onMounted(loadAll)
                   </div>
                   <p class="c-last"><span v-if="c.unread" class="c-dot"></span>{{ c.last.content }}</p>
                 </div>
-                <span class="c-go">进入会话 →</span>
+                <span class="c-go">{{ $t('profile.msg.enter') }}</span>
               </div>
-              <el-empty v-if="!conversations.length" description="暂无私信会话——去启事详情页给对方发条私信吧" />
+              <el-empty v-if="!conversations.length" :description="$t('profile.msg.convEmpty')" />
             </div>
 
             <div v-else class="thread paper-card">
               <div class="thread-head">
-                <button class="thread-back" @click="closeConv">← 返回</button>
-                <b>与 {{ activeConv.name }} 的会话</b>
+                <button class="thread-back" @click="closeConv">{{ $t('profile.msg.back') }}</button>
+                <b>{{ $t('profile.msg.threadWith', { name: activeConv.name }) }}</b>
                 <el-button
                   v-if="activeConv.last?.refId" size="small" round plain
                   @click="$router.push(`/item/${activeConv.last.refId}`)"
-                >查看关联启事</el-button>
+                >{{ $t('profile.msg.threadItem') }}</el-button>
               </div>
               <div class="thread-msgs">
                 <div v-for="m in activeConv.msgs" :key="m.id" class="t-msg" :class="{ me: m.sent }">
                   <p>{{ m.content }}</p>
-                  <small>{{ m.sent ? '我' : activeConv.name }} · {{ (m.createTime || '').replace('T', ' ').slice(5, 16) }}</small>
+                  <small>{{ m.sent ? $t('profile.msg.me') : activeConv.name }} · {{ (m.createTime || '').replace('T', ' ').slice(5, 16) }}</small>
                 </div>
               </div>
               <div class="thread-input">
                 <el-input
-                  v-model="threadInput" placeholder="输入回复…（回车发送）"
+                  v-model="threadInput" :placeholder="$t('profile.msg.threadPh')"
                   maxlength="200" @keyup.enter="sendThread"
                 />
-                <el-button type="primary" round :loading="sendingThread" @click="sendThread">发送</el-button>
+                <el-button type="primary" round :loading="sendingThread" @click="sendThread">{{ $t('profile.msg.send') }}</el-button>
               </div>
             </div>
           </template>
         </el-tab-pane>
 
         <!-- 账号设置（E-01） -->
-        <el-tab-pane label="账号设置" name="account">
+        <el-tab-pane :label="$t('profile.tab.account')" name="account">
           <div class="account-grid">
             <el-form ref="profileRef" :model="profileForm" :rules="profileRules" label-width="72px" class="paper-card form-card">
-              <h3>个人资料</h3>
-              <el-form-item label="头像">
+              <h3>{{ $t('profile.account.profile') }}</h3>
+              <el-form-item :label="$t('profile.account.avatar')">
                 <div class="avatar-pick">
                   <button
                     v-for="a in AVATARS" :key="a" type="button" class="avatar-opt"
                     :class="{ active: profileForm.avatar === a }" @click="profileForm.avatar = a">{{ a }}</button>
                 </div>
               </el-form-item>
-              <el-form-item label="昵称" prop="nickname">
+              <el-form-item :label="$t('profile.account.nickname')" prop="nickname">
                 <el-input v-model="profileForm.nickname" maxlength="12" show-word-limit />
               </el-form-item>
-              <el-form-item label="手机号" prop="phone">
-                <el-input v-model="profileForm.phone" maxlength="20" placeholder="选填，可用于认领联系" />
+              <el-form-item :label="$t('profile.account.phone')" prop="phone">
+                <el-input v-model="profileForm.phone" maxlength="20" :placeholder="$t('profile.account.phonePh')" />
               </el-form-item>
               <el-form-item>
-                <el-button type="primary" round @click="saveProfile">保存资料</el-button>
+                <el-button type="primary" round @click="saveProfile">{{ $t('profile.account.save') }}</el-button>
               </el-form-item>
             </el-form>
 
             <el-form ref="pwdRef" :model="pwdForm" :rules="pwdRules" label-width="72px" class="paper-card form-card">
-              <h3>修改密码</h3>
-              <el-form-item label="原密码" prop="oldPassword">
+              <h3>{{ $t('profile.account.pwd') }}</h3>
+              <el-form-item :label="$t('profile.account.old')" prop="oldPassword">
                 <el-input v-model="pwdForm.oldPassword" type="password" show-password />
               </el-form-item>
-              <el-form-item label="新密码" prop="newPassword">
-                <el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="6-32 位" />
+              <el-form-item :label="$t('profile.account.new')" prop="newPassword">
+                <el-input v-model="pwdForm.newPassword" type="password" show-password :placeholder="$t('valid.newPwdLen')" />
               </el-form-item>
-              <el-form-item label="确认密码" prop="confirm">
+              <el-form-item :label="$t('profile.account.confirm')" prop="confirm">
                 <el-input v-model="pwdForm.confirm" type="password" show-password />
               </el-form-item>
               <el-form-item>
-                <el-button type="primary" round @click="changePwd">修改密码</el-button>
+                <el-button type="primary" round @click="changePwd">{{ $t('profile.account.change') }}</el-button>
               </el-form-item>
-              <p class="pwd-hint">修改成功后需要用新密码重新登录。</p>
+              <p class="pwd-hint">{{ $t('profile.account.pwdHint') }}</p>
             </el-form>
           </div>
         </el-tab-pane>
       </el-tabs>
     </template>
 
-    <el-empty v-else description="登录后查看我的发布与认领">
-      <el-button type="primary" round @click="$router.push('/auth')">去登录</el-button>
+    <el-empty v-else :description="$t('profile.loginRequired')">
+      <el-button type="primary" round @click="$router.push('/auth')">{{ $t('profile.goLogin') }}</el-button>
     </el-empty>
   </div>
 </template>
@@ -558,7 +560,7 @@ onMounted(loadAll)
   transition: all .18s cubic-bezier(.22, 1, .36, 1);
 }
 .ntf-tab:hover { color: var(--ink); transform: translateY(-1px); }
-.ntf-tab.on { background: var(--ink); color: #fff; }
+.ntf-tab.on { background: var(--ink); color: var(--paper); }
 .ntf-tab i {
   font-style: normal; background: var(--rose); color: #fff;
   border-radius: 999px; font-size: 10px; font-weight: 800; padding: 1px 7px;
@@ -605,7 +607,7 @@ onMounted(loadAll)
   background: var(--cream-deep); font-size: 13.5px; line-height: 1.7;
 }
 .t-msg.me { align-self: flex-end; text-align: right; }
-.t-msg.me p { background: var(--orange); color: #fff; text-align: left; }
+.t-msg.me p { background: var(--orange); color: var(--paper); text-align: left; }
 .t-msg small { display: block; font-size: 10.5px; color: var(--ink-faint); margin-top: 4px; }
 .thread-input { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--line); }
 

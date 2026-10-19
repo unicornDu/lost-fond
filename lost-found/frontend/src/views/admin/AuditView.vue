@@ -121,7 +121,7 @@ onMounted(load)
   padding: 7px 18px; border-radius: 999px; border: 1.5px solid var(--line);
   background: var(--paper); color: var(--ink-soft); cursor: pointer; font-size: 13.5px;
 }
-.tabs button.on { background: var(--orange); border-color: transparent; color: #FFF7EC; font-weight: 700; }
+.tabs button.on { background: var(--ink); border-color: transparent; color: var(--paper); font-weight: 700; }
 .cov { width: 56px; height: 42px; object-fit: cover; border-radius: 8px; background: var(--cream-deep); }
 .pager { margin-top: 14px; justify-content: center; }
 </style>

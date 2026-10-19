@@ -1,12 +1,30 @@
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import NavBar from './components/NavBar.vue'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import zhTw from 'element-plus/es/locale/lang/zh-tw'
+import en from 'element-plus/es/locale/lang/en'
+import AppShell from './components/AppShell.vue'
+import { locale, t } from './i18n'
 import { useUserStore } from './stores/user'
 
-// 公开页（落地页 / 登录注册）自带头部与页脚，不渲染应用导航
+/**
+ * 应用根：登录后页面统一进 AppShell（Digg 三栏骨架），
+ * 公开页（落地页 / 登录注册 / 404）自带头部与页脚，不渲染应用导航。
+ */
 const route = useRoute()
 const user = useUserStore()
+
+/* Element Plus 内置文案（分页 / 空态 / 日期选择）跟随界面语言 */
+const epLocale = computed(() => (
+  locale.value === 'en' ? en : locale.value === 'zh-TW' ? zhTw : zhCn
+))
+
+/* 切语言后同步浏览器标题（路由 afterEach 只在导航时执行） */
+watch(locale, () => {
+  const key = route.meta.titleKey
+  if (key) document.title = `拾光 · ${t(key)}`
+})
 
 // 审查 2.39：启动时刷新用户态（封禁/降权/改昵称后不显示旧身份）；refresh 失败会自动 logout
 onMounted(() => {
@@ -15,36 +33,27 @@ onMounted(() => {
 </script>
 
 <template>
-  <NavBar v-if="!route.meta.public" />
-  <main class="app-main" :class="{ 'safe-top': route.meta.public && route.name !== 'welcome' }">
+  <el-config-provider :locale="epLocale">
+  <AppShell v-if="!route.meta.public">
+    <router-view v-slot="{ Component }">
+      <transition name="page" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
+  </AppShell>
+
+  <main v-else class="app-main" :class="{ 'safe-top': route.name !== 'welcome' }">
     <router-view v-slot="{ Component }">
       <transition name="page" mode="out-in">
         <component :is="Component" />
       </transition>
     </router-view>
   </main>
-  <footer v-if="!route.meta.public" class="app-footer">
-    <div class="container">
-      <span class="foot-logo">拾光</span>
-      <span>校园失物招领平台 · 软件工程课程设计小组项目</span>
-      <span class="foot-tip">Spring Boot + Vue3 + MySQL · 以图搜图采用感知哈希 pHash</span>
-    </div>
-  </footer>
+  </el-config-provider>
 </template>
 
 <style scoped>
-.app-main { min-height: calc(100vh - 150px); }
-.app-footer {
-  border-top: 1px dashed var(--line);
-  background: var(--paper);
-  padding: 22px 0;
-}
-.app-footer .container {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  color: var(--ink-soft); font-size: 13px; text-align: center;
-}
-.foot-logo { font-family: var(--font-display); font-size: 20px; color: var(--orange); }
-.foot-tip { color: var(--ink-faint); font-size: 12px; }
+.app-main { min-height: 100vh; }
 
 .page-enter-active, .page-leave-active { transition: opacity .22s ease, transform .22s ease; }
 .page-enter-from { opacity: 0; transform: translateY(10px); }

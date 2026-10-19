@@ -1,4 +1,5 @@
 <script setup>
+import { t } from '../i18n'
 import { computed, watch, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { assetUrl } from '../utils/asset'
@@ -39,7 +40,7 @@ const qrCells = computed(() => {
 })
 
 const cover = computed(() => (props.item ? assetUrl(props.item.thumb || props.item.img) : ''))
-const typeText = computed(() => (props.item?.type === 'lost' ? '寻物' : '招领'))
+const typeText = computed(() => (props.item?.type === 'lost' ? t('poster.lost') : t('poster.found')))
 
 function drawQr(g, x0, y0, size, cell) {
   for (let y = 0; y < 21; y++) {
@@ -84,12 +85,12 @@ async function save() {
   c.height = H
   const g = c.getContext('2d')
 
-  g.fillStyle = '#FBFAF7'
+  g.fillStyle = '#FAFAF8'
   g.fillRect(0, 0, W, H)
 
   // 封面（等比裁切填满）
   const phH = 420
-  g.fillStyle = '#E2F0EA'
+  g.fillStyle = '#F4F4F1'
   g.fillRect(0, 0, W, phH)
   try {
     const im = await loadImg(cover.value)
@@ -101,7 +102,7 @@ async function save() {
     g.drawImage(im, (W - iw) / 2, (phH - ih) / 2, iw, ih)
     g.restore()
   } catch (e) {
-    g.fillStyle = '#0F7A5C'
+    g.fillStyle = '#161614'
     g.font = '120px system-ui, sans-serif'
     g.textAlign = 'center'
     g.fillText(catEmoji(it.category || ''), W / 2, phH / 2 + 40)
@@ -109,49 +110,49 @@ async function save() {
   }
 
   // 状态签
-  g.fillStyle = it.type === 'lost' ? '#1B1A17' : '#0F7A5C'
+  g.fillStyle = it.type === 'lost' ? '#141412' : '#161614'
   g.fillRect(28, 28, 88, 34)
   g.fillStyle = '#FFFFFF'
   g.font = '700 16px system-ui, sans-serif'
-  g.fillText(typeText.value + '启事', 44, 51)
+  g.fillText(typeText.value, 44, 51)
 
   // 标题
-  g.fillStyle = '#1B1A17'
+  g.fillStyle = '#141412'
   g.font = '800 30px system-ui, sans-serif'
   let y = wrapText(g, it.title, 40, phH + 66, W - 80, 42)
 
   // 元信息
-  g.fillStyle = '#6C675E'
+  g.fillStyle = '#6F6F68'
   g.font = '400 17px system-ui, sans-serif'
   y = wrapText(g, `${it.location || ''} · ${(it.time || '').replace('T', ' ').slice(0, 16)}`, 40, y + 12, W - 80, 26)
   if (it.desc) {
-    g.fillStyle = '#6C675E'
+    g.fillStyle = '#6F6F68'
     g.font = '400 15px system-ui, sans-serif'
     y = wrapText(g, it.desc, 40, y + 10, W - 80, 24)
   }
 
   // 页脚品牌 + 二维码
   const footY = H - 120
-  g.strokeStyle = '#EAE7DF'
+  g.strokeStyle = '#EBEBE7'
   g.beginPath(); g.moveTo(40, footY - 26); g.lineTo(W - 40, footY - 26); g.stroke()
 
-  g.fillStyle = '#1B1A17'
+  g.fillStyle = '#141412'
   g.font = '800 19px system-ui, sans-serif'
-  g.fillText('拾光 · 校园失物招领', 40, footY + 4)
-  g.fillStyle = '#A8A298'
+  g.fillText(t('poster.brand'), 40, footY + 4)
+  g.fillStyle = '#A3A39B'
   g.font = '400 13px system-ui, sans-serif'
-  g.fillText('扫码查看详情 · 以图搜图帮你找回', 40, footY + 26)
+  g.fillText(t('poster.scan'), 40, footY + 26)
 
   g.fillStyle = '#FFFFFF'
   g.fillRect(W - 40 - 74, footY - 30, 74, 74)
-  g.fillStyle = '#1B1A17'
+  g.fillStyle = '#141412'
   drawQr(g, W - 40 - 74 + 5, footY - 30 + 5, 74, 64 / 21)
 
   const a = document.createElement('a')
-  a.download = `拾光-${it.title || '启事'}.png`
+  a.download = t('poster.file', { title: it.title || t('detail.type.lost') })
   a.href = c.toDataURL('image/png')
   a.click()
-  ElMessage.success('海报已生成，请在下载目录查看')
+  ElMessage.success(t('poster.ok'))
   close()
 }
 
@@ -174,23 +175,23 @@ onBeforeUnmount(() => {
           <span v-else style="font-size:72px">{{ catEmoji(item.category) }}</span>
         </div>
         <div class="poster-body">
-          <h4>{{ item.type === 'lost' ? '寻物' : '招领' }} · {{ item.title }}</h4>
+          <h4>{{ item.type === 'lost' ? $t('poster.lost') : $t('poster.found') }} · {{ item.title }}</h4>
           <p>
             {{ item.location }} · {{ (item.time || '').replace('T', ' ').slice(0, 16) }}<br />
             {{ (item.desc || '').slice(0, 46) }}{{ (item.desc || '').length > 46 ? '…' : '' }}
           </p>
           <div class="poster-foot">
             <div class="poster-brand">
-              <b>拾光 · 校园失物招领</b>
-              <span>扫码查看详情</span>
+              <b>{{ $t('poster.brand') }}</b>
+              <span>{{ $t('poster.scanShort') }}</span>
             </div>
             <div class="poster-qr">
               <i v-for="(d, i) in qrCells" :key="i" :class="{ d }"></i>
             </div>
           </div>
           <div class="poster-actions">
-            <el-button type="primary" round style="flex:1" @click="save">保存图片</el-button>
-            <el-button round plain @click="close">关闭</el-button>
+            <el-button type="primary" round style="flex:1" @click="save">{{ $t('poster.save') }}</el-button>
+            <el-button round plain @click="close">{{ $t('poster.close') }}</el-button>
           </div>
         </div>
       </div>

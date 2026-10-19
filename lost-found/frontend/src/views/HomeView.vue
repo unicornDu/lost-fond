@@ -1,258 +1,204 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import SplitText from '../components/SplitText.vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import FeedCard from '../components/FeedCard.vue'
 import ItemCard from '../components/ItemCard.vue'
-import { CATEGORIES } from '../constants/catalog'
 import { api } from '../api'
-import { assetUrl } from '../utils/asset'
-import { useUserStore } from '../stores/user'
+import { t } from '../i18n'
 
 /**
- * 首页（G 版式：非对称编辑 Hero + 计数统计 + 特稿跨列卡）。
- * 左：SplitText 逐字标题 / CTA / rAF 数字计数；右：最新招领"发现现场"卡 + 悬浮签。
- * 最新寻物首卡在桌面端跨两列放大为特稿卡（编辑层级）。
+ * 首页 = 信息流（Digg 版式）：
+ * 顶部工具条（排序 / 类型 / 列表-网格切换）+ 单列启事流，去掉旧版 Hero、计数墙与特稿卡。
+ * 数据：寻物 12 条 + 招领 12 条合并后按发生时间排序，前端筛选/排序不再请求；
+ * 「为你推荐」已移到右栏（FeedRail），首页只保留主信息流。
  */
-const latestLost = ref([])
-const latestFound = ref([])
+const router = useRouter()
+
+const all = ref([])
 const stats = ref({ reunited: 0, lostCount: 0, foundCount: 0 })
 const error = ref('')
-const scene = ref(null)   // 右侧发现现场卡 = 最新一条招领启事
-const reco = ref([])      // 为你推荐：{ item, reason }
-const user = useUserStore()
+const loading = ref(true)
+
+const sortBy = ref('new')      // new | hot
+const typeFilter = ref('all')  // all | lost | found
+const view = ref('list')       // list | grid
+const shown = ref(6)
 
 async function load() {
   error.value = ''
+  loading.value = true
   try {
     const [s, lost, found] = await Promise.all([
       api.stats(),
-      api.listItems({ type: 'lost', sort: 'new', page: 1, size: 4 }),
-      api.listItems({ type: 'found', sort: 'new', page: 1, size: 4 }),
+      api.listItems({ type: 'lost', sort: 'new', page: 1, size: 12 }),
+      api.listItems({ type: 'found', sort: 'new', page: 1, size: 12 }),
     ])
-    stats.value = s
-    latestLost.value = lost.records
-    latestFound.value = found.records
-    scene.value = found.records?.[0] || null
-    runCounters()
+    stats.value = s || stats.value
+    all.value = [...(lost.records || []), ...(found.records || [])]
+      .sort((a, b) => String(b.time || '').localeCompare(String(a.time || '')))
   } catch (e) {
-    error.value = e.message || '加载首页数据失败'
-  }
-  loadReco()
-}
-
-/* 为你推荐（规则版）：取我的收藏品类 → 每类拉最新启事 → 去重取 3 条。
-   未登录或没有收藏时不渲染该区块，避免与「最新招领」重复。 */
-async function loadReco() {
-  if (!user.info) { reco.value = []; return }
-  try {
-    const favs = await api.favorites({ page: 1, size: 30 })
-    const cats = [...new Set((favs.records || []).map((i) => i.category).filter(Boolean))].slice(0, 2)
-    if (!cats.length) { reco.value = []; return }
-    const lists = await Promise.all(
-      cats.map((c) => api.listItems({ category: c, sort: 'new', page: 1, size: 4 }).catch(() => ({ records: [] }))),
-    )
-    const seen = new Set()
-    const out = []
-    lists.forEach((res, idx) => {
-      for (const it of res.records || []) {
-        if (seen.has(it.id)) continue
-        seen.add(it.id)
-        out.push({ item: it, reason: `因为你收藏过「${cats[idx]}」` })
-      }
-    })
-    reco.value = out.slice(0, 3)
-  } catch (e) {
-    reco.value = []
+    error.value = e.message || t('home.error')
+  } finally {
+    loading.value = false
   }
 }
 
-/* rAF 数字计数（数据到位后缓动跑满；reduced-motion 直接显示终值） */
-function runCounters() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  const t0 = performance.now(), dur = 1400
-  const to = { reunited: stats.value.reunited || 0, lostCount: stats.value.lostCount || 0, foundCount: stats.value.foundCount || 0 }
-  const tick = (t) => {
-    const p = Math.min((t - t0) / dur, 1)
-    const ease = 1 - Math.pow(1 - p, 3)
-    for (const k of Object.keys(to)) {
-      const el = document.getElementById('stat-' + k)
-      if (el) el.textContent = Math.round(to[k] * ease)
-    }
-    if (p < 1) requestAnimationFrame(tick)
-  }
-  requestAnimationFrame(tick)
-}
+const list = computed(() => {
+  let out = all.value
+  if (typeFilter.value !== 'all') out = out.filter((i) => i.type === typeFilter.value)
+  if (sortBy.value === 'hot') out = [...out].sort((a, b) => (b.views || 0) - (a.views || 0))
+  return out
+})
+const visible = computed(() => list.value.slice(0, shown.value))
+const hasMore = computed(() => shown.value < list.value.length)
+
+function pickSort(v) { sortBy.value = v; shown.value = 6 }
+function pickType(v) { typeFilter.value = v; shown.value = 6 }
+
+const activeCount = computed(() => (stats.value.lostCount || 0) + (stats.value.foundCount || 0))
 
 onMounted(load)
 </script>
 
 <template>
-  <div class="page home">
-    <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" class="container err">
-      <el-button size="small" round type="primary" @click="load">重试</el-button>
-    </el-alert>
+  <div class="feed">
+    <h1 class="sr-only">{{ $t('home.sr') }}</h1>
 
-    <!-- ① G 版式 Hero：左编辑式大标题 / 右发现现场卡 -->
-    <section class="hero container">
-      <div class="hero-left">
-        <p class="kicker" v-reveal><i></i>校园失物招领平台 · LOST &amp; FOUND</p>
-        <h1 class="hero-title">
-          <SplitText text="丢了东西？" :stagger="60" /><br />
-          <SplitText text="一张照片帮你找回" :stagger="50" :delay="350" />
-        </h1>
-        <p class="hero-sub" v-reveal="{ delay: 90 }">
-          上传物品照片，感知哈希算法（pHash）为它生成 64 位「长相指纹」，与全校失物与招领启事秒级比对——
-          不只是关键词搜索，而是「认得长相」的搜索。
-        </p>
-        <div class="hero-cta" v-reveal="{ delay: 160 }">
-          <el-button type="primary" size="large" round @click="$router.push('/search-image')">
-            上传照片，搜一搜
-          </el-button>
-          <el-button size="large" round plain @click="$router.push('/wall?type=lost')">
-            浏览失物墙
-          </el-button>
-        </div>
-        <div class="hero-stats" v-reveal="{ delay: 220 }">
-          <div class="num"><b><span id="stat-reunited">{{ stats.reunited }}</span></b><span>件失物已找回</span></div>
-          <div class="num"><b><span id="stat-lostCount">{{ stats.lostCount }}</span></b><span>条寻物启事</span></div>
-          <div class="num"><b><span id="stat-foundCount">{{ stats.foundCount }}</span></b><span>条招领启事</span></div>
-        </div>
+    <!-- 信息流抬头（不是 Hero，只做定位与统计） -->
+    <header class="mast">
+      <div>
+        <p class="eyebrow">{{ $t('home.eyebrow') }}</p>
+        <h2 class="mast-title">{{ $t('home.title') }}</h2>
+        <p class="mast-sub">{{ $t('home.sub') }}</p>
+      </div>
+      <div class="mast-stats">
+        <div><b>{{ stats.reunited || 0 }}</b><span>{{ $t('home.stat.reunited') }}</span></div>
+        <div><b>{{ activeCount }}</b><span>{{ $t('home.stat.active') }}</span></div>
+      </div>
+    </header>
+
+    <!-- 工具条：排序 + 类型 + 视图切换 -->
+    <div class="feed-head">
+      <button class="seg" :class="{ on: sortBy === 'new' }" @click="pickSort('new')">{{ $t('home.sort.new') }}</button>
+      <button class="seg" :class="{ on: sortBy === 'hot' }" @click="pickSort('hot')">{{ $t('home.sort.hot') }}</button>
+      <span class="divider"></span>
+      <button class="seg mut soft" :class="{ on: typeFilter === 'all' }" @click="pickType('all')">{{ $t('home.type.all') }}</button>
+      <button class="seg mut soft" :class="{ on: typeFilter === 'lost' }" @click="pickType('lost')">{{ $t('home.type.lost') }}</button>
+      <button class="seg mut soft" :class="{ on: typeFilter === 'found' }" @click="pickType('found')">{{ $t('home.type.found') }}</button>
+      <span class="grow"></span>
+      <button class="icon-btn" :class="{ on: view === 'list' }" :title="$t('home.view.list')" @click="view = 'list'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+      </button>
+      <button class="icon-btn" :class="{ on: view === 'grid' }" :title="$t('home.view.grid')" @click="view = 'grid'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+      </button>
+    </div>
+
+    <!-- 错误态 -->
+    <div v-if="error" class="err">
+      <p>{{ error }}</p>
+      <button class="seg" @click="load">{{ $t('common.retry') }}</button>
+    </div>
+
+    <!-- 骨架屏 -->
+    <template v-else-if="loading">
+      <div v-for="n in 3" :key="'sk' + n" class="skeleton">
+        <span class="sk-line w40"></span>
+        <span class="sk-line w85"></span>
+        <span class="sk-line w60"></span>
+        <span class="sk-photo"></span>
+      </div>
+    </template>
+
+    <template v-else>
+      <!-- 列表视图 -->
+      <div v-if="view === 'list'" class="stream">
+        <FeedCard v-for="(it, i) in visible" :key="it.id" :item="it" v-reveal="{ delay: Math.min(i, 5) * 60 }" />
       </div>
 
-      <!-- 右侧：发现现场（最新一条招领启事） -->
-      <div v-if="scene" v-reveal="{ delay: 120 }" class="scene-wrap">
-        <RouterLink :to="`/item/${scene.id}`" class="scene">
-          <div class="scene-note"><b>{{ scene.views ?? 0 }}</b> 次浏览 · 最新招领</div>
-          <div class="scene-card">
-            <div class="scene-ph">
-              <img v-if="scene.thumb || scene.img" :src="assetUrl(scene.thumb || scene.img)" :alt="scene.title" />
-            </div>
-            <div class="scene-cap">
-              <b>{{ scene.title }}</b>
-              <span>{{ scene.location }} · {{ (scene.time || '').slice(5, 16) }}</span>
-            </div>
-          </div>
-          <div class="match-chip">
-            <span class="pct">pHash</span>
-            <span><b>已加入指纹库</b><small>以图搜图可直接命中这条招领</small></span>
-          </div>
-        </RouterLink>
+      <!-- 网格视图 -->
+      <div v-else class="grid-cards">
+        <ItemCard v-for="(it, i) in visible" :key="it.id" :item="it" v-reveal="{ delay: Math.min(i, 5) * 50 }" />
       </div>
-    </section>
 
-    <!-- ② 分类快捷入口 -->
-    <section class="container cats">
-      <span
-        v-for="(c, i) in CATEGORIES" :key="c.name"
-        class="chip"
-        v-reveal="{ delay: i * 45 }"
-        @click="$router.push({ path: '/wall', query: { cat: c.name } })"
-      >{{ c.emoji }} {{ c.name }}</span>
-    </section>
+      <div v-if="!visible.length" class="empty">
+        <p>{{ $t('home.empty') }}</p>
+        <button class="seg" @click="router.push('/publish')">{{ $t('home.emptyCta') }}</button>
+      </div>
 
-    <!-- ③ 最新寻物（桌面端首卡跨两列特稿） -->
-    <section class="container">
-      <div class="section-head" v-reveal>
-        <h2>最新<em>寻物</em>启事</h2>
-        <span class="more" @click="$router.push('/wall?type=lost')">查看全部 →</span>
+      <div v-if="hasMore" class="more-wrap">
+        <button class="more-btn" @click="shown += 6">{{ $t('home.more') }}</button>
       </div>
-      <div class="grid-cards feat-grid" v-reveal="{ delay: 60 }">
-        <ItemCard v-for="(it, i) in latestLost" :key="it.id" :item="it" :featured="i === 0" />
-      </div>
-    </section>
-
-    <!-- ④ 最新招领 -->
-    <section class="container">
-      <div class="section-head" v-reveal>
-        <h2>最新<em>招领</em>启事</h2>
-        <span class="more" @click="$router.push('/wall?type=found')">查看全部 →</span>
-      </div>
-      <div class="grid-cards" v-reveal="{ delay: 60 }">
-        <ItemCard v-for="it in latestFound" :key="it.id" :item="it" />
-      </div>
-    </section>
-
-    <!-- ⑤ 为你推荐（规则版：基于收藏品类；未登录/无收藏不渲染） -->
-    <section v-if="reco.length" class="container">
-      <div class="section-head" v-reveal>
-        <h2>为你<em>推荐</em></h2>
-        <span class="more" @click="$router.push('/wall?type=found')">去失物墙逛逛 →</span>
-      </div>
-      <div class="grid-cards">
-        <div v-for="(r, i) in reco" :key="'r' + r.item.id" v-reveal="{ delay: i * 70 }" class="reco-block">
-          <span class="reco-reason"><i></i>{{ r.reason }}</span>
-          <ItemCard :item="r.item" />
-        </div>
-      </div>
-    </section>
+      <p v-else-if="visible.length" class="stream-end">{{ $t('home.end', { n: list.length }) }}</p>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.hero {
-  display: grid; grid-template-columns: 1.12fr .88fr; gap: 64px; align-items: center;
-  padding: 56px 0 40px; min-height: 420px;
-}
-.kicker {
-  display: flex; align-items: center; gap: 12px;
-  font-size: 12.5px; font-weight: 700; letter-spacing: 3px; color: var(--ink-faint);
-  margin-bottom: 24px;
-}
-.kicker i { width: 30px; height: 2px; background: var(--orange); }
-.hero-title { font-size: clamp(38px, 4.8vw, 60px); line-height: 1.18; letter-spacing: -1px; }
-.hero-sub { margin: 24px 0 32px; max-width: 480px; color: var(--ink-soft); font-size: 15.5px; line-height: 1.95; }
-.hero-cta { display: flex; gap: 13px; margin-bottom: 44px; flex-wrap: wrap; }
-.hero-stats { display: flex; gap: 48px; }
-.hero-stats .num b { font-size: 34px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
-.hero-stats .num span { display: block; font-size: 12.5px; color: var(--ink-faint); margin-top: 5px; letter-spacing: 1px; }
+.feed { max-width: 760px; }
 
-/* 右侧发现现场卡 */
-.scene-wrap { position: relative; }
-.scene { position: relative; display: block; }
-.scene-note {
-  position: absolute; right: -14px; top: -18px; z-index: 2;
-  background: var(--paper); border-radius: 12px; padding: 11px 15px;
-  box-shadow: 0 14px 34px rgba(27, 26, 23, .14);
-  font-size: 12px; color: var(--ink-soft); font-weight: 600;
+.mast {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;
+  padding: 2px 0 22px;
+  flex-wrap: wrap;
 }
-.scene-note b { color: var(--orange-deep); font-variant-numeric: tabular-nums; }
-.scene-card {
-  background: var(--paper); border-radius: 20px; padding: 13px;
-  border: 1px solid var(--line);
-  box-shadow: 0 1px 2px rgba(27, 26, 23, .05), 0 26px 60px rgba(27, 26, 23, .11);
+.eyebrow {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .18em;
+  color: var(--ink-faint); margin-bottom: 10px;
 }
-.scene-ph { border-radius: 12px; aspect-ratio: 4 / 3.2; background: var(--cream-deep); overflow: hidden; }
-.scene-ph img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s cubic-bezier(.22, 1, .36, 1); }
-.scene:hover .scene-ph img { transform: scale(1.05); }
-.scene-cap { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 13px 6px 4px; }
-.scene-cap b { font-size: 14.5px; }
-.scene-cap span { font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.match-chip {
-  position: absolute; left: -26px; bottom: 44px;
-  background: var(--ink); color: #fff; border-radius: 14px;
-  padding: 13px 17px; display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 18px 40px rgba(27, 26, 23, .28);
+.mast-title { font-size: 27px; line-height: 1.2; letter-spacing: -.02em; }
+.mast-sub { margin-top: 8px; font-size: 13px; color: var(--ink-soft); }
+.mast-stats { display: flex; gap: 24px; }
+.mast-stats div { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.mast-stats b { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.mast-stats span { font-size: 11px; color: var(--ink-faint); }
+
+.feed-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding-bottom: 20px;
 }
-.match-chip .pct { font-size: 12px; font-weight: 800; letter-spacing: 1px; color: #7CE8C8; }
-.match-chip b { font-size: 13px; display: block; }
-.match-chip small { font-size: 11.5px; color: #B8B2A6; line-height: 1.6; display: block; }
+.feed-head .divider { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+.feed-head .grow { flex: 1; }
 
-.cats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 44px; }
-
-/* 为你推荐：理由签 + 卡片等高 */
-.reco-block :deep(.item-card) { flex: 1; }
-
-/* 特稿卡：桌面端首卡跨两列 + 横排（编辑层级） */
-@media (min-width: 1021px) {
-  .feat-grid { grid-template-columns: repeat(3, 1fr); }
-  .feat-grid :deep(.item-card.featured) { grid-column: span 2; display: grid; grid-template-columns: 1.1fr .9fr; }
-  .feat-grid :deep(.item-card.featured .cover) { aspect-ratio: auto; height: 100%; min-height: 232px; }
-  .feat-grid :deep(.item-card.featured .body) { padding: 22px 24px; justify-content: center; gap: 9px; }
-  .feat-grid :deep(.item-card.featured .title) { -webkit-line-clamp: 2; font-size: 17px; }
+.stream { display: block; }
+.err {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 16px 18px; margin-bottom: 20px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--paper); font-size: 13px; color: var(--ink-soft);
 }
 
-@media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; gap: 52px; padding-top: 36px; }
-  .match-chip { left: 6px; }
-  .scene-note { right: 6px; }
+/* 骨架屏 */
+.skeleton {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 20px 22px; margin-bottom: 26px;
+}
+.sk-line { display: block; height: 11px; border-radius: 6px; background: var(--cream-deep); margin-bottom: 10px; }
+.sk-line.w40 { width: 40%; height: 9px; }
+.sk-line.w85 { width: 85%; height: 17px; }
+.sk-line.w60 { width: 60%; }
+.sk-photo { display: block; height: 190px; border-radius: var(--radius-sm); background: var(--cream-deep); margin-top: 14px; }
+.skeleton { animation: skPulse 1.6s ease-in-out infinite; }
+@keyframes skPulse { 0%, 100% { opacity: 1; } 50% { opacity: .62; } }
+
+.empty {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 60px 0; color: var(--ink-faint); font-size: 13px;
+}
+.more-wrap { display: flex; justify-content: center; padding: 4px 0 20px; }
+.more-btn {
+  border: 1px solid var(--line); background: var(--paper);
+  padding: 11px 26px; border-radius: 999px;
+  font-family: inherit; font-size: 13px; font-weight: 700; color: var(--ink);
+  cursor: pointer; transition: background .16s, border-color .16s;
+}
+.more-btn:hover { background: var(--cream-deep); border-color: var(--line-2); }
+.stream-end { text-align: center; font-size: 11.5px; color: var(--ink-faint); padding: 10px 0 26px; }
+
+@media (max-width: 560px) {
+  .mast-title { font-size: 23px; }
+  .mast-stats { display: none; }
+  .feed-head .divider { display: none; }
+  .feed-head .icon-btn { display: none; }
 }
 </style>

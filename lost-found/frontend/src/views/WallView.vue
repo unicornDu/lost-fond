@@ -2,10 +2,17 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ItemCard from '../components/ItemCard.vue'
+import FeedCard from '../components/FeedCard.vue'
 import GradientSearchBar from '../components/GradientSearchBar.vue'
 import { CATEGORIES } from '../constants/catalog'
 import { api } from '../api'
+import { catLabel, t } from '../i18n'
 
+/**
+ * 失物墙 / 招领墙（Digg 网格视图）：
+ * 顶部工具条切换墙别与排序、右侧列表-网格切换；搜索条与分类胶囊保留原功能。
+ * 列表视图复用首页 FeedCard，网格视图用 ItemCard（1.45:1 封面）。
+ */
 const route = useRoute()
 const router = useRouter()
 
@@ -14,6 +21,7 @@ const keyword = ref('')
 const category = ref(route.query.cat || '')
 const location = ref('')
 const sort = ref('new')
+const view = ref('grid')
 
 // ---- E-07：搜索历史（纯前端，localStorage，上限 10 条、最近优先去重） ----
 const HIST_KEY = 'shiguang_search_history'
@@ -64,13 +72,12 @@ async function load() {
   } catch (e) {
     if (seq !== reqSeq) return
     list.value = []
-    error.value = e.message || '加载失败'
+    error.value = e.message || t('wall.error')
   } finally {
     if (seq === reqSeq) loading.value = false
   }
 }
 
-// 修复 F-11：翻页后回到页顶，避免用户停在页尾以为没翻页
 function onPage(p) {
   page.value = p
   load()
@@ -81,7 +88,6 @@ let kwTimer = null
 watch(keyword, () => { clearTimeout(kwTimer); kwTimer = setTimeout(() => { page.value = 1; load() }, 300) })
 watch([type, category, location, sort], () => { page.value = 1; load() })
 
-// 渐变搜索栏的立即搜索（回车/点按钮）：跳过 300ms 防抖直接查
 function onSearchNow() {
   clearTimeout(kwTimer)
   page.value = 1
@@ -99,72 +105,89 @@ function switchType(t) {
   type.value = t
   router.replace({ query: { ...route.query, type: t } })
 }
+
+const title = computed(() => (type.value === 'lost' ? t('wall.lost') : t('wall.found')))
+const sub = computed(() => (type.value === 'lost' ? t('wall.lostSub') : t('wall.foundSub')))
 </script>
 
 <template>
-  <div class="page container">
-    <h1 class="page-title" v-reveal>{{ type === 'lost' ? '失物墙' : '招领墙' }}</h1>
-    <p class="page-sub" v-reveal="{ delay: 60 }">
-      {{ type === 'lost' ? '同学们发布的寻物启事，看看有没有你捡到的东西' : '好心人捡到的物品都在这里，快看看有没有你的' }}
-    </p>
+  <div class="wall">
+    <header class="wall-head">
+      <div>
+        <p class="eyebrow">{{ $t('wall.eyebrow') }}</p>
+        <h1 class="wall-title">{{ title }}</h1>
+        <p class="wall-sub">{{ sub }}</p>
+      </div>
+      <p class="wall-count"><span v-html="$t('wall.count', { n: '<b>' + total + '</b>' })"></span></p>
+    </header>
 
-    <!-- 类型切换大按钮（G 版式：实色方块、无渐变无旋转） -->
-    <div class="type-switch" v-reveal="{ delay: 110 }">
-      <button :class="{ on: type === 'lost' }" @click="switchType('lost')">我丢了东西</button>
-      <button :class="{ on: type === 'found', mint: true }" @click="switchType('found')">我捡到东西</button>
+    <!-- 工具条 -->
+    <div class="toolbar">
+      <button class="seg" :class="{ on: type === 'lost' }" @click="switchType('lost')">{{ $t('wall.lost') }}</button>
+      <button class="seg" :class="{ on: type === 'found' }" @click="switchType('found')">{{ $t('wall.found') }}</button>
+      <span class="divider"></span>
+      <button class="seg mut soft" :class="{ on: sort === 'new' }" @click="sort = 'new'">{{ $t('wall.sort.new') }}</button>
+      <button class="seg mut soft" :class="{ on: sort === 'hot' }" @click="sort = 'hot'">{{ $t('wall.sort.hot') }}</button>
+      <span class="grow"></span>
+      <button class="icon-btn" :class="{ on: view === 'list' }" :title="$t('home.view.list')" @click="view = 'list'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+      </button>
+      <button class="icon-btn" :class="{ on: view === 'grid' }" :title="$t('home.view.grid')" @click="view = 'grid'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+      </button>
     </div>
 
-    <!-- 搜索栏（2026-10-17 重设计：渐变光晕胶囊搜索条，见 Prompt/前端prompt/搜索框.md） -->
-    <div class="search-area" v-reveal="{ delay: 150 }">
+    <!-- 搜索条 + 历史下拉 -->
+    <div class="search-area">
       <GradientSearchBar
         v-model:keyword="keyword"
         v-model:location="location"
-        v-model:sort="sort"
         @search="onSearchNow"
         @focus="searchFocused = true"
         @blur="searchFocused = false"
       />
-      <!-- E-07：搜索历史下拉（聚焦且未输入时展示；mousedown.prevent 避免点选时先失焦） -->
-      <div v-if="showHistory" class="history-drop paper-card">
+      <div v-if="showHistory" class="history-drop">
         <div class="hist-head">
-          <span>搜索历史</span>
-          <a @click.prevent="clearHistory">清空</a>
+          <span>{{ $t('wall.history') }}</span>
+          <a @click.prevent="clearHistory">{{ $t('wall.history.clear') }}</a>
         </div>
         <div class="hist-list">
           <span v-for="h in history" :key="h" class="hist-item" @mousedown.prevent="useHistory(h)">
-            🕘 {{ h }}
+            {{ h }}
             <i class="hist-x" @mousedown.prevent.stop="removeHistory(h)">✕</i>
           </span>
         </div>
       </div>
     </div>
 
-    <!-- 分类 chips -->
-    <div class="cats" v-reveal="{ delay: 190 }">
-      <span class="chip" :class="{ on: category === '' }" @click="category = ''">全部</span>
+    <!-- 分类胶囊 -->
+    <div class="cats">
+      <span class="chip" :class="{ on: category === '' }" @click="category = ''">{{ $t('common.all') }}</span>
       <span
         v-for="c in CATEGORIES" :key="c.name"
         class="chip" :class="{ on: category === c.name }"
         @click="category = category === c.name ? '' : c.name"
-      >{{ c.emoji }} {{ c.name }}</span>
+      >{{ catLabel(c.name) }}</span>
     </div>
 
-    <p class="count" v-reveal="{ delay: 220 }">共 <b>{{ total }}</b> 条启事</p>
-
-    <!-- 错误态 + 重试（审查 2.31） -->
-    <el-empty v-if="error" :description="error">
-      <el-button type="primary" round @click="load">重试</el-button>
-    </el-empty>
+    <!-- 错误态 -->
+    <div v-if="error" class="err">
+      <p>{{ error }}</p>
+      <button class="seg" @click="load">{{ $t('common.retry') }}</button>
+    </div>
 
     <template v-else>
-      <div v-if="list.length" class="grid-cards" v-reveal="{ delay: 260 }" v-loading="loading">
-        <ItemCard v-for="it in list" :key="it.id" :item="it" />
+      <div v-if="list.length && view === 'grid'" class="grid-cards" v-loading="loading">
+        <ItemCard v-for="(it, i) in list" :key="it.id" :item="it" v-reveal="{ delay: Math.min(i, 6) * 45 }" />
       </div>
-      <el-empty v-else description="没有匹配的启事，换个条件试试～">
-        <el-button type="primary" round @click="router.push('/publish')">发布一条启事</el-button>
-      </el-empty>
+      <div v-else-if="list.length" class="stream" v-loading="loading">
+        <FeedCard v-for="(it, i) in list" :key="it.id" :item="it" v-reveal="{ delay: Math.min(i, 6) * 45 }" />
+      </div>
+      <div v-else-if="!loading" class="empty">
+        <p>{{ $t('wall.empty') }}</p>
+        <button class="seg" @click="router.push('/publish')">{{ $t('wall.emptyCta') }}</button>
+      </div>
 
-      <!-- 分页（审查 2.25） -->
       <el-pagination v-if="total > size" class="pager" layout="prev, pager, next, total"
         :total="total" :page-size="size" v-model:current-page="page" @current-change="onPage" />
     </template>
@@ -172,46 +195,58 @@ function switchType(t) {
 </template>
 
 <style scoped>
-.type-switch { display: flex; gap: 12px; margin: 8px 0 20px; }
-.type-switch button {
-  padding: 13px 30px; border-radius: 12px;
-  border: 1.5px solid var(--line); background: var(--paper);
-  font-size: 15px; font-weight: 600; color: var(--ink-soft);
-  cursor: pointer; transition: all .2s cubic-bezier(.22, 1, .36, 1);
-  font-family: var(--font-body);
-}
-.type-switch button:hover { transform: translateY(-2px); border-color: var(--orange); color: var(--orange-deep); }
-.type-switch button.on {
-  background: var(--ink); border-color: var(--ink);
-  color: #FFF; font-weight: 700;
-  box-shadow: 0 10px 22px rgba(27, 26, 23, .2);
-}
-.type-switch button.on.mint {
-  background: var(--orange); border-color: var(--orange);
-  box-shadow: 0 10px 22px rgba(15, 122, 92, .3);
-}
+.wall { max-width: 860px; }
 
-.cats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
-.count { color: var(--ink-faint); font-size: 13px; margin-bottom: 14px; }
-.count b { color: var(--orange-deep); }
-.pager { margin-top: 26px; justify-content: center; }
+.wall-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 18px;
+  padding: 2px 0 20px; flex-wrap: wrap;
+}
+.eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .18em; color: var(--ink-faint); margin-bottom: 10px; }
+.wall-title { font-size: 27px; line-height: 1.2; letter-spacing: -.02em; }
+.wall-sub { margin-top: 8px; font-size: 13px; color: var(--ink-soft); }
+.wall-count { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.wall-count b { color: var(--ink); font-weight: 800; }
 
-/* E-07：搜索历史下拉 */
-.search-area { position: relative; }
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.toolbar .divider { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+.toolbar .grow { flex: 1; }
+
+.search-area { position: relative; margin-bottom: 14px; }
 .history-drop {
-  position: absolute; z-index: 30; left: 12px; right: 12px; top: calc(100% + 6px);
+  position: absolute; z-index: 30; left: 10px; right: 10px; top: calc(100% + 6px);
   padding: 12px 16px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lift);
 }
-.hist-head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-faint); margin-bottom: 8px; }
-.hist-head a { cursor: pointer; color: var(--ink-faint); }
-.hist-head a:hover { color: var(--orange-deep); }
+.hist-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-faint); margin-bottom: 8px; }
+.hist-head a { cursor: pointer; }
+.hist-head a:hover { color: var(--ink); }
 .hist-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .hist-item {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 10px; border-radius: 999px;
-  background: var(--cream-deep); font-size: 13px; cursor: pointer;
+  background: var(--cream); font-size: 12.5px; cursor: pointer;
 }
-.hist-item:hover { background: var(--orange-soft); color: var(--orange-deep); }
-.hist-x { font-style: normal; font-size: 11px; color: var(--ink-faint); padding: 0 2px; }
-.hist-x:hover { color: #C0392B; }
+.hist-item:hover { background: var(--cream-deep); color: var(--ink); }
+.hist-x { font-style: normal; font-size: 10px; color: var(--ink-faint); padding: 0 2px; }
+.hist-x:hover { color: var(--rose); }
+
+.cats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+
+.stream { display: block; }
+.err {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 16px 18px; margin-bottom: 20px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--paper); font-size: 13px; color: var(--ink-soft);
+}
+.empty {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 64px 0; color: var(--ink-faint); font-size: 13px;
+}
+.pager { margin-top: 26px; justify-content: center; }
+
+@media (max-width: 560px) {
+  .toolbar .icon-btn, .toolbar .divider { display: none; }
+}
 </style>
