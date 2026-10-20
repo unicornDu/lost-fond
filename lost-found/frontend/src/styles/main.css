@@ -141,6 +141,9 @@ html[data-theme="dark"] .el-button--primary {
 }
 
 * { box-sizing: border-box; }
+
+/* 页面高度变化时不让滚动条出现/消失把居中布局推来推去（修侧栏点击抖动） */
+html { scrollbar-gutter: stable; }
 html, body, #app { height: 100%; }
 html { font-size: 15px; }
 body {

@@ -195,7 +195,7 @@ const sub = computed(() => (type.value === 'lost' ? t('wall.lostSub') : t('wall.
 </template>
 
 <style scoped>
-.wall { max-width: 860px; }
+.wall { max-width: var(--wall-max, 860px); }
 
 .wall-head {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 18px;

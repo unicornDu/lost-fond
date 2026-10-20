@@ -1,9 +1,8 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppSidebar from './AppSidebar.vue'
 import FeedRail from './FeedRail.vue'
-import InboxDrawer from './InboxDrawer.vue'
 import { useUserStore } from '../stores/user'
 import { initialOf, avatarColor } from '../utils/display'
 import { t } from '../i18n'
@@ -18,16 +17,15 @@ const route = useRoute()
 const user = useUserStore()
 
 const mobileNav = ref(false)
-const inboxOpen = ref(false)
-const inboxMode = ref('notify')
+
+/* 右栏折叠：桌面端可收起，状态记在本地；收起后中栏自动变宽 */
+const railClosed = ref(false)
+onMounted(() => { railClosed.value = localStorage.getItem('shiguang_rail_closed') === '1' })
+watch(railClosed, (v) => localStorage.setItem('shiguang_rail_closed', v ? '1' : '0'))
+function toggleRail() { railClosed.value = !railClosed.value }
 
 const RAIL_ROUTES = ['home', 'wall', 'detail']
 const showRail = computed(() => RAIL_ROUTES.includes(route.name))
-
-function openInbox(mode) {
-  inboxMode.value = mode
-  inboxOpen.value = true
-}
 
 /* 切页时关闭移动端抽屉，避免遮住新页面 */
 watch(() => route.fullPath, () => { mobileNav.value = false })
@@ -36,8 +34,8 @@ const meName = computed(() => user.info?.nickname || user.info?.account || t('me
 </script>
 
 <template>
-  <div class="shell" :class="{ 'has-rail': showRail }">
-    <AppSidebar v-model:mobile-open="mobileNav" @inbox="openInbox" />
+  <div class="shell" :class="{ 'has-rail': showRail, 'rail-closed': railClosed }">
+    <AppSidebar v-model:mobile-open="mobileNav" />
 
     <div class="col">
       <!-- 移动端顶栏（桌面隐藏） -->
@@ -62,10 +60,22 @@ const meName = computed(() => user.info?.nickname || user.info?.account || t('me
       </main>
     </div>
 
-    <FeedRail v-if="showRail" />
+    <div v-if="showRail" class="rail-col" :class="{ closed: railClosed }">
+      <div class="rail-clip"><FeedRail /></div>
+      <button
+        class="rail-toggle" type="button"
+        :aria-expanded="!railClosed"
+        :title="railClosed ? $t('rail.expand') : $t('rail.collapse')"
+        :aria-label="railClosed ? $t('rail.expand') : $t('rail.collapse')"
+        @click="toggleRail"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+          <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
+          <path d="M15.6 5.2v13.6" />
+        </svg>
+      </button>
+    </div>
   </div>
-
-  <InboxDrawer v-model="inboxOpen" v-model:mode="inboxMode" />
 </template>
 
 <style scoped>
@@ -77,10 +87,41 @@ const meName = computed(() => user.info?.nickname || user.info?.account || t('me
   min-height: 100vh;
   align-items: start;
 }
-.shell.has-rail { grid-template-columns: 232px minmax(0, 1fr) 300px; }
+.shell.has-rail { grid-template-columns: 232px minmax(0, 1fr) auto; }
 
 .col { min-width: 0; }
-.content { padding: 26px 34px 80px; min-width: 0; }
+.content {
+  padding: 26px 34px 80px; min-width: 0;
+  /* 三个内容页的宽度上限：右栏收起时放宽，中栏把省下的 300px 吃掉 */
+  --feed-max: 760px;
+  --wall-max: 860px;
+  --detail-max: 760px;
+}
+.shell.rail-closed .content { --feed-max: 980px; --wall-max: 1180px; --detail-max: 980px; }
+
+/* 右栏外壳：宽度 300→0 做过渡，内部保持 300 避免内容重排 */
+.rail-col {
+  position: relative;
+  width: 300px;
+  transition: width .42s cubic-bezier(.22, 1, .36, 1);
+}
+.rail-col.closed { width: 0; }
+.rail-clip { width: 100%; height: 100%; overflow: hidden; }
+
+/* 折叠把手：骑在中栏与右栏的分界线上 */
+.rail-toggle {
+  position: absolute; left: -14px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 64px; border-radius: 999px;
+  display: grid; place-items: center;
+  background: var(--paper); color: var(--ink-soft);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(20, 20, 18, .07);
+  cursor: pointer; z-index: 80;
+  transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+}
+.rail-toggle:hover { color: var(--ink); border-color: var(--line-2); background: var(--cream); }
+.rail-toggle svg { width: 15px; height: 15px; transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
+.rail-col.closed .rail-toggle svg { transform: rotate(180deg); }
 
 /* 视图里普遍以 .container 包一层（旧版式是整页容器），进壳后让出宽度交给中栏 */
 .content :deep(.container) { width: 100%; margin: 0; }
@@ -126,6 +167,8 @@ const meName = computed(() => user.info?.nickname || user.info?.account || t('me
 
 @media (max-width: 1080px) {
   .shell.has-rail { grid-template-columns: 232px minmax(0, 1fr); }
+  .rail-col, .rail-toggle { display: none; }
+  .content { --feed-max: 980px; --wall-max: 1180px; --detail-max: 980px; }
 }
 @media (max-width: 860px) {
   .shell, .shell.has-rail { grid-template-columns: minmax(0, 1fr); }

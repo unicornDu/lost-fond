@@ -2,8 +2,8 @@
 
 > 日期：2026-10-19 ｜ 范围：前端全部页面（未改后端、未改数据库）
 > 设计输入：
-> - `Creator/02-过程资料/03-迭代记录/08-新版设计/参考imgs/Digg信息流-复刻生成指南.md`（登录后应用）
-> - `Creator/02-过程资料/03-迭代记录/08-新版设计/前端版本01/复刻生成指南.md`（公开首页）
+> - `Creator/02-过程资料/03-迭代记录/version08/参考imgs/Digg信息流-复刻生成指南.md`（登录后应用）
+> - `Creator/02-过程资料/03-迭代记录/version08/前端版本01/复刻生成指南.md`（公开首页）
 > - 素材：`lost-found/frontend/src/assets/img/01–04.jpg`（用户提供，4 张全屏轮播图）
 > 结论：**两套风格分别落在"登录前"与"登录后"**——公开首页走北欧极简 editorial（图像主导、宋体大标题），
 > 登录后的应用走 Digg 信息流（三栏骨架、近黑单色、分类彩点）。原 v2「方案G 编辑叙事」退役。
@@ -47,14 +47,19 @@ Element Plus 主色同步为 `#161614`，圆角基准 12px；主按钮去掉了 
 
 - 新增 `components/AppShell.vue`：`232px | minmax(0,1fr) | 300px`，`max-width 1240px` 居中。
   左栏与右栏 `position: sticky; top: 0; height: 100vh; overflow-y: auto`，两栏各自独立滚动，只有中栏跟随页面。
+  **2026-10-20 追加**：右栏可收起——外壳宽度 300→0（`.42s cubic-bezier(.22,1,.36,1)`），骑缝把手点击切换，
+  状态存 `localStorage.shiguang_rail_closed`；折叠时中栏吃掉 300px，内容上限由 `--feed-max/--wall-max/--detail-max` 放宽。
 - 新增 `components/AppSidebar.vue`：品牌字标 + 图标导航（首页 / 失物墙 / 招领墙 / 以图搜图 / 发布启事 /
-  个人中心 / 通知 / 聊天 / 后台管理）+ 底部近黑 pill CTA + 用户卡。
-  失物墙与招领墙共用 `/wall`，按 `query.type` 区分选中；通知/聊天不跳页，唤起 `InboxDrawer`；
+  通知 / 聊天 / 后台管理）+ 底部近黑 pill CTA + 用户卡。
+  失物墙与招领墙共用 `/wall`，按 `query.type` 区分选中；**2026-10-20 起**去掉「个人中心」项（点底部头像进入），
+  通知 / 聊天分别跳 `/notifications`、`/messages` 独立页，右侧 `InboxDrawer` 已于 2026-10-20 下线；
   未读 30s 轮询 + `shiguang-unread-changed` 即时刷新（沿用旧 NavBar 逻辑）。
 - 新增 `components/FeedRail.vue`：① pHash 推广卡（近黑）② 找回战报（`/api/stats`）
   ③ 热门启事（`/items?sort=hot`）④ 为你推荐（收藏品类规则，未登录不渲染）。全部接真实接口，不编造数字。
 - 响应式：`≤1080px` 收右栏（三栏→两栏）；`≤860px` 收左栏，改移动顶栏 + `el-drawer` 抽屉。
 - 右栏只在信息流类页面出现（`home / wall / detail`），表单类页面让出宽度。
+- 页面滚动条改为 `scrollbar-gutter: stable`：不同页面高度切换时不再因滚动条出现/消失把居中布局横向推动
+  （修「点左侧导航整列抖一下」，实测侧栏 x 恒为 95px）。
 
 ### 2.3 信息流与卡片
 
@@ -76,7 +81,7 @@ Element Plus 主色同步为 `#161614`，圆角基准 12px；主按钮去掉了 
 |---|---|---|
 | 删除 | `components/NavBar.vue` | 顶部导航由左栏取代，未读/抽屉逻辑已迁入 AppSidebar |
 | 删除 | `components/GooeyNav.vue`、`components/SplitText.vue` | 落地页与首页改版后无引用（git 历史可找回） |
-| 保留 | `PosterDialog` / `InboxDrawer` / `GradientSearchBar`（重写样式） | 功能不变，随令牌换肤 |
+| 保留 | `PosterDialog` / `GradientSearchBar`（重写样式） | 功能不变，随令牌换肤；`InboxDrawer` 已下线 |
 
 ---
 
@@ -139,13 +144,13 @@ Element Plus 主色同步为 `#161614`，圆角基准 12px；主按钮去掉了 
 
 ### 新增
 ```
-frontend/src/components/AppShell.vue      三栏骨架 + 移动顶栏 + 收件抽屉宿主
+frontend/src/components/AppShell.vue      三栏骨架 + 右栏折叠 + 移动顶栏
 frontend/src/components/AppSidebar.vue    左侧竖导航（桌面 + 抽屉两套 DOM）
 frontend/src/components/FeedRail.vue      右栏四块面板
 frontend/src/components/FeedCard.vue      信息流主卡
 frontend/src/utils/display.js             状态文案/相对时间/头像首字与配色的纯函数
 frontend/src/composables/useTheme.js      亮/暗主题状态（localStorage + prefers-color-scheme）
-frontend/src/i18n/index.js                简/繁/英词条（435 key）+ t()/setLocale()/分类与状态映射
+frontend/src/i18n/index.js                简/繁/英词条（441 key）+ t()/setLocale()/分类与状态映射
 ```
 
 ### 重写
@@ -199,7 +204,7 @@ frontend/src/components/SplitText.vue
 |---|---|
 | 实现 | `i18n/index.js`：`locale` ref + `t(key, params)`（`{n}` 占位替换）+ `setLocale()`；模板里用 `$t('nav.home')`（`main.js` 注入 globalProperties），脚本里 `import { t }` |
 | 响应式 | `t()` 在渲染期读取 `locale.value`，切语言后所有用到 `$t` 的模板自动重渲染；Element Plus 内置文案（分页/空态/日期）由 `App.vue` 的 `el-config-provider` 跟随 |
-| 词条 | **435 个 key × 3 语言**，用脚本校验三份字典 key 完全一致；覆盖导航、首页/失物墙/详情、发布表单、以图搜图、个人中心六页签、登录注册、用户主页、404、聊天/通知抽屉、分享海报、状态与分类 |
+| 词条 | **441 个 key × 3 语言**，用脚本校验三份字典 key 完全一致；覆盖导航、首页/失物墙/详情、发布表单、以图搜图、个人中心六页签、登录注册、用户主页、404、聊天/通知抽屉、分享海报、状态与分类 |
 | 数据映射 | 分类名与状态是后端中文数据，不改库：`catLabel()` / `claimStatusLabel()` / `itemStatusLabel()` 在显示层映射；启事标题、描述、地点等 UGC 保持原文 |
 | 标题 | 路由 `meta.titleKey` + `afterEach` 生成浏览器标题；`App.vue` 监听 `locale` 在切语言时即时刷新 |
 | 持久化 | `localStorage.shiguang_locale`，并同步 `<html lang>` |

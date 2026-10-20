@@ -135,7 +135,7 @@ onMounted(load)
 </template>
 
 <style scoped>
-.feed { max-width: 760px; }
+.feed { max-width: var(--feed-max, 760px); }
 
 .mast {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;

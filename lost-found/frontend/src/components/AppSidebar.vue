@@ -11,19 +11,20 @@ import { theme, toggleTheme } from '../composables/useTheme'
  * 左侧竖排导航（Digg 三栏骨架）。
  * - 232px sticky 全高，独立滚动；选中态为浅灰圆角块。
  * - 失物墙 / 招领墙共用 /wall 路由，用 query.type 区分高亮。
- * - 通知 / 聊天 不跳页，直接唤起右侧 InboxDrawer（emit inbox）。
+ * - 通知 / 聊天都是独立页（/notifications、/messages），不再弹右侧抽屉。
  * - 底部设置区：亮/暗主题 + 界面语言（简/繁/EN），与指南的"正式版并入左导航"一致。
  */
 const props = defineProps({
   mobileOpen: { type: Boolean, default: false },
 })
-const emit = defineEmits(['update:mobileOpen', 'inbox'])
+const emit = defineEmits(['update:mobileOpen'])
 
 const route = useRoute()
 const router = useRouter()
 const user = useUserStore()
 
-const unread = ref(0)
+const unread = ref(0)      // 通知（认领 / 审核 / 系统）
+const dmUnread = ref(0)    // 私信
 const counts = ref({ lost: 0, found: 0 })
 const langOpen = ref(false)
 let timer = null
@@ -31,10 +32,12 @@ let lastPoll = 0
 
 async function pollUnread() {
   lastPoll = Date.now()
-  if (!user.token) { unread.value = 0; return }
+  if (!user.token) { unread.value = 0; dmUnread.value = 0; return }
   try {
-    const r = await api.unread()
-    unread.value = r.count || 0
+    // 通知与私信已经拆成两个页面，角标也按类型分开算
+    const list = (await api.messages()) || []
+    unread.value = list.filter((m) => m.isRead === 0 && m.type !== 'dm').length
+    dmUnread.value = list.filter((m) => m.isRead === 0 && m.type === 'dm').length
   } catch (e) { /* 静默：轮询失败不打扰 */ }
 }
 
@@ -87,10 +90,6 @@ function go(payload) {
   emit('update:mobileOpen', false)
   router.push(payload)
 }
-function openInbox(mode) {
-  emit('update:mobileOpen', false)
-  emit('inbox', mode)
-}
 function pickLang(code) {
   setLocale(code)
   langOpen.value = false
@@ -133,21 +132,17 @@ function pickLang(code) {
         <span>{{ $t('nav.publish') }}</span>
       </button>
 
-      <RouterLink to="/profile" class="n" :class="{ on: isOn('/profile') }">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5" /></svg>
-        <span>{{ $t('nav.me') }}</span>
-      </RouterLink>
-
-      <button class="n" type="button" @click="openInbox('notify')">
+      <RouterLink to="/notifications" class="n" :class="{ on: route.path === '/notifications' }">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" /><path d="M10 21a2 2 0 0 0 4 0" /></svg>
         <span>{{ $t('nav.notify') }}</span>
         <em v-if="unread" class="badge">{{ unread > 99 ? '99+' : unread }}</em>
-      </button>
+      </RouterLink>
 
-      <button class="n" type="button" @click="openInbox('chat')">
+      <RouterLink to="/messages" class="n" :class="{ on: route.path === '/messages' }">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /></svg>
         <span>{{ $t('nav.chat') }}</span>
-      </button>
+        <em v-if="dmUnread" class="badge">{{ dmUnread > 99 ? '99+' : dmUnread }}</em>
+      </RouterLink>
 
       <RouterLink v-if="user.isAdmin" to="/admin" class="n" :class="{ on: isOn('/admin') }">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 8 3v6c0 5-3.4 8.3-8 9-4.6-.7-8-4-8-9V6z" /></svg>
@@ -222,15 +217,12 @@ function pickLang(code) {
         <RouterLink to="/publish" class="n" @click="emit('update:mobileOpen', false)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" /></svg><span>{{ $t('nav.publish') }}</span>
         </RouterLink>
-        <RouterLink to="/profile" class="n" @click="emit('update:mobileOpen', false)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5" /></svg><span>{{ $t('nav.me') }}</span>
-        </RouterLink>
-        <button class="n" type="button" @click="openInbox('notify')">
+        <RouterLink to="/notifications" class="n" :class="{ on: route.path === '/notifications' }" @click="emit('update:mobileOpen', false)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" /><path d="M10 21a2 2 0 0 0 4 0" /></svg><span>{{ $t('nav.notify') }}</span><em v-if="unread" class="badge">{{ unread }}</em>
-        </button>
-        <button class="n" type="button" @click="openInbox('chat')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /></svg><span>{{ $t('nav.chat') }}</span>
-        </button>
+        </RouterLink>
+        <RouterLink to="/messages" class="n" :class="{ on: route.path === '/messages' }" @click="emit('update:mobileOpen', false)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /></svg><span>{{ $t('nav.chat') }}</span><em v-if="dmUnread" class="badge">{{ dmUnread }}</em>
+        </RouterLink>
         <RouterLink v-if="user.isAdmin" to="/admin" class="n" @click="emit('update:mobileOpen', false)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 8 3v6c0 5-3.4 8.3-8 9-4.6-.7-8-4-8-9V6z" /></svg><span>{{ $t('nav.admin') }}</span>
         </RouterLink>
@@ -273,6 +265,7 @@ function pickLang(code) {
   display: flex; flex-direction: column;
   border-right: 1px solid var(--line);
   overflow-y: auto;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: var(--thumb) transparent;
 }
@@ -301,6 +294,8 @@ function pickLang(code) {
   transition: background-color .16s ease, color .16s ease;
 }
 .n svg { width: 19px; height: 19px; flex: none; }
+.n:focus { outline: none; }
+.n:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .n:hover { background: var(--cream-deep); color: var(--ink); }
 .n.on { background: var(--cream-deep); color: var(--ink); }
 .badge {

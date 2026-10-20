@@ -169,14 +169,14 @@ bash scripts/backup.sh         # 数据库 + uploads 备份（见 scripts/backup
 | 登录后（应用） | Digg 信息流：`232px 左竖导航 / 中信息流 / 300px 右信息栏` 三栏；纸白 `#FAFAF8` + 近黑 `#141412`；左右栏各自 sticky 独立滚动，只有中栏跟随页面 |
 | 设计令牌 | 应用端 `frontend/src/styles/main.css` 的 `:root`（`--cream/--paper/--ink*/--line/--st-*/--c-*`）；公开页用 `.w` 作用域内的 `--w-*`，互不污染 |
 | 兼容策略 | 旧令牌名（`--cream*`、`--orange*`、`--ink*`）全部保留，值映射到 v3 色板——其余页面零改动即完成换肤；Element Plus 主色同步为 `#161614` |
-| 组件 | `AppShell` / `AppSidebar` / `FeedRail` / `FeedCard` / `ItemCard`（网格卡）/ `InboxDrawer`（聊天·通知抽屉）/ `PosterDialog`（分享海报）/ `GradientSearchBar`（胶囊搜索条） |
-| 版式 | 首页 = 工具条 + 单列信息流（最新/最热、全部/寻物/招领、列表-网格、加载更多）；失物墙 = 工具条 + 胶囊搜索 + 网格/列表；详情 = 单列白卡 + 三格事实卡 + 认领流程步骤 |
+| 组件 | `AppShell`（三栏 + 右栏折叠）/ `AppSidebar`（无个人中心，点头像进入）/ `FeedRail` / `FeedCard` / `ItemCard`（网格卡）/ `PosterDialog`（分享海报）/ `GradientSearchBar`（胶囊搜索条） |
+| 版式 | 首页 = 工具条 + 单列信息流（最新/最热、全部/寻物/招领、列表-网格、加载更多）；失物墙 = 工具条 + 胶囊搜索 + 网格/列表；详情 = 单列白卡 + 三格事实卡 + 认领流程步骤；通知 = `/notifications`（两分栏）、聊天 = `/messages`（会话→线程） |
 | 响应式 | ≤1080px 收起右栏；≤860px 收起左栏，改顶部工具条 + 抽屉；≤640px 公开页页头收为全屏菜单 |
 | 动效与降级 | 卡片悬停位移/封面缩放、抽屉与弹层缓动、落地页视差；全站尊重 `prefers-reduced-motion` |
 | 主题 | 左栏底部「亮色/暗色」；`html[data-theme="dark"]` + Element Plus 暗色变量；记忆在 localStorage，无记录跟系统 |
-| 语言 | 左栏底部「简/繁/EN」；435 词条 × 3，覆盖全部用户端页面；分类与状态显示层映射，UGC 保持原文 |
+| 语言 | 左栏底部「简/繁/EN」；441 词条 × 3，覆盖全部用户端页面；分类与状态显示层映射，UGC 保持原文 |
 | 覆盖边界 | 公开首页保持中文暖色品牌页；后台保持中文（图表已适配暗色） |
-| 落地记录 | `Creator/02-过程资料/03-迭代记录/08-新版设计/09-v3落地记录-Digg信息流与北欧编辑风.md` |
+| 落地记录 | `Creator/02-过程资料/03-迭代记录/version08/09-v3落地记录-Digg信息流与北欧编辑风.md` |
 
 > 改主题色只需编辑 `main.css` 的 `:root`；改完务必 `npm run build` 冒烟（F-11：dev 正常 ≠ build 正常）。
 

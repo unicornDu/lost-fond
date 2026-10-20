@@ -44,6 +44,7 @@ application-local.yml
 .claude/
 .zcodeignore
 .workbuddy/
+qwenwork/
 *.iml
 .DS_Store
 Thumbs.db

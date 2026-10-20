@@ -132,6 +132,7 @@ const activeTotal = computed(() => (stats.value.lostCount || 0) + (stats.value.f
 <style scoped>
 .rail {
   position: sticky; top: 0;
+  width: 300px;   /* 外壳折叠时保持内容宽度不变，由 rail-clip 负责裁剪 */
   height: 100vh;
   overflow-y: auto;
   overscroll-behavior: contain;

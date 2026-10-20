@@ -300,7 +300,7 @@ onMounted(load)
 </template>
 
 <style scoped>
-.detail-page { max-width: 760px; }
+.detail-page { max-width: var(--detail-max, 760px); }
 
 .back {
   display: inline-flex; align-items: center; gap: 7px;
