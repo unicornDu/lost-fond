@@ -131,9 +131,11 @@ const activeTotal = computed(() => (stats.value.lostCount || 0) + (stats.value.f
 
 <style scoped>
 .rail {
-  position: sticky; top: 0;
+  /* v2.20.2：sticky 已上移到 .rail-col（外层 .rail-clip 的 overflow:hidden 会让
+     这里的 sticky 失效）。本层只负责撑满外壳高度并独立滚动。 */
+  position: relative;
   width: 300px;   /* 外壳折叠时保持内容宽度不变，由 rail-clip 负责裁剪 */
-  height: 100vh;
+  height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 26px 26px 60px 6px;

@@ -99,27 +99,39 @@ const meName = computed(() => user.info?.nickname || user.info?.account || t('me
 }
 .shell.rail-closed .content { --feed-max: 980px; --wall-max: 1180px; --detail-max: 980px; }
 
-/* 右栏外壳：宽度 300→0 做过渡，内部保持 300 避免内容重排 */
+/* 右栏外壳：宽度 300→0 做过渡，内部保持 300 避免内容重排。
+   v2.20.2：sticky 从内部的 .rail 挪到外壳上。
+   原来 .rail 自己 sticky，但它被 .rail-clip（overflow:hidden）包着——
+   overflow 会生成滚动容器，sticky 只能相对这个永不滚动的容器生效，
+   于是整列跟着页面滚走、右侧留白。现在外壳 sticky + 100vh，内部只负责滚动。 */
 .rail-col {
-  position: relative;
+  position: sticky;
+  top: 0;
+  height: 100vh;
   width: 300px;
   transition: width .42s cubic-bezier(.22, 1, .36, 1);
 }
 .rail-col.closed { width: 0; }
 .rail-clip { width: 100%; height: 100%; overflow: hidden; }
 
-/* 折叠把手：骑在中栏与右栏的分界线上 */
+/* 折叠把手（v2.20.1）：固定在右上角，页面上下滚动时位置不变。
+   right 用 max() 跟随居中壳体的右边缘——视口比 1240 宽时不会飘到浏览器最右侧。 */
 .rail-toggle {
-  position: absolute; left: -14px; top: 50%; transform: translateY(-50%);
-  width: 28px; height: 64px; border-radius: 999px;
+  position: fixed;
+  top: 14px;
+  right: calc(max(0px, (100% - 1240px) / 2) + 14px);
+  width: 34px; height: 34px; border-radius: 50%;
   display: grid; place-items: center;
   background: var(--paper); color: var(--ink-soft);
   border: 1px solid var(--line);
-  box-shadow: 0 2px 10px rgba(20, 20, 18, .07);
-  cursor: pointer; z-index: 80;
-  transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+  box-shadow: 0 2px 10px rgba(20, 20, 18, .1);
+  cursor: pointer; z-index: 100;
+  transition: color .2s ease, border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
 }
-.rail-toggle:hover { color: var(--ink); border-color: var(--line-2); background: var(--cream); }
+.rail-toggle:hover {
+  color: var(--ink); border-color: var(--line-2); background: var(--cream);
+  box-shadow: 0 4px 14px rgba(20, 20, 18, .14);
+}
 .rail-toggle svg { width: 15px; height: 15px; transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
 .rail-col.closed .rail-toggle svg { transform: rotate(180deg); }
 

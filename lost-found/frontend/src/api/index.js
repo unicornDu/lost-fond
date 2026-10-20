@@ -73,6 +73,12 @@ export const api = {
   // 以图搜图
   searchByImage: (formData) => http.post('/search/image', formData),
   indexedCount: () => http.get('/search/indexed-count'),
+  // 守望订阅（v2.20）
+  watchPlans: () => http.get('/watch/plans'),
+  watchOverview: () => http.get('/watch/me'),
+  watchSubscribe: (data) => http.post('/watch/subscribe', data),
+  watchAddTarget: (formData) => http.post('/watch/targets', formData),
+  watchRemoveTarget: (id) => http.delete(`/watch/targets/${id}`),
   // 认领
   applyClaim: (id, data) => http.post(`/items/${id}/claim`, data),
   myClaims: () => http.get('/claims/my'),

@@ -136,3 +136,38 @@ CREATE TABLE IF NOT EXISTS `delivery` (
   KEY `idx_user` (`user_id`, `create_time`),
   KEY `idx_biz` (`biz_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交付文件表';
+
+-- ---------- 守望订阅（v2.20） ----------
+-- 课程演示：不接真实支付，开通只记录方案权益（守望位 / 阈值 / 保留天数）。
+CREATE TABLE IF NOT EXISTS `watch_subscription` (
+  `id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '订阅ID',
+  `user_id`     BIGINT      NOT NULL COMMENT '用户ID（一人一条）',
+  `plan_code`   VARCHAR(20) NOT NULL DEFAULT 'light' COMMENT '方案：light轻守 / steady长守 / crowd众守',
+  `cycle`       VARCHAR(12) NOT NULL DEFAULT 'month' COMMENT '周期：month按月 / semester按学期',
+  `status`      TINYINT     NOT NULL DEFAULT 1 COMMENT '1生效 0已取消',
+  `start_time`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '本次开通时间',
+  `expire_time` DATETIME    DEFAULT NULL COMMENT '到期时间（NULL=长期有效）',
+  `create_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='守望订阅表（v2.20，课程演示不接支付）';
+
+-- ---------- 守望位（v2.20） ----------
+CREATE TABLE IF NOT EXISTS `watch_target` (
+  `id`               BIGINT       NOT NULL AUTO_INCREMENT COMMENT '守望ID',
+  `user_id`          BIGINT       NOT NULL COMMENT '守望人ID',
+  `phash`            BIGINT       NOT NULL COMMENT '64位感知哈希（与 item_image.phash 同口径）',
+  `label`            VARCHAR(60)  NOT NULL DEFAULT '' COMMENT '守望照片备注',
+  `img_url`          VARCHAR(255) DEFAULT NULL COMMENT '守望照片相对路径（列表缩略图）',
+  `source_item_id`   BIGINT       DEFAULT NULL COMMENT '来源启事ID（从详情页开启守望时记录）',
+  `status`           TINYINT      NOT NULL DEFAULT 1 COMMENT '1守望中 0已结束',
+  `hit_count`        INT          NOT NULL DEFAULT 0 COMMENT '命中次数',
+  `last_hit_item_id` BIGINT       DEFAULT NULL COMMENT '最近一次命中的启事ID',
+  `expire_time`      DATETIME     DEFAULT NULL COMMENT '守望到期时间（NULL=不过期）',
+  `create_time`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_status` (`user_id`, `status`),
+  KEY `idx_phash` (`phash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='守望位表（v2.20：新招领通过审核时反查本表）';

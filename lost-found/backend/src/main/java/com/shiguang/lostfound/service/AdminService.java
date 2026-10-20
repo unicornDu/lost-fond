@@ -9,6 +9,7 @@ import com.shiguang.lostfound.entity.*;
 import com.shiguang.lostfound.mapper.*;
 import com.shiguang.lostfound.vo.ItemVO;
 import com.shiguang.lostfound.vo.UserVO;import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
  * 审查 2.8：listUsers 回填 status/createTime；新增 listLogs（2.29③）、regenThumbs（2.17）。
  * 审查 2.20：deleteItem 同步清理磁盘图片与关联 claim/message，杜绝孤儿文件。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminService {
@@ -38,6 +40,7 @@ public class AdminService {
     private final FavoriteMapper favoriteMapper;
     private final FileDeliveryService fileDeliveryService;   // P1：交付体系（报表生成 + 级联清理）
     private final DeliveryMapper deliveryMapper;
+    private final WatchService watchService;   // v2.20：招领通过审核时反查守望位并推送
 
     private static final DateTimeFormatter OUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -105,6 +108,15 @@ public class AdminService {
                 ? "你的启事《" + it.getTitle() + "》已通过审核，现在可以在广场看到了"
                 : "你的启事《" + it.getTitle() + "》未通过审核：" + (r != null ? "理由：" + r : "内容不符合发布规范");
         push(it.getUserId(), approve ? "审核通过" : "审核未通过", content, itemId);
+        // v2.20：招领真正「入库」的时刻是审核通过——此时才反查守望位，避免拿待审内容推送
+        if (approve) {
+            try {
+                watchService.matchOnApprove(it);
+            } catch (RuntimeException e) {
+                // 守望推送是旁路能力：失败只记日志，不能让审核跟着回滚
+                log.warn("守望反查失败 itemId={}", itemId, e);
+            }
+        }
     }
 
     @Transactional

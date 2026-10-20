@@ -144,6 +144,11 @@ function pickLang(code) {
         <em v-if="dmUnread" class="badge">{{ dmUnread > 99 ? '99+' : dmUnread }}</em>
       </RouterLink>
 
+      <RouterLink to="/watch" class="n" :class="{ on: route.path === '/watch' }">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.8" /></svg>
+        <span>{{ $t('nav.watch') }}</span>
+      </RouterLink>
+
       <RouterLink v-if="user.isAdmin" to="/admin" class="n" :class="{ on: isOn('/admin') }">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 8 3v6c0 5-3.4 8.3-8 9-4.6-.7-8-4-8-9V6z" /></svg>
         <span>{{ $t('nav.admin') }}</span>
@@ -175,11 +180,6 @@ function pickLang(code) {
         </div>
       </div>
     </div>
-
-    <button class="cta" type="button" @click="go('/publish')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" /></svg>
-      {{ $t('nav.publish') }}
-    </button>
 
     <RouterLink to="/profile" class="me">
       <span class="ava" :style="{ background: avatarColor(meName) }">{{ initialOf(meName) }}</span>
@@ -222,6 +222,9 @@ function pickLang(code) {
         </RouterLink>
         <RouterLink to="/messages" class="n" :class="{ on: route.path === '/messages' }" @click="emit('update:mobileOpen', false)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /></svg><span>{{ $t('nav.chat') }}</span><em v-if="dmUnread" class="badge">{{ dmUnread }}</em>
+        </RouterLink>
+        <RouterLink to="/watch" class="n" :class="{ on: route.path === '/watch' }" @click="emit('update:mobileOpen', false)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.8" /></svg><span>{{ $t('nav.watch') }}</span>
         </RouterLink>
         <RouterLink v-if="user.isAdmin" to="/admin" class="n" @click="emit('update:mobileOpen', false)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 8 3v6c0 5-3.4 8.3-8 9-4.6-.7-8-4-8-9V6z" /></svg><span>{{ $t('nav.admin') }}</span>
@@ -284,20 +287,30 @@ function pickLang(code) {
 .brand-txt b { font-size: 17px; font-weight: 800; letter-spacing: .02em; line-height: 1; }
 .brand-txt small { font-size: 9.5px; font-weight: 600; color: var(--ink-faint); letter-spacing: .18em; margin-top: 4px; }
 
-.nav { display: flex; flex-direction: column; gap: 2px; }
+/* 导航做成一条浅灰轨道，选中项是浮起的白色药丸（v2.20 选定的分段式效果） */
+.nav {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 5px; border-radius: 17px;
+  background: var(--nav-track);
+  transition: background-color .3s ease;
+}
 .n {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 12px; border-radius: 12px;
   border: 0; background: transparent; width: 100%;
   color: var(--ink-soft); font-family: inherit; font-size: 13.5px; font-weight: 600;
   cursor: pointer; text-align: left;
-  transition: background-color .16s ease, color .16s ease;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
 }
 .n svg { width: 19px; height: 19px; flex: none; }
 .n:focus { outline: none; }
-.n:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.n:hover { background: var(--cream-deep); color: var(--ink); }
-.n.on { background: var(--cream-deep); color: var(--ink); }
+.n:focus-visible { outline: 2px solid var(--ink-faint); outline-offset: 2px; }
+.n:hover { background: var(--nav-hover); color: var(--ink); }
+.n.on {
+  background: var(--nav-pill); color: var(--ink); font-weight: 700;
+  box-shadow: var(--nav-pill-shadow);
+}
+.n.on:hover { background: var(--nav-pill); }
 .badge {
   margin-left: auto; font-style: normal;
   font-size: 10.5px; font-weight: 700;
@@ -342,18 +355,7 @@ function pickLang(code) {
 .lang-menu button.on { color: var(--ink); }
 .lang-menu i { font-style: normal; font-size: 11px; }
 
-.cta {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  background: var(--ink); color: var(--paper); border: 0; cursor: pointer;
-  font-family: inherit; font-size: 13.5px; font-weight: 700;
-  padding: 12px; border-radius: 999px;
-  margin-bottom: 12px;
-  transition: transform .18s, box-shadow .18s, background-color .3s, color .3s;
-}
-.cta svg { width: 15px; height: 15px; }
-.cta:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(20, 20, 18, .2); }
-
-.me { display: flex; align-items: center; gap: 10px; padding: 9px; border-radius: 14px; }
+.me { display: flex; align-items: center; gap: 10px; padding: 9px; border-radius: 14px; margin-top: 2px; }
 .me:hover { background: var(--cream-deep); }
 .ava {
   width: 32px; height: 32px; border-radius: 50%; flex: none;

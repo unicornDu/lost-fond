@@ -46,11 +46,12 @@ class AdminServiceTest {
     @Mock com.shiguang.lostfound.mapper.FavoriteMapper favoriteMapper;
     @Mock FileDeliveryService fileDeliveryService;                              // P1：交付体系
     @Mock com.shiguang.lostfound.mapper.DeliveryMapper deliveryMapper;
+    @Mock WatchService watchService;                                            // v2.20：守望反查
 
     private AdminService newService() {
         return new AdminService(userMapper, itemMapper, itemImageMapper, claimMapper,
                 messageMapper, adminLogMapper, itemService, fileStorage, favoriteService, favoriteMapper,
-                fileDeliveryService, deliveryMapper);
+                fileDeliveryService, deliveryMapper, watchService);
     }
 
     private Item item(long id, String status, int audit) {

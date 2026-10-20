@@ -32,6 +32,7 @@ const routes = [
   { path: '/profile', name: 'profile', component: () => import('../views/ProfileView.vue'), meta: { title: '个人中心', titleKey: 'title.profile' } },
   { path: '/notifications', name: 'notifications', component: () => import('../views/NotificationsView.vue'), meta: { title: '通知', titleKey: 'title.notify' } },
   { path: '/messages', name: 'messages', component: () => import('../views/MessagesView.vue'), meta: { title: '聊天', titleKey: 'title.messages' } },
+  { path: '/watch', name: 'watch', component: () => import('../views/WatchView.vue'), meta: { title: '守望订阅', titleKey: 'title.watch' } },
   { path: '/user/:id', name: 'userProfile', component: () => import('../views/UserProfileView.vue'), meta: { title: '用户主页', titleKey: 'title.user' } },   // E-04
 
   // 管理后台（审查 2.9）：独立布局，角色守卫

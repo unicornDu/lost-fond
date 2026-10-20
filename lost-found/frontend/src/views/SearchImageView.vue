@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '../api'
 import { useTransferStore } from '../stores/transfer'
@@ -62,6 +62,9 @@ function acceptImage(raw, name) {
   fileUrl.value = URL.createObjectURL(raw)
   fileName.value = name
   fileRaw.value = raw
+  // 换了一张照片：开关回到"这张还没守望"，已开启的守望仍留在守望页
+  watchOn.value = false
+  watchTargetId.value = null
   runPipeline()
 }
 
@@ -92,12 +95,14 @@ function reset() {
   if (fileUrl.value) URL.revokeObjectURL(fileUrl.value)
   fileUrl.value = ''; fileName.value = ''; fileRaw.value = null
   step.value = 0; results.value = []
+  watchOn.value = false; watchTargetId.value = null
 }
 
 onBeforeUnmount(() => { if (fileUrl.value) URL.revokeObjectURL(fileUrl.value) })
 
 // 修复 F-03：接收首页搜图卡拖入暂存的图片，落地即开搜
 onMounted(() => {
+  loadWatch()
   const f = transfer.takeFile()
   if (f) {
     fileUrl.value = URL.createObjectURL(f)
@@ -114,16 +119,64 @@ const steps = computed(() => [
   { n: 3, label: t('search.step3'), detail: t('search.step3d', { n: threshold.value }) },
 ])
 
-/* 守望订阅（对齐整合版 v1）：记录"这张照片值得一直盯"的意向。
-   后端 watch 表尚未建，当前为本地订阅态，不虚构推送。 */
-const WATCH_KEY = 'shiguang_watch'
+/* 守望订阅（v2.20：从"本地意向"升级为真实能力）。
+   开启 = 占用一个守望位，服务端用同一条 pHash 口径存下这张照片；
+   新招领通过审核时后端反查守望位，命中即写站内通知。 */
 const watchOn = ref(false)
-try { watchOn.value = localStorage.getItem(WATCH_KEY) === '1' } catch (e) { /* 隐私模式 */ }
-watch(watchOn, (v) => {
-  try { localStorage.setItem(WATCH_KEY, v ? '1' : '0') } catch (e) { /* 隐私模式 */ }
-  if (v) ElMessage.success(t('search.msg.watchOn'))
-  else ElMessage.info(t('search.msg.watchOff'))
-})
+const watchBusy = ref(false)
+const watchTargetId = ref(null)
+const watchUsed = ref(0)
+const watchQuota = ref(1)
+
+async function loadWatch() {
+  if (!user.logged) return
+  try {
+    const ov = await api.watchOverview()
+    watchUsed.value = ov?.used || 0
+    watchQuota.value = ov?.quota || 1
+  } catch (e) { /* 守望信息只影响提示文案，拉取失败不打断搜图主流程 */ }
+}
+
+async function toggleWatch(next) {
+  if (watchBusy.value) return
+  if (next) {
+    if (!fileRaw.value) {
+      ElMessage.warning(t('search.watch.needFile'))
+      return
+    }
+    watchBusy.value = true
+    try {
+      const fd = new FormData()
+      fd.append('file', fileRaw.value)
+      if (fileName.value) fd.append('label', fileName.value)
+      const tgt = await api.watchAddTarget(fd)
+      watchTargetId.value = tgt?.id || null
+      watchOn.value = true
+      watchUsed.value = Math.min(watchQuota.value, watchUsed.value + 1)
+      ElMessage.success(t('search.msg.watchOn'))
+      window.dispatchEvent(new Event('shiguang-watch-changed'))
+    } catch (e) {
+      ElMessage.error(e.message || t('search.msg.watchFail'))
+    } finally {
+      watchBusy.value = false
+    }
+    return
+  }
+
+  watchBusy.value = true
+  try {
+    if (watchTargetId.value) await api.watchRemoveTarget(watchTargetId.value)
+    watchOn.value = false
+    watchTargetId.value = null
+    watchUsed.value = Math.max(0, watchUsed.value - 1)
+    ElMessage.info(t('search.msg.watchOff'))
+    window.dispatchEvent(new Event('shiguang-watch-changed'))
+  } catch (e) {
+    ElMessage.error(e.message || t('search.msg.watchFail'))
+  } finally {
+    watchBusy.value = false
+  }
+}
 </script>
 
 <template>
@@ -165,15 +218,18 @@ watch(watchOn, (v) => {
           </div>
         </div>
 
-        <!-- 守望订阅（对齐整合版 v1）：这次没搜到也没关系 -->
+        <!-- 守望订阅（v2.20：真实占用守望位，命中写站内通知） -->
         <div class="watch-row">
           <div class="w-txt">
             <b>{{ watchOn ? $t('search.watch.on') : $t('search.watch.off') }}</b>
             <span v-if="watchOn">{{ $t('search.watch.onDesc', { name: fileName || $t('search.watch.file') }) }}</span>
             <span v-else>{{ $t('search.watch.offDesc') }}</span>
-            <span class="w-tip">{{ $t('search.watch.tip') }}</span>
+            <span class="w-tip">
+              {{ $t('search.watch.tip', { used: watchUsed, quota: watchQuota }) }}
+              <RouterLink to="/watch" class="w-link">{{ $t('search.watch.manage') }}</RouterLink>
+            </span>
           </div>
-          <el-switch v-model="watchOn" />
+          <el-switch :model-value="watchOn" :loading="watchBusy" @change="toggleWatch" />
         </div>
       </div>
 
@@ -268,6 +324,19 @@ watch(watchOn, (v) => {
 .loading { animation: spin 1s linear infinite; }
 .spin { animation: spin 1.4s linear infinite; font-size: 34px; color: var(--orange); }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* 守望订阅条：左侧文案 + 右侧开关（v2.20 前只有裸 div，没有样式） */
+.watch-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  margin-top: 18px; padding: 15px 18px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.w-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.w-txt b { font-size: 13.5px; font-weight: 700; }
+.w-txt span { font-size: 11.5px; line-height: 1.6; color: var(--ink-faint); }
+.w-tip { font-variant-numeric: tabular-nums; }
+.w-link { color: var(--ink-soft); font-weight: 700; margin-left: 6px; white-space: nowrap; }
+.w-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 
 .res-head { margin-bottom: 14px; }
 .res-head h3 { font-size: 21px; }
