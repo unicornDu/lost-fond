@@ -17,7 +17,7 @@ bash scripts/backup.sh          # Git-Bash / Linux / macOS
 Windows 无 bash 时用 **PowerShell** 等价命令（注意文件名与脚本格式一致，含时分秒）：
 
 ```powershell
-cd D:\Visual_Stdio_Code\Dai_ma\软件工程\lost-found\backend
+cd D:\Visual_Stdio_Code\Dai_ma\软件工程\web-lostfond\backend
 $ts = Get-Date -Format "yyyyMMdd_HHmmss"
 & "D:\Visual_Stdio_Code\Claude_Code\MysqL\mysql-9.7.0-winx64\bin\mysqldump.exe" -uroot -p --single-transaction --set-gtid-purged=OFF --default-character-set=utf8mb4 lost_found | Out-File -Encoding utf8 "backup\lost_found_$ts.sql"
 tar czf "backup\uploads_$ts.tar.gz" uploads/

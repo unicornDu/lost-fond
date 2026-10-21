@@ -10,7 +10,7 @@
 ## 目录约定
 
 - 一个软件一个子目录，目录名用小写英文，与可执行文件同名；
-- 子目录里只放**可执行文件 + `README.md`**，摆好后 `lost-found/scripts/` 下的启动脚本就能自动找到；
+- 子目录里只放**可执行文件 + `README.md`**，摆好后 `web-lostfond/scripts/` 下的启动脚本就能自动找到；
 - 二进制已被根 `.gitignore` 排除（`Project_operation_software/*/*.exe`），不要试图提交。
 
 ```

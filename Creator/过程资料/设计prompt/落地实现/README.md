@@ -32,16 +32,16 @@
 
 ```bash
 # 1) 建库建表（首次）
-mysql -u root -p < lost-found/backend/src/main/resources/db/schema.sql
+mysql -u root -p < web-lostfond/backend/src/main/resources/db/schema.sql
 
-# 2) 本地敏感配置：在 lost-found/backend/ 下新建 application-local.yml（已 gitignore）
+# 2) 本地敏感配置：在 web-lostfond/backend/ 下新建 application-local.yml（已 gitignore）
 #    datasource.password / jwt.secret / seed.admin-password / seed.user-password
 
 # 3) 后端（★必须在 backend 目录启动，upload-dir 是相对路径）
-cd lost-found/backend && mvn spring-boot:run
+cd web-lostfond/backend && mvn spring-boot:run
 
 # 4) 前端开发模式
-cd lost-found/frontend && npm install && npm run dev     # http://localhost:5173
+cd web-lostfond/frontend && npm install && npm run dev     # http://localhost:5173
 ```
 
 后端同时托管 `frontend/dist`，所以构建后直接开 **http://localhost:8080** 就能用整套站点。
@@ -68,13 +68,13 @@ cd lost-found/frontend && npm install && npm run dev     # http://localhost:5173
 │
 ├── assets/演示图/             演示物品图 6 张
 │
-└── lost-found/                代码仓
+└── web-lostfond/                代码仓
     ├── backend/               Spring Boot（:8080）
     ├── frontend/              Vue3（:5173）+ Capacitor 原生工程
     └── desktop/               Electron 壳
 ```
 
-`lost-found/_android-sdk/`、`desktop/release*/`、`*.keystore` 等本机产物已被 `.gitignore` 排除，**不入库**。
+`web-lostfond/_android-sdk/`、`desktop/release*/`、`*.keystore` 等本机产物已被 `.gitignore` 排除，**不入库**。
 
 ---
 
@@ -116,13 +116,13 @@ cd lost-found/frontend && npm install && npm run dev     # http://localhost:5173
 ## 六、自测
 
 ```bash
-cd lost-found/backend
+cd web-lostfond/backend
 python scripts/test_api.py                        # 141 断言，幂等，八表回基线
 mvn test                                          # 99 用例（HashExperimentTest 默认 skip）
 python scripts/eval_recall.py --min-recall 0.75   # 召回门禁 85.7%
 ```
 
-前端：`cd lost-found/frontend && npx vitest run`（12 用例）。
+前端：`cd web-lostfond/frontend && npx vitest run`（12 用例）。
 
 ---
 

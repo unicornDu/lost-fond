@@ -14,7 +14,7 @@ import {
  * 从最旧的一周扫到最新的一周，所以是"折叠/展开"，不是换图。
  *
  * 与 prompt 的差异（都是为了站点一致性与真数据）：
- * - 配色走站内墨色阶梯（分类点之外不引入第二种彩色），不是 GitHub 绿；
+ * - 配色按用户参考图取「浅蓝 → 中蓝 → 亮蓝」四阶蓝（v2.41.7），不是 GitHub 绿；
  * - 数据来自 `/api/stats/daily`（按发生日统计的真启事量），没有数据时如实显示空态；
  * - 去掉了拖拽环绕，保留悬停/键盘/图例联动与 2D-3D 切换。
  */
@@ -44,8 +44,12 @@ const stats = computed(() => model.value.stats)
 
 /* ---------- 主题色（画布拿不到 CSS 变量，用探针读一次） ---------- */
 let COL = []
+let EDGE = []
 let MUTED = [120, 120, 112]
 let INK = [20, 20, 18]
+const HEAT_RAMP = [
+  [235, 238, 240], [220, 232, 247], [196, 215, 237], [155, 195, 240], [43, 126, 223],
+]
 function readColor(varName, fallback) {
   try {
     const el = document.createElement('span')
@@ -62,7 +66,8 @@ const rgb = (c) => `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2
 function readTheme() {
   INK = readColor('--ink', [20, 20, 18])
   const bg = readColor('--cream', [250, 250, 248])
-  COL = [0, 1, 2, 3, 4].map((i) => mix(bg, INK, [0.07, 0.16, 0.34, 0.6, 0.95][i]))
+  COL = HEAT_RAMP.map((c, i) => readColor(`--heat-${i}`, c))
+  EDGE = COL.map((c) => c.map((v) => v * 0.9))
   MUTED = mix(bg, INK, 0.52)
   eng.colDirty = true
 }
@@ -183,7 +188,7 @@ function draw() {
 
   const w = 0.82
   const radius = lerp(0.2, 0.03, e) * s
-  const outline = (1 - e) * 0.06
+  const border = 1 - e
   const leg = legendLevel.value
 
   eng.order.sort((a, c) => depthOf(cam, eng.wx[a] + 0.5, eng.dy[a] + 0.5) - depthOf(cam, eng.wx[c] + 0.5, eng.dy[c] + 0.5))
@@ -231,8 +236,9 @@ function draw() {
     quadPath(ctx, eng.polys, o, radius)
     ctx.fillStyle = rgb(col)
     ctx.fill()
-    if (outline > 0.004) {
-      ctx.strokeStyle = `rgba(${INK[0]},${INK[1]},${INK[2]},${outline})`
+    if (border > 0.02 && eng.lv[i] > 0) {
+      const ec = EDGE[eng.lv[i]]
+      ctx.strokeStyle = `rgba(${Math.round(ec[0])},${Math.round(ec[1])},${Math.round(ec[2])},${border.toFixed(3)})`
       ctx.lineWidth = 1
       ctx.stroke()
     }
@@ -540,11 +546,15 @@ const tipText = computed(() => {
   transition: transform .18s ease;
 }
 .sky-legend .sw:hover, .sky-legend .sw.on { transform: scale(1.22); }
-.sky-legend .sw.l0 { background: color-mix(in srgb, var(--ink) 7%, var(--cream)); }
-.sky-legend .sw.l1 { background: color-mix(in srgb, var(--ink) 16%, var(--cream)); }
-.sky-legend .sw.l2 { background: color-mix(in srgb, var(--ink) 34%, var(--cream)); }
-.sky-legend .sw.l3 { background: color-mix(in srgb, var(--ink) 60%, var(--cream)); }
-.sky-legend .sw.l4 { background: color-mix(in srgb, var(--ink) 95%, var(--cream)); }
+.sky-legend .sw.l0 { background: var(--heat-0); }
+.sky-legend .sw.l1 { --h: var(--heat-1); }
+.sky-legend .sw.l2 { --h: var(--heat-2); }
+.sky-legend .sw.l3 { --h: var(--heat-3); }
+.sky-legend .sw.l4 { --h: var(--heat-4); }
+.sky-legend .sw.l1, .sky-legend .sw.l2, .sky-legend .sw.l3, .sky-legend .sw.l4 {
+  background: var(--h);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 90%, #000);
+}
 
 @media (max-width: 640px) {
   .sky { padding: 16px 14px 12px; }

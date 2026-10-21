@@ -16,7 +16,7 @@
 
 | 项 | 值 |
 |---|---|
-| 项目根 | `D:\Visual_Stdio_Code\Dai_ma\软件工程\lost-found` |
+| 项目根 | `D:\Visual_Stdio_Code\Dai_ma\软件工程\web-lostfond` |
 | 后端 | `backend/`，Spring Boot 3.3.5 + JDK 21 + MyBatis-Plus 3.5.7 + MySQL + JImageHash(pHash) + JJWT + Knife4j |
 | 后端产物 | `backend/target/lost-found-backend.jar`（约 50 MB，已存在） |
 | 前端 | `frontend/`，Vue 3.5 + Vite 6 + Element Plus + Pinia + ECharts，`npm run build` 产出 `frontend/dist/`（已存在） |

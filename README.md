@@ -58,13 +58,13 @@ cd 软件工程
 **A. 首次初始化 / 已有库补表（推荐，可重复执行、不清数据）：**
 
 ```bash
-mysql -u root -p < lost-found/backend/src/main/resources/db/schema-init.sql
+mysql -u root -p < web-lostfond/backend/src/main/resources/db/schema-init.sql
 ```
 
 **B. 彻底重置（⚠️ 会 DROP 全部 8 张表并清空数据，仅开发环境使用）：**
 
 ```bash
-mysql -u root -p < lost-found/backend/src/main/resources/db/schema.sql
+mysql -u root -p < web-lostfond/backend/src/main/resources/db/schema.sql
 ```
 
 > 2026-10-18 修复：`schema.sql` 每张表前都有 `DROP TABLE IF EXISTS`，**执行即清库**；日常请用 `schema-init.sql`（`CREATE TABLE IF NOT EXISTS`）。已有数据升级前先跑 `backend/scripts/backup.sh` 备份。
@@ -79,7 +79,7 @@ mysql -u root -p -e "USE lost_found; SHOW TABLES;"
 ### 第 3 步：生成本地配置
 
 ```bash
-cd lost-found/backend
+cd web-lostfond/backend
 cp application-local.yml.example application-local.yml
 # Windows cmd 用：copy application-local.yml.example application-local.yml
 ```
@@ -98,7 +98,7 @@ cp application-local.yml.example application-local.yml
 ### 第 4 步：启动后端（窗口 1）
 
 ```bash
-cd lost-found/backend
+cd web-lostfond/backend
 mvn spring-boot:run
 ```
 
@@ -106,7 +106,7 @@ mvn spring-boot:run
 
 两个要点：
 
-- **必须在 `lost-found/backend` 目录下启动** —— 上传目录 `./uploads` 是相对工作目录的路径，换目录会另建空目录导致图片 404；
+- **必须在 `web-lostfond/backend` 目录下启动** —— 上传目录 `./uploads` 是相对工作目录的路径，换目录会另建空目录导致图片 404；
 - **首次启动自动播种** 60 条演示启事、120 条图片引用、认领与消息记录，并重算 pHash，不用手工导 SQL 数据。
 
 想打成 jar 长期跑：
@@ -119,7 +119,7 @@ java -jar target/lost-found-backend.jar
 ### 第 5 步：启动前端（窗口 2）
 
 ```bash
-cd lost-found/frontend
+cd web-lostfond/frontend
 npm install        # 仅第一次
 npm run dev
 ```
@@ -138,10 +138,10 @@ curl "http://localhost:8080/api/items?page=1&size=1"    # 返回 {"code":200,...
 
 浏览器逐项点一遍：
 
-- [ ] `http://localhost:5173` 落地页有内容、有图（图来自 `lost-found/backend/uploads/`）
+- [ ] `http://localhost:5173` 落地页有内容、有图（图来自 `web-lostfond/backend/uploads/`）
 - [ ] 登录 管理员 `10000001`（口令 = `application-local.yml` 的 `seed.admin-password`，模板默认 `admin123`），普通用户 `20240001`（`seed.user-password`，模板默认 `user123`）——**以你的本地配置为准，改过就不是默认值**
 - [ ] 失物墙有真实数据（60 条启事）
-- [ ] 以图搜图：上传 `lost-found/backend/uploads/_query/q-cup.jpg` → 命中该物品多条启事，相似度 ~100%
+- [ ] 以图搜图：上传 `web-lostfond/backend/uploads/_query/q-cup.jpg` → 命中该物品多条启事，相似度 ~100%
 - [ ] 导航栏出现「后台管理」→ 看板 / 审核 / 用户 / 日志 / 运维 五个页面能打开
 - [ ] **导航栏「聊天会话」「通知中心」两个图标各弹右侧抽屉**：聊天抽屉里会话列表 → 点进线程可直接回复（回车发送）；通知抽屉分「认领 / 系统 / 私信」三栏，可逐条已读或一键「全部标为已读」，Esc 或点遮罩关闭
 - [ ] **认领进度时间线**：用普通账号对一条招领提交认领（先填凭证 → 再填联系方式两步提交）后，详情页出现四节点进度卡（提交申请 → 发布者审核 → 交付确认 → 已找回），连线会从起点生长到当前进度
@@ -151,7 +151,7 @@ curl "http://localhost:8080/api/items?page=1&size=1"    # 返回 {"code":200,...
 自动化自测（可选，需要 Python 3 + `pip install pillow requests`）：
 
 ```bash
-cd lost-found/backend
+cd web-lostfond/backend
 python scripts/test_api.py                        # 141 断言，幂等，跑完八表回基线
 python scripts/eval_recall.py --min-recall 0.75   # 召回门禁 85.7%
 mvn test                                          # 99 用例
@@ -170,7 +170,7 @@ mvn test                                          # 99 用例
 #    （花生壳 vicp.fun 免费版已停用，不再使用）
 
 # 2) 直接双击
-#    lost-found/scripts/tunnel.bat
+#    web-lostfond/scripts/tunnel.bat
 ```
 
 它会先探测 8080 是否活着，然后打印一个 `https://xxx-yyy-zzz.trycloudflare.com` 地址，把这个地址发给别人即可。
@@ -185,7 +185,7 @@ mvn test                                          # 99 用例
 |---|---|
 | 启动报连不上数据库 | `application-local.yml` 没生成或口令不对；或 MySQL 服务没起 |
 | 端口 8080 / 5173 被占用 | `netstat -ano \| findstr :8080` 找 PID 结束进程，或改 `application.yml` / `vite.config.js` 的端口 |
-| 图片全部 404 | 没有在 `lost-found/backend` 目录下启动后端（`uploads` 是相对路径） |
+| 图片全部 404 | 没有在 `web-lostfond/backend` 目录下启动后端（`uploads` 是相对路径） |
 | 前端页面白屏（生产构建） | 改过 `vite.config.js` 的 `manualChunks` 后必须 `npm run build` 冒烟验证，dev 正常 ≠ build 正常 |
 | 搜图结果全 100% 或全空 | pHash 未算，`POST /api/search/reindex` 重算 |
 | 401 / 403 | token 过期、账号被封禁或权限不足，重新登录 |
@@ -214,7 +214,7 @@ mvn test                                          # 99 用例
 ├── Project_operation_software/      运行期软件（二进制走 Releases，仓库只留台账）
 ├── assets/演示图/                   演示物品图 6 张
 │
-└── lost-found/                      代码仓
+└── web-lostfond/                      代码仓
     ├── backend/                     Spring Boot（:8080）
     └── frontend/                    Vue3（:5173）
 ```

@@ -310,7 +310,7 @@ TC-M3-02"上传 `q-cup.jpg` → 命中该物品**多条** lost/found ~100%"，�
 
 ## B-07（P2）`项目结构.md` 的状态过时
 
-1. "待做 ⬜ git 建仓首提交（.gitignore 已备好……由组员自行执行）"——**项目已经在 `D:\Visual_Stdio_Code\Dai_ma\软件工程` 这个 git 仓库中被跟踪**（2 次提交 `verison-01` / `version-02`，lost-found 下 240 个跟踪文件）。请更新为实际状态，并补充"当前跟踪文件含 `_admintoken.txt` 等应当移除的文件（见 C-01）"。
+1. "待做 ⬜ git 建仓首提交（.gitignore 已备好……由组员自行执行）"——**项目已经在 `D:\Visual_Stdio_Code\Dai_ma\软件工程` 这个 git 仓库中被跟踪**（2 次提交 `verison-01` / `version-02`，web-lostfond 下 240 个跟踪文件）。请更新为实际状态，并补充"当前跟踪文件含 `_admintoken.txt` 等应当移除的文件（见 C-01）"。
 2. `mock/data.js 仅保留常量 CATEGORIES/LOCATIONS/catEmoji` —— 与实际不符（见 `04` F-09）。
 3. 前端文件清单需要补：`admin/ToolsView.vue`（F-10 新增）、`constants/catalog.js`（F-09 改名）。
 4. 后端文件清单需要补：`dto/DmReq.java`（`02` B-10 新增）、`scripts/eval_recall.py` + `recall_results.csv`（`03` 新增）、新增的单测类（A-03）。
@@ -340,18 +340,18 @@ TC-M3-02"上传 `q-cup.jpg` → 命中该物品**多条** lost/found ~100%"，�
 实测（`git ls-files` 命中）：
 
 ```
-TRACKED   lost-found/backend/_admintoken.txt     ← 一枚真实签发的管理员 JWT
-TRACKED   lost-found/backend/_r.json             ← 接口响应 dump（含 6 条启事数据）
-untracked lost-found/backend/_t.log / _run.log / _verify.log / frontend/_dev.log   ← 已被 *.log 忽略
-untracked lost-found/backend/application-local.yml                                  ← 已被忽略（正确）
+TRACKED   web-lostfond/backend/_admintoken.txt     ← 一枚真实签发的管理员 JWT
+TRACKED   web-lostfond/backend/_r.json             ← 接口响应 dump（含 6 条启事数据）
+untracked web-lostfond/backend/_t.log / _run.log / _verify.log / frontend/_dev.log   ← 已被 *.log 忽略
+untracked web-lostfond/backend/application-local.yml                                  ← 已被忽略（正确）
 ```
 
 `_admintoken.txt` 内容是一枚 `HS512` 签名的 JWT，payload 为 `{"sub":"1","account":"10000001","role":1,...}`。虽然 `exp` 已过期（2026-10-15），但**这属于凭据泄露**，且与 `Creator/交付文档/03` 风险表 R5"敏感信息进 git 已消除"、`Creator/交付文档/08` TC-通用-01"敏感信息不进库 ✅"相矛盾。
 
 ### 修复要求
 
-1. `git rm --cached lost-found/backend/_admintoken.txt lost-found/backend/_r.json`，并删除文件本体。
-2. 在 `lost-found/.gitignore` 追加：
+1. `git rm --cached web-lostfond/backend/_admintoken.txt web-lostfond/backend/_r.json`，并删除文件本体。
+2. 在 `web-lostfond/.gitignore` 追加：
 
 ```gitignore
 # 运行/调试残留（不得入库）
@@ -366,7 +366,7 @@ docs/images/_tmp/
 
 ## C-02（P2）实验图集入库的取舍
 
-`lost-found/backend/uploads/` 下 **121 个文件已被跟踪**，其中 `_exp/` 有 **78 张实验变体图**（`ref.jpg` + `pos_*` + `mild_*`，共 6 个物品 × 13 张）。
+`web-lostfond/backend/uploads/` 下 **121 个文件已被跟踪**，其中 `_exp/` 有 **78 张实验变体图**（`ref.jpg` + `pos_*` + `mild_*`，共 6 个物品 × 13 张）。
 
 - 好处：`HashExperimentTest` 开箱即跑、实验可复现；
 - 代价：仓库体积。

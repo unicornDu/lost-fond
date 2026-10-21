@@ -1,7 +1,7 @@
 # Prompt 04 · P2 前端修复：交互缺陷、打包体积、外网依赖、夸大文案
 
 > 前置：先读同目录 `索引与执行顺序.md`。
-> 前端代码在 `lost-found/frontend/src`，技术栈 Vue 3.5 + Vite 6 + Element Plus + Pinia + ECharts 6。
+> 前端代码在 `web-lostfond/frontend/src`，技术栈 Vue 3.5 + Vite 6 + Element Plus + Pinia + ECharts 6。
 > 本 Prompt 的问题均可通过"读代码 + 浏览器实测"验证，不需要数据库。
 > （如果你更希望前端 Prompt 单独放 `Zcode_前端` 目录，直接移动本文件即可，内容不依赖目录。）
 
@@ -340,6 +340,6 @@ adminReindex: () => http.post('/search/reindex'),
 
 1. 逐条给出：改动文件 + 关键 diff 摘要 + 浏览器实测步骤与结果。
 2. 最后必须跑通：`npm run build` 成功、体积对比、断网后落地页/登录页正常、管理员后台所有页面可访问。
-3. 更新 `lost-found/项目结构.md` 里前端的文件清单与描述（尤其是 `mock/` 改名、新增 admin 页面、`api/index.js` 的接口列表）。
+3. 更新 `web-lostfond/项目结构.md` 里前端的文件清单与描述（尤其是 `mock/` 改名、新增 admin 页面、`api/index.js` 的接口列表）。
 4. **不要**改 `backend/` 下任何文件（F-01 方案 A 涉及后端时，请把后端改动写进 `01`/`02` 的 Prompt 里执行）。
 5. **不要**引入新的重型依赖；如需 `unplugin-*` 等构建插件，先说明理由与体积收益。

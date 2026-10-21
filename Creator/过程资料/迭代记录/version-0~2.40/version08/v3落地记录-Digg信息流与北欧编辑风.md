@@ -4,7 +4,7 @@
 > 设计输入：
 > - `Creator/过程资料/迭代记录/version-0~2.40/version08/参考imgs/Digg信息流-复刻生成指南.md`（登录后应用）
 > - `Creator/过程资料/迭代记录/version-0~2.40/version08/前端版本01/复刻生成指南.md`（公开首页）
-> - 素材：`lost-found/frontend/src/assets/img/01–04.jpg`（用户提供，4 张全屏轮播图）
+> - 素材：`web-lostfond/frontend/src/assets/img/01–04.jpg`（用户提供，4 张全屏轮播图）
 > 结论：**两套风格分别落在"登录前"与"登录后"**——公开首页走北欧极简 editorial（图像主导、宋体大标题），
 > 登录后的应用走 Digg 信息流（三栏骨架、近黑单色、分类彩点）。原 v2「方案G 编辑叙事」退役。
 
@@ -248,7 +248,7 @@ frontend/src/components/SplitText.vue
 本次改动全部在前端，且未提交。若需回到 v2：
 
 ```bash
-cd lost-found/frontend
+cd web-lostfond/frontend
 git checkout -- src
 git clean -fd src/components src/utils src/composables src/i18n   # 删除新增组件、主题与词条模块
 git status --short                       # 确认只剩 assets/img（用户素材）

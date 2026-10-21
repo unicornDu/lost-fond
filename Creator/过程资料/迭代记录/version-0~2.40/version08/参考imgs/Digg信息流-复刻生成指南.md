@@ -136,7 +136,7 @@ hover 态），还是全面转向近黑单色。两种都可行，前者品牌�
 
 ## 4. Vue 落地要点（确认方向后执行）
 
-1. 令牌并入 `lost-found/frontend/src/styles/main.css` 的 `:root`：
+1. 令牌并入 `web-lostfond/frontend/src/styles/main.css` 的 `:root`：
    **沿用「换肤不改名」铁律**——`--cream*/--ink*` 等旧令牌保留名字、只替换色值；
    新增 `--c-doc/--c-elec/...` 分类点令牌与 `--side/--line` 等中性令牌。
 2. 三栏骨架是新结构：左导航组件化（可复用现有 NavBar 的登录态/未读数逻辑），

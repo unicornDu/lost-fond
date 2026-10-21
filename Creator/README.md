@@ -16,7 +16,7 @@
 根目录只留少量东西，一眼能扫完：
 
 - `README.md` —— 门牌（项目是什么、怎么跑、去哪看）
-- `lost-found/` —— 代码仓（backend / frontend；`desktop/` 已随 2026-10-17 单 Web 收敛删除）
+- `web-lostfond/` —— 代码仓（backend / frontend；`desktop/` 已随 2026-10-17 单 Web 收敛删除）
 - `assets/演示图/` —— 演示物品图 6 张
 - `Project_operation_software/` —— 运行期软件台账（二进制在 GitHub Releases）
 
@@ -25,5 +25,5 @@
 ## 注意
 
 - 本目录在公开仓库里**别人也能看到**，不要放数据库口令、keystore、真实个人信息；
-- 真正的敏感配置只放 `lost-found/backend/application-local.yml`（已被 `.gitignore` 排除）；
+- 真正的敏感配置只放 `web-lostfond/backend/application-local.yml`（已被 `.gitignore` 排除）；
 - 新增文档时顺手在上表补一行；`交付文档/00-文档总览.md` 只索引交付物，不用收录这里的过程资料。

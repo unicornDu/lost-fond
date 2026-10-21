@@ -10,7 +10,7 @@ rem ============================================================
 
 set "PORT=8080"
 set "CF="
-rem 仓库根目录（本文件在 <仓库>/lost-found/scripts/ 下）
+rem 仓库根目录（本文件在 <仓库>/web-lostfond/scripts/ 下）
 set "ROOT=%~dp0..\.."
 
 rem ① 项目统一软件目录（首选）

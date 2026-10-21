@@ -35,7 +35,7 @@
 │
 ├── assets/演示图/                         演示物品图 6 张
 │
-└── lost-found/                            代码仓
+└── web-lostfond/                            代码仓
     ├── backend/                           Spring Boot 后端（:8080，同时托管前端）
     │   ├── pom.xml / application-local.yml   本地敏感配置（gitignore，勿提交）
     │   ├── scripts/                       gen_seed_images.py / test_api.py / eval_recall.py / backup.sh
@@ -198,4 +198,4 @@ bash scripts/backup.sh         # 数据库 + uploads 备份（见 scripts/backup
 | 图片不显示 | 确认 `/uploads/**` 代理与 `file.upload-dir` 指向 backend/uploads；缩略图缺失可在后台「重建缩略图」 |
 | pHash 对旋转不鲁棒 | 属算法特性：演示变体只用缩放/裁剪/亮度/对比度/灰度，不用旋转（见 Creator/交付文档/11） |
 | 8080 被占用 | 本机 TCP 动态端口曾被改成 1024 起，出站连接会抢 8080；可用 `--server.port=8081` + `BACKEND_PORT=8081` 临时绕开 |
-| 想离线/异地演示 | 电脑开着后端 + `lost-found/scripts/tunnel.bat`（cloudflared），把打印出的 https 地址发给别人用浏览器打开 |
+| 想离线/异地演示 | 电脑开着后端 + `web-lostfond/scripts/tunnel.bat`（cloudflared），把打印出的 https 地址发给别人用浏览器打开 |

@@ -30,9 +30,9 @@ curl -L -C - -o cloudflared.exe ^
 ## 怎么用：临时隧道（免账号，项目默认方式）
 
 > 前提：后端已在 8080 运行。没跑的话先执行
-> `cd lost-found/backend && java -jar target/lost-found-backend.jar`
+> `cd web-lostfond/backend && java -jar target/lost-found-backend.jar`
 
-**方式 A（推荐）：双击 `lost-found/scripts/tunnel.bat`**，脚本会自动：
+**方式 A（推荐）：双击 `web-lostfond/scripts/tunnel.bat`**，脚本会自动：
 
 1. 按「本目录 → `%USERPROFILE%\bin` → Program Files → PATH」四级找 cloudflared.exe；
 2. 探测 `127.0.0.1:8080` 是否存活（不拦着启动，但页面会 502）；

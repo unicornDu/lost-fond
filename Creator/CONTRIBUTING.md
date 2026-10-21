@@ -22,7 +22,7 @@ git diff --stat               # ② 看规模：多少文件、多少行
 - [ ] 提交信息说清了"改了什么、为什么"
 
 > **禁止裸用 `git add .` 或 `git add -A`。** 请明确到目录：
-> `git add lost-found/backend/src` / `git add "Creator/交付文档"`
+> `git add web-lostfond/backend/src` / `git add "Creator/交付文档"`
 > 确实需要全量时，先 `git status` 审一遍再执行。
 
 ---
@@ -31,18 +31,18 @@ git diff --stat               # ② 看规模：多少文件、多少行
 
 | 类别 | 路径 | 原因 |
 |---|---|---|
-| 本地工具链 | `lost-found/_android-sdk/` | 712 MB，各人本机自备（设 `ANDROID_HOME` / `sdk.dir`）。**2026-10-17 单 Web 收敛后 Android 工程已下线，目录不再需要** |
-| 打包产物 | `lost-found/desktop/release*/`、`target/*.jar` | 安装包 / Electron 运行时（约 350 MB）与可执行 jar 均可由源码重建 |
+| 本地工具链 | `web-lostfond/_android-sdk/` | 712 MB，各人本机自备（设 `ANDROID_HOME` / `sdk.dir`）。**2026-10-17 单 Web 收敛后 Android 工程已下线，目录不再需要** |
+| 打包产物 | `web-lostfond/desktop/release*/`、`target/*.jar` | 安装包 / Electron 运行时（约 350 MB）与可执行 jar 均可由源码重建 |
 | 运行期软件 | `Project_operation_software/*/*.exe`、`*/*.zip` | 仓库只留 README 台账，二进制走 GitHub Releases |
 | 构建缓存 | `node_modules/`、`dist/`、`target/`、`*/build/` | 可再生成 |
 | 签名密钥 | `*.keystore`、`*.jks`、`*.p12`、`*.pfx` | 公开仓库泄露 = 他人可冒名签名打包 |
-| 本地配置 | `lost-found/backend/application-local.yml` | 含数据库口令 / JWT secret / 演示口令 |
-| 运行时数据 | `lost-found/backend/uploads/20*/` | 用户上传图，由 `.gitignore` 排除 |
+| 本地配置 | `web-lostfond/backend/application-local.yml` | 含数据库口令 / JWT secret / 演示口令 |
+| 运行时数据 | `web-lostfond/backend/uploads/20*/` | 用户上传图，由 `.gitignore` 排除 |
 | 系统/IDE | `.DS_Store`、`Thumbs.db`、`.idea/`、`.vscode/` | 噪音 |
 
 以上规则已写入根 `.gitignore`，正常情况下 `git status` 不会列出它们。**若列出来了，说明规则被绕过，先修规则再提交。**
 
-历史例外（已失效，保留说明以免后人困惑）：`lost-found/backend/uploads/downloads/app-release.apk`（约 5.9 MB）曾允许入库，供
+历史例外（已失效，保留说明以免后人困惑）：`web-lostfond/backend/uploads/downloads/app-release.apk`（约 5.9 MB）曾允许入库，供
 `/api/file/apk` 分发 Android 安装包。**2026-10-17 答辩改为浏览器演示后，APK 与 `/api/file/apk`、桌面端一并下线**，该例外不再成立，
 `downloads/` 下不再有任何入库产物。
 

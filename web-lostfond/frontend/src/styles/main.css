@@ -34,6 +34,13 @@
   --sky-soft: #EAEEF1;
   --rose: #C2402F;
 
+  /* ---- 首页活动热力图 · 蓝阶（v2.41.7 按参考图取色） ---- */
+  --heat-0: #EBEEF0;
+  --heat-1: #DCE8F7;
+  --heat-2: #C4D7ED;
+  --heat-3: #9BC3F0;
+  --heat-4: #2B7EDF;
+
   /* ---- 业务状态签（淡彩 pill，Digg 唯一允许的彩色例外） ---- */
   --st-lost-bg: #FBEEEC;
   --st-lost-ink: #C2402F;
@@ -116,6 +123,11 @@ html[data-theme="dark"] {
   --sky: #8FB0D9;
   --sky-soft: rgba(91, 125, 168, .16);
   --rose: #F0908A;
+  --heat-0: #232322;
+  --heat-1: #253749;
+  --heat-2: #2F4A6B;
+  --heat-3: #4D7EB4;
+  --heat-4: #6EA3EE;
 
   --st-lost-bg: rgba(229, 72, 77, .16);
   --st-lost-ink: #F0908A;
