@@ -203,12 +203,6 @@ onMounted(load)
           </button>
           <button class="btn-ghost" type="button" @click="dmVisible = true">{{ $t('detail.dm') }}</button>
           <button class="btn-ghost" type="button" @click="posterVisible = true">{{ $t('detail.poster') }}</button>
-          <!-- v2.41：位置入口（文字链，不与三个主操作抢视觉重量） -->
-          <button v-if="item.location" class="loc-link" type="button" @click="locRef?.open()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-            {{ $t('detail.locLink') }}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14m-6-7 7 7-7 7" /></svg>
-          </button>
         </div>
 
         <p class="safe-tip">{{ $t('detail.safe') }}</p>
@@ -401,21 +395,6 @@ onMounted(load)
 }
 .btn-ghost:hover { border-color: var(--ink-faint); background: var(--cream); }
 
-/* 位置文字链：排在三个按钮之后，靠右收尾 */
-.loc-link {
-  margin-left: auto;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 10px; border: 0; border-radius: 999px;
-  background: transparent; color: var(--ink-soft);
-  font-family: inherit; font-size: 13px; font-weight: 700;
-  cursor: pointer;
-  transition: color .16s ease, background-color .16s ease;
-}
-.loc-link svg { width: 14px; height: 14px; flex: none; }
-.loc-link svg:last-child { width: 12px; height: 12px; transition: transform .2s ease; }
-.loc-link:hover { color: var(--ink); background: var(--cream-deep); }
-.loc-link:hover svg:last-child { transform: translateX(2px); }
-
 .safe-tip { margin-top: 14px; font-size: 11.5px; line-height: 1.7; color: var(--ink-faint); }
 
 /* 认领进度 */
@@ -465,7 +444,5 @@ onMounted(load)
   .d-title { font-size: 21px; }
   .facts { grid-template-columns: 1fr; }
   .d-photo { aspect-ratio: 1.6 / 1; }
-  /* 窄屏三个按钮占满一行，位置链落到第二行时靠左，别孤零零飘在右边 */
-  .loc-link { margin-left: 0; padding-left: 0; }
 }
 </style>
