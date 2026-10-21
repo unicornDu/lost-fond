@@ -1,6 +1,6 @@
 # Z-10（P3·后端）`offlineItem` 缺"已完成"守卫（B-03 只修了 `auditItem` 一侧）
 
-> Z 批第 10 条（共 11 条）。执行前先读 `Deepseek_后端/00-索引与执行顺序.md`（JAVA_HOME 红线、验收命令）。总览与公共红线见 `00-索引与执行顺序.md` 及本文末尾。
+> Z 批第 10 条（共 11 条）。执行前先读 `Deepseek_后端/索引与执行顺序.md`（JAVA_HOME 红线、验收命令）。总览与公共红线见 `索引与执行顺序.md` 及本文末尾。
 > 关联：补的 AdminServiceTest 用例并入 `Z-04` 的用例名单。
 
 ## 现象与证据
@@ -46,4 +46,4 @@ curl -s -X POST "http://localhost:8080/api/admin/items/{id}/offline" -H "Authori
 2. `scripts/exp_*.csv`、`Creator/01-交付文档/11` 数据表零修改（D-01）。
 3. 幂等基线：test_api.py 跑后 item=60 / item_image=120 / message 回基线；admin_log 只增不计入。
 4. 不新增任何 `_*.txt`/`_*.json` 调试残留入库；git 提交由组员执行。
-5. 修完在 `Qwenwork_修改/06-修复记录-2026-10-16.md` 追加对应小节（逐条修改+证据），格式沿用 01-05 修复记录。
+5. 修完在 `Qwenwork_修改/修复记录-2026-10-16.md` 追加对应小节（逐条修改+证据），格式沿用 01-05 修复记录。

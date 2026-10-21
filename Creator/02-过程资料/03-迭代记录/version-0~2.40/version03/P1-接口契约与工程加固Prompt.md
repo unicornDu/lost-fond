@@ -1,6 +1,6 @@
 # Prompt 02 · P1 后端加固：接口契约、反向代理、缩略图、种子数据、参数校验
 
-> 前置：先读同目录 `00-索引与执行顺序.md`（项目路径、JAVA_HOME 红线、验收命令）。
+> 前置：先读同目录 `索引与执行顺序.md`（项目路径、JAVA_HOME 红线、验收命令）。
 > 本 Prompt 覆盖后端 7 个 P1 问题，均有实测证据。
 
 ---
@@ -266,6 +266,6 @@ UserContext.set(uid, role == null ? 0 : role);
 ## 交付要求
 
 1. 逐条给出：改动文件 + 关键 diff 摘要 + 验证命令 + 实际输出。
-2. 全部改完后跑 `00-索引与执行顺序.md` 第六节通用验收命令；`python scripts/test_api.py` 退出码必须为 0。
+2. 全部改完后跑 `索引与执行顺序.md` 第六节通用验收命令；`python scripts/test_api.py` 退出码必须为 0。
 3. 更新 `Creator/01-交付文档/04-接口文档-v1.0.md`（错误码表、新增 DTO 约束）、`Creator/01-交付文档/12-部署手册-v1.0.md`（`X-Forwarded-For`、`forward-headers-strategy`）、`Creator/01-交付文档/09-缺陷跟踪表`（登记 B-06~B-12）。
 4. **不要**改 `uploads/seed/`、`_src/`、`_query/`、`_exp/` 的图片与 `manifest.json` 的图片路径部分（B-09 只允许改 4 条 `status` 字段）。

@@ -261,7 +261,7 @@ mvn test                                          # 99 用例
 | 主题 | 亮/暗双主题（`composables/useTheme.js` + `html[data-theme="dark"]` 令牌 + EP 暗色变量），记忆与跟随系统 |
 | 语言 | 简/繁/EN（`i18n/index.js`，539 词条 × 3），左栏切换，标题与 EP 内置文案同步 |
 | 已退役 | v2「方案G 编辑叙事」（翡翠绿 + 顶部横向导航）与 v1「暖光手账风」；旧组件 `NavBar` / `GooeyNav` / `SplitText` 已删除，可在 git 历史找回 |
-| 落地记录 | `Creator/02-过程资料/03-迭代记录/version-0~2.40/version08/09-v3落地记录-Digg信息流与北欧编辑风.md`；设计规范见 `Creator/01-交付文档/05-UI设计稿与规范-v1.0.md` 第 0 节 |
+| 落地记录 | `Creator/02-过程资料/03-迭代记录/version-0~2.40/version08/v3落地记录-Digg信息流与北欧编辑风.md`；设计规范见 `Creator/01-交付文档/05-UI设计稿与规范-v1.0.md` 第 0 节 |
 
 **主题与语言**：左栏底部设置区提供「亮色/暗色」与「简/繁/EN」两个控件。
 

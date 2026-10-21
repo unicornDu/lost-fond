@@ -6,7 +6,7 @@
 
 **当前版本（2026-10-19）**：单 Web ｜ `frontend/dist` 与源码同步 ｜ 无客户端安装包 ｜ **前端设计系统 v3 已落地**（登录前北欧编辑风 / 登录后 Digg 信息流三栏）。
 历史上做过 Android APK / iOS PWA / 桌面 Electron 三端，答辩改为浏览器演示后已整体下线，
-产物与手册归档在 `Creator/02-过程资料/03-迭代记录/version-0~2.40/version06/archive-多端/`，详见同目录 `99-修复记录.md`。
+产物与手册归档在 `Creator/02-过程资料/03-迭代记录/version-0~2.40/version06/archive-多端/`，详见同目录 `修复记录.md`。
 
 ---
 
@@ -178,7 +178,7 @@ bash scripts/backup.sh         # 数据库 + uploads 备份（见 scripts/backup
 | 主题 | 左栏底部「亮色/暗色」；`html[data-theme="dark"]` + Element Plus 暗色变量；记忆在 localStorage，无记录跟系统 |
 | 语言 | 左栏底部「简/繁/EN」；539 词条 × 3，覆盖全部用户端页面（含位置卡与活动总览）；分类与状态显示层映射，UGC 保持原文 |
 | 覆盖边界 | 公开首页保持中文暖色品牌页；后台保持中文（图表已适配暗色） |
-| 落地记录 | `Creator/02-过程资料/03-迭代记录/version-0~2.40/version08/09-v3落地记录-Digg信息流与北欧编辑风.md` |
+| 落地记录 | `Creator/02-过程资料/03-迭代记录/version-0~2.40/version08/v3落地记录-Digg信息流与北欧编辑风.md` |
 
 > 改主题色只需编辑 `main.css` 的 `:root`；改完务必 `npm run build` 冒烟（F-11：dev 正常 ≠ build 正常）。
 

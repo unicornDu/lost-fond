@@ -93,7 +93,7 @@ cd lost-found/frontend && npm install && npm run dev     # http://localhost:5173
 | 理解 pHash 为什么这么调参 | `Creator/01-交付文档/11-以图搜图准确率实验报告-v1.0.md` |
 | 部署到服务器 / 公网 | `Creator/01-交付文档/12-部署手册-v1.0.md` |
 | 改代码前先看历史决策 | `Creator/02-过程资料/03-迭代记录/` |
-| 查谁负责哪块 | `Creator/02-过程资料/01-选题/01-失物招领平台-五人分工方案.md` |
+| 查谁负责哪块 | `Creator/02-过程资料/01-选题/失物招领平台-五人分工方案.md` |
 | 提交代码前 | `Creator/CONTRIBUTING.md` |
 
 ---
