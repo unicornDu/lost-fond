@@ -16,6 +16,9 @@ public class ItemVO {
     private String title;
     private String category;
     private String location;
+    /** v2.41.1：精确坐标（GCJ-02）；为 null 表示发布者没在地图上标点。 */
+    private Double latitude;
+    private Double longitude;
     private String time;        // 格式化后的发生时间 yyyy-MM-dd HH:mm
     private String status;
     private String owner;       // 发布人昵称

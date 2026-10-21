@@ -45,6 +45,24 @@ public class StatsService {
         return itemMapper.countByCategory();
     }
 
+    /**
+     * v2.41.1 首页"信息总览"：按天返回启事量（只含已过审、有发生时间的）。
+     * 只回有数据的日期，空档交给前端补日历；days 夹在 7–730 之间防止全表扫描。
+     */
+    public List<Map<String, Object>> dailyActivity(int days) {
+        int span = Math.max(7, Math.min(730, days));
+        LocalDateTime since = java.time.LocalDate.now().minusDays(span).atStartOfDay();
+        List<Map<String, Object>> rows = itemMapper.dailyActivity(since);
+        List<Map<String, Object>> out = new java.util.ArrayList<>(rows.size());
+        for (Map<String, Object> r : rows) {
+            Object d = r.get("date");
+            Object v = r.get("value");
+            if (d == null || v == null) continue;
+            out.add(Map.of("date", String.valueOf(d), "count", ((Number) v).intValue()));
+        }
+        return out;
+    }
+
     /** 管理后台看板：总数/团聚/成功率/分类占比/用户总数/近30天趋势。 */
     public Map<String, Object> dashboard() {
         long total = itemMapper.selectCount(new QueryWrapper<Item>().eq("audit_status", 1));

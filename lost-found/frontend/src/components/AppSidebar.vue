@@ -268,12 +268,12 @@ function pickLang(code) {
   display: flex; flex-direction: column;
   border-right: 1px solid var(--line);
   overflow-y: auto;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: var(--thumb) transparent;
+  /* v2.41：侧栏滚动条隐藏（滚轮/触摸仍可滚）。滚条不再占位，故无需 scrollbar-gutter，
+     否则会在右侧留一条看不见的空白，和 14px 内边距叠成不对称留白。 */
+  scrollbar-width: none;
+  overscroll-behavior: contain;
 }
-.side::-webkit-scrollbar { width: 6px; }
-.side::-webkit-scrollbar-thumb { background: var(--thumb); border-radius: 3px; }
+.side::-webkit-scrollbar { width: 0; height: 0; }
 
 .brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 18px; }
 .logo {

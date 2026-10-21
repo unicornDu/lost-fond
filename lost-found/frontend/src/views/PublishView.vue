@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { CATEGORIES, LOCATIONS } from '../constants/catalog'
 import { api } from '../api'
 import { catLabel, t } from '../i18n'
+import LocationPicker from '../components/LocationPicker.vue'
 
 const router = useRouter()
 
@@ -13,6 +14,7 @@ const formRef = ref()
 const form = reactive({
   title: '', category: '', location: '', time: '', desc: '',
 })
+const coords = ref(null)   // v2.41.1：地图选点（可空）
 const fileList = ref([])
 const submitting = ref(false)
 
@@ -57,6 +59,11 @@ function onSubmit() {
     fd.append('location', form.location)
     fd.append('happenTime', form.time) // value-format 已保证 'YYYY-MM-DD HH:mm:ss'
     fd.append('description', form.desc)
+    // v2.41.1：可选精确位置（GCJ-02）；不标就不传，后端存 NULL
+    if (coords.value) {
+      fd.append('latitude', Number(coords.value.lat).toFixed(6))
+      fd.append('longitude', Number(coords.value.lng).toFixed(6))
+    }
     fileList.value.forEach((f) => { if (f.raw) fd.append('files', f.raw) })
 
     submitting.value = true
@@ -116,6 +123,11 @@ function onSubmit() {
           </el-form-item>
         </div>
 
+        <el-form-item :label="$t('publish.form.map')" class="map-field">
+          <LocationPicker v-model="coords" />
+          <p class="map-tip">{{ $t('publish.form.mapTip') }}</p>
+        </el-form-item>
+
         <el-form-item :label="$t('publish.form.desc')">
           <el-input v-model="form.desc" type="textarea" :rows="4" maxlength="500" show-word-limit
             :placeholder="$t('publish.form.descPh')" />
@@ -139,6 +151,8 @@ function onSubmit() {
 </template>
 
 <style scoped>
+.map-field { display: block; }
+.map-tip { margin: 8px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--ink-faint); }
 .type-cards { display: flex; gap: 18px; margin-bottom: 24px; }
 .t-card {
   flex: 1; max-width: 300px;

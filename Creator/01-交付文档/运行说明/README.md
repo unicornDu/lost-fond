@@ -91,7 +91,9 @@ seed:
 
 ### 1) 数据库
 ```bash
-mysql -u root -p < backend/src/main/resources/db/schema.sql     # 建库建表（八表）
+mysql -u root -p < backend/src/main/resources/db/schema-init.sql  # 建库建表（十表，安全版可重复执行）
+# 已有老库升级到 v2.41.1（位置真实坐标）：跑一次
+mysql -u root -p lost_found < backend/scripts/migrate-v2.41.1-location.sql
 # 演示数据：不用手动导入。先跑 scripts/gen_seed_images.py（离线，读 uploads/_src），
 # 再启动后端由 DataInitializer 播种 60 条启事/120 条图片引用（30 个去重文件）/认领三态/消息 并重算 pHash
 ```
@@ -148,11 +150,11 @@ npm run dev        # http://localhost:5173 （/api、/uploads 已代理到 :8080
 ```bash
 cd backend
 python scripts/test_api.py     # M1-M6+E批+P批 全量接口测试（141 断言）；退出码非 0 即有失败
-"%MAVEN_HOME%\bin\mvn" test    # 单测 99 用例（HashExperimentTest 默认 skip）
+"%MAVEN_HOME%\bin\mvn" test    # 单测 112 用例（0 失败 2 跳过；HashExperimentTest 默认 skip）
 python scripts/eval_recall.py --min-recall 0.75   # 召回门禁（85.7%，误检 0）
 bash scripts/backup.sh         # 数据库 + uploads 备份（见 scripts/backup.md）
 ```
-前端：`npx vitest run`（12 用例）｜ `npm run build`（生产构建，产物进 `dist/`）。
+前端：`npx vitest run`（31 用例）｜ `npm run build`（生产构建，产物进 `dist/`）。
 - `test_api.py` 幂等：使用种子账号、唯一标题发布并在结尾由管理员删除清理，连跑多次八表行数回基线。
 - 准确率实验结果见 `scripts/exp_results.csv`、`exp_per_transform.csv`，分析结论见 `Creator/01-交付文档/11`。
 
@@ -174,7 +176,7 @@ bash scripts/backup.sh         # 数据库 + uploads 备份（见 scripts/backup
 | 响应式 | ≤1080px 收起右栏；≤860px 收起左栏，改顶部工具条 + 抽屉；≤640px 公开页页头收为全屏菜单 |
 | 动效与降级 | 卡片悬停位移/封面缩放、抽屉与弹层缓动、落地页视差；全站尊重 `prefers-reduced-motion` |
 | 主题 | 左栏底部「亮色/暗色」；`html[data-theme="dark"]` + Element Plus 暗色变量；记忆在 localStorage，无记录跟系统 |
-| 语言 | 左栏底部「简/繁/EN」；492 词条 × 3，覆盖全部用户端页面；分类与状态显示层映射，UGC 保持原文 |
+| 语言 | 左栏底部「简/繁/EN」；539 词条 × 3，覆盖全部用户端页面（含位置卡与活动总览）；分类与状态显示层映射，UGC 保持原文 |
 | 覆盖边界 | 公开首页保持中文暖色品牌页；后台保持中文（图表已适配暗色） |
 | 落地记录 | `Creator/02-过程资料/03-迭代记录/version08/09-v3落地记录-Digg信息流与北欧编辑风.md` |
 

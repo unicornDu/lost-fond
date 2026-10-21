@@ -25,6 +25,10 @@ public class ItemForm {
     @Size(max = 50, message = "地点最多 50 字")
     private String location;
 
+    /** v2.41.1：地图选点（GCJ-02）。两者都为空表示未标注精确位置；只填一个会被忽略。 */
+    private Double latitude;
+    private Double longitude;
+
     private String happenTime;  // yyyy-MM-dd HH:mm[:ss]
 
     @Size(max = 500, message = "描述最多 500 字")

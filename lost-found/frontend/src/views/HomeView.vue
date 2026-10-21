@@ -3,8 +3,10 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FeedCard from '../components/FeedCard.vue'
 import ItemCard from '../components/ItemCard.vue'
+import ActivitySkyline from '../components/ActivitySkyline.vue'
 import { api } from '../api'
 import { t } from '../i18n'
+import { useViewMode } from '../composables/useViewMode'
 
 /**
  * 首页 = 信息流（Digg 版式）：
@@ -16,12 +18,14 @@ const router = useRouter()
 
 const all = ref([])
 const stats = ref({ reunited: 0, lostCount: 0, foundCount: 0 })
+const daily = ref([])          // v2.41.1：活动总览（按发生日的启事量）
 const error = ref('')
 const loading = ref(true)
 
 const sortBy = ref('new')      // new | hot
 const typeFilter = ref('all')  // all | lost | found
-const view = ref('list')       // list | grid
+// v2.41：视图偏好落本地，从详情返回（组件重挂载）不再掉回列表
+const view = useViewMode('shiguang_home_view', 'list')
 const shown = ref(6)
 
 async function load() {
@@ -36,6 +40,8 @@ async function load() {
     stats.value = s || stats.value
     all.value = [...(lost.records || []), ...(found.records || [])]
       .sort((a, b) => String(b.time || '').localeCompare(String(a.time || '')))
+    // 活动总览单独拉：它失败不该让整个信息流进错误态
+    daily.value = await api.statsDaily(182).catch(() => [])
   } catch (e) {
     error.value = e.message || t('home.error')
   } finally {
@@ -63,6 +69,9 @@ onMounted(load)
 <template>
   <div class="feed">
     <h1 class="sr-only">{{ $t('home.sr') }}</h1>
+
+    <!-- 信息总览（v2.41.1）：活动天际线，2D 热力图 ⇄ 3D 天际线 -->
+    <ActivitySkyline :data="daily" :days="182" />
 
     <!-- 信息流抬头（不是 Hero，只做定位与统计） -->
     <header class="mast">

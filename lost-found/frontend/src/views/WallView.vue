@@ -7,6 +7,7 @@ import GradientSearchBar from '../components/GradientSearchBar.vue'
 import { CATEGORIES } from '../constants/catalog'
 import { api } from '../api'
 import { catLabel, t } from '../i18n'
+import { useViewMode } from '../composables/useViewMode'
 
 /**
  * 失物墙 / 招领墙（Digg 网格视图）：
@@ -19,9 +20,11 @@ const router = useRouter()
 const type = ref(route.query.type === 'found' ? 'found' : 'lost')
 const keyword = ref('')
 const category = ref(route.query.cat || '')
-const location = ref('')
+// ?location= 由详情页的「位置」弹层跳进来，做同地点筛选
+const location = ref(route.query.location || '')
 const sort = ref('new')
-const view = ref('grid')
+// v2.41：视图偏好落本地，从详情返回不再掉回默认网格
+const view = useViewMode('shiguang_wall_view', 'grid')
 
 // ---- E-07：搜索历史（纯前端，localStorage，上限 10 条、最近优先去重） ----
 const HIST_KEY = 'shiguang_search_history'
@@ -97,6 +100,7 @@ function onSearchNow() {
 watch(() => route.query, (q) => {
   if (q.type) type.value = q.type
   category.value = q.cat || ''
+  location.value = q.location || ''
 })
 
 onMounted(load)

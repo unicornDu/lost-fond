@@ -63,6 +63,7 @@ export const api = {
   updateProfile: (data) => http.put('/user/profile', data),
   // 启事
   stats: () => http.get('/stats'),
+  statsDaily: (days = 182) => http.get('/stats/daily', { params: { days } }),   // v2.41.1 活动总览
   listItems: (params) => http.get('/items', { params }),
   itemDetail: (id) => http.get(`/items/${id}`),
   similar: (id, n = 3) => http.get(`/items/${id}/similar`, { params: { n } }),

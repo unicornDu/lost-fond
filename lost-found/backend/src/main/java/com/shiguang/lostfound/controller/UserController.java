@@ -78,6 +78,12 @@ public class UserController {
         return Result.ok(statsService.homeStats());
     }
 
+    /** v2.41.1：首页信息总览（活动日历）。days 默认 182 天 ≈ 26 周。 */
+    @GetMapping("/stats/daily")
+    public Result<List<Map<String, Object>>> dailyStats(@RequestParam(defaultValue = "182") int days) {
+        return Result.ok(statsService.dailyActivity(days));
+    }
+
     @GetMapping("/user/messages")
     public Result<List<Message>> messages() {
         return Result.ok(messageService.list(UserContext.requireUserId()));

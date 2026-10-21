@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS `item` (
   `title`        VARCHAR(60)  NOT NULL COMMENT '物品名称/标题',
   `category`     VARCHAR(20)  NOT NULL DEFAULT '其他' COMMENT '分类：证件卡类/钥匙/电子设备/书籍资料/衣物饰品/其他',
   `location`     VARCHAR(50)  NOT NULL DEFAULT '' COMMENT '地点',
+  `latitude`     DECIMAL(10,6) DEFAULT NULL COMMENT '纬度（GCJ-02，发布页地图选点，可空）',
+  `longitude`    DECIMAL(10,6) DEFAULT NULL COMMENT '经度（GCJ-02，发布页地图选点，可空）',
   `happen_time`  DATETIME     DEFAULT NULL COMMENT '丢失/捡到时间',
   `description`  VARCHAR(500) DEFAULT '' COMMENT '详细描述',
   `status`       VARCHAR(20)  NOT NULL DEFAULT '寻找中' COMMENT '业务状态：寻找中/待认领/认领申请中/已找回/已认领/已下架/已关闭',

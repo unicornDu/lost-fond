@@ -140,12 +140,11 @@ const activeTotal = computed(() => (stats.value.lostCount || 0) + (stats.value.f
   overscroll-behavior: contain;
   padding: 26px 26px 60px 6px;
   display: flex; flex-direction: column; gap: 20px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--thumb) transparent;
+  /* v2.41：滚轮/触摸仍可滚动，只是不再画出滚动条（用户反馈右栏滚动时出现灰条打断版式）。
+     overscroll-behavior: contain 保留——到顶/到底后不要让滚轮继续带动整页。 */
+  scrollbar-width: none;
 }
-.rail::-webkit-scrollbar { width: 6px; }
-.rail::-webkit-scrollbar-thumb { background: var(--thumb); border-radius: 3px; }
-.rail::-webkit-scrollbar-track { background: transparent; }
+.rail::-webkit-scrollbar { width: 0; height: 0; }
 
 /* 推广卡：近黑底反白，右栏唯一深色块 */
 .promo {

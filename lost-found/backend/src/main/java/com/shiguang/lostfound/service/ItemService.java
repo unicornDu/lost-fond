@@ -75,6 +75,11 @@ public class ItemService {
         item.setTitle(form.getTitle().trim());
         item.setCategory(blankTo(form.getCategory(), "其他"));
         item.setLocation(blankTo(form.getLocation(), ""));
+        // v2.41.1：坐标（GCJ-02）。只填一个或超出范围一律当"未标注"，不让半截数据进库
+        if (validCoord(form.getLatitude(), form.getLongitude())) {
+            item.setLatitude(round6(form.getLatitude()));
+            item.setLongitude(round6(form.getLongitude()));
+        }
         item.setHappenTime(parseTime(form.getHappenTime()));
         item.setDescription(blankTo(form.getDescription(), ""));
         item.setStatus("found".equals(item.getType()) ? "待认领" : "寻找中");
@@ -324,6 +329,8 @@ public class ItemService {
         vo.setTitle(it.getTitle());
         vo.setCategory(it.getCategory());
         vo.setLocation(it.getLocation());
+        vo.setLatitude(it.getLatitude());
+        vo.setLongitude(it.getLongitude());
         vo.setTime(it.getHappenTime() != null ? it.getHappenTime().format(OUT)
                 : (it.getCreateTime() != null ? it.getCreateTime().format(OUT) : ""));
         vo.setStatus(it.getStatus());
@@ -370,5 +377,17 @@ public class ItemService {
 
     private String blankTo(String s, String def) {
         return (s == null || s.isBlank()) ? def : s.trim();
+    }
+
+    /** v2.41.1：经纬度必须成对出现且在合法范围内（GCJ-02）。 */
+    private boolean validCoord(Double lat, Double lng) {
+        return lat != null && lng != null
+                && !lat.isNaN() && !lng.isNaN()
+                && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+    }
+
+    /** 小数 6 位（约 0.1 m），与 DECIMAL(10,6) 对齐，避免插入时被库四舍五入产生误差。 */
+    private double round6(Double v) {
+        return Math.round(v * 1_000_000d) / 1_000_000d;
     }
 }

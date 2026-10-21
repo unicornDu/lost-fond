@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>位置显示 · 展开卡方案预览（v2.41）</title>
+<style>
+  :root{
+    --cream:#FAFAF8; --cream-deep:#F4F4F1; --paper:#FFFFFF; --ink:#141412;
+    --ink-soft:#6F6F68; --ink-faint:#A3A39B; --line:#EBEBE7; --line-2:#E2E2DD;
+    --c-cloth:#E5484D; --emerald:#34D399;
+    --font: 'Inter','Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    --mono: 'SFMono-Regular','Consolas','Menlo',monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:40px 32px 64px; background:#EDECE7; color:var(--ink);
+    font-family:var(--font); -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.2em;color:var(--ink-faint);margin:0 0 10px}
+  h1{font-size:30px;line-height:1.25;letter-spacing:-.02em;margin:0 0 10px;font-weight:800}
+  .lead{font-size:13.5px;line-height:1.8;color:var(--ink-soft);margin:0 0 6px;max-width:70ch}
+  .lead b{color:var(--ink)}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:32px}
+  @media (max-width:960px){ .grid{grid-template-columns:1fr} }
+  .panel{
+    background:var(--paper); border:1px solid var(--line); border-radius:20px;
+    padding:22px 22px 18px; display:flex; flex-direction:column; gap:16px;
+  }
+  .panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .panel-head h2{font-size:15px;font-weight:800;margin:0;letter-spacing:-.01em}
+  .tag{font-size:10.5px;font-weight:700;color:var(--ink-soft);border:1px solid var(--line-2);border-radius:999px;padding:4px 9px;white-space:nowrap}
+  .stage{
+    min-height:300px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; padding:18px 10px; border-radius:14px;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(255,255,255,.9), transparent 70%),
+      var(--cream);
+    border:1px solid var(--line);
+    perspective:1200px;
+  }
+  .note{font-size:11.5px;line-height:1.75;color:var(--ink-faint);margin:0}
+  .note b{color:var(--ink-soft);font-weight:700}
+
+  /* ---------- 卡片通用 ---------- */
+  .mapcard{
+    position:relative; overflow:hidden; cursor:pointer;
+    background:var(--paper); border:1px solid var(--line-2); border-radius:16px;
+    transform: perspective(1200px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+    transition: width .52s cubic-bezier(.34,1.56,.64,1),
+                height .52s cubic-bezier(.34,1.56,.64,1),
+                transform .2s ease-out, box-shadow .3s ease;
+    box-shadow:0 1px 2px rgba(20,20,18,.05);
+    will-change:width,height,transform;
+    user-select:none;
+  }
+  .mapcard:hover{ box-shadow:0 14px 34px rgba(20,20,18,.10) }
+  .mapcard.expanded{ cursor:default; box-shadow:0 18px 44px rgba(20,20,18,.14) }
+
+  /* 折叠时的点阵底 */
+  .grid-bg{
+    position:absolute; inset:0; opacity:.05; pointer-events:none;
+    background-image:linear-gradient(var(--ink) 1px, transparent 1px),
+                     linear-gradient(90deg, var(--ink) 1px, transparent 1px);
+    background-size:20px 20px;
+    transition:opacity .35s ease;
+  }
+  .mapcard.expanded .grid-bg{ opacity:0 }
+
+  .card-top{
+    position:relative; z-index:3; display:flex; align-items:flex-start; justify-content:space-between;
+    padding:16px 16px 0;
+    transition:opacity .3s ease;
+  }
+  .map-ico{ width:18px; height:18px; color:var(--emerald); filter:drop-shadow(0 0 4px rgba(52,211,153,.35)); transition:filter .3s ease }
+  .mapcard:hover .map-ico{ filter:drop-shadow(0 0 8px rgba(52,211,153,.65)) }
+  .live{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 9px; border-radius:999px; background:rgba(20,20,18,.05);
+    font-size:9.5px; font-weight:800; letter-spacing:.14em; color:var(--ink-soft);
+  }
+  .live i{ width:6px; height:6px; border-radius:50%; background:var(--emerald); box-shadow:0 0 0 3px rgba(52,211,153,.18) }
+
+  .card-bottom{
+    position:absolute; left:0; right:0; bottom:0; z-index:3;
+    padding:0 16px 15px;
+    transition:opacity .25s ease, transform .3s ease;
+  }
+  .card-bottom h3{ font-size:14px; font-weight:700; letter-spacing:-.01em; margin:0 0 3px; transition:transform .3s ease }
+  .mapcard:hover .card-bottom h3{ transform:translateX(3px) }
+  .coord{ font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); margin:0 0 8px; letter-spacing:.02em }
+  .rule{ height:1px; width:30%; background:linear-gradient(90deg, rgba(52,211,153,.65), rgba(52,211,153,.18), transparent); transition:width .4s ease }
+  .mapcard:hover .rule{ width:100% }
+
+  .expand-hint{
+    font-size:10px; color:var(--ink-faint); white-space:nowrap;
+    opacity:0; transition:opacity .2s ease, transform .2s ease;
+    margin-top:-2px;
+  }
+  .stage:hover .expand-hint{ opacity:1; transform:translateY(-2px) }
+  .stage.expanded .expand-hint{ opacity:0 }
+
+  /* 展开时地图层 */
+  .map-layer{
+    position:absolute; inset:0; z-index:1;
+    background:var(--cream-deep);
+    opacity:0; transition:opacity .45s ease .1s;
+  }
+  .mapcard.expanded .map-layer{ opacity:1 }
+  .map-layer img{ position:absolute; width:256px; height:256px; display:block }
+  .map-layer::after{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(20,20,18,.28) 0%, transparent 28%, transparent 62%, rgba(20,20,18,.42) 100%);
+    pointer-events:none;
+  }
+
+  .pin{
+    position:absolute; left:50%; top:50%; z-index:2;
+    transform:translate(-50%,-100%);
+    opacity:0; transition:opacity .3s ease;
+  }
+  .mapcard.expanded .pin{ opacity:1; animation:pinDrop .6s cubic-bezier(.34,1.56,.64,1) .18s both }
+  @keyframes pinDrop{ from{ transform:translate(-50%,-100%) translateY(-16px) scale(.6) } to{ transform:translate(-50%,-100%) } }
+  .pin svg{ display:block; filter:drop-shadow(0 6px 10px rgba(20,20,18,.35)) drop-shadow(0 0 12px rgba(52,211,153,.5)) }
+  .pin-glow{
+    position:absolute; left:50%; top:50%; width:12px; height:12px; border-radius:50%;
+    transform:translate(-50%,-50%);
+    background:rgba(52,211,153,.55); box-shadow:0 0 0 0 rgba(52,211,153,.45);
+    z-index:2; opacity:0;
+  }
+  .mapcard.expanded .pin-glow{ opacity:1; animation:pulse 2.6s ease-out infinite }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 0 rgba(52,211,153,.45) }
+    70%,100%{ box-shadow:0 0 0 26px rgba(52,211,153,0) }
+  }
+
+  .map-meta{
+    position:absolute; left:12px; right:12px; bottom:10px; z-index:3;
+    display:flex; justify-content:flex-end; align-items:flex-end; gap:10px;
+    font-size:9.5px; color:rgba(255,255,255,.85); letter-spacing:.02em;
+    opacity:0; transition:opacity .3s ease .25s; pointer-events:none;
+  }
+  .mapcard.expanded .map-meta{ opacity:1 }
+  .map-meta .chip{
+    background:rgba(16,16,14,.55); backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:4px 9px;
+    font-family:var(--mono); font-size:9.5px; color:#fff;
+  }
+  .map-meta .chip.plain{ background:none; border:0; padding:0; font-family:var(--font); color:rgba(255,255,255,.9); text-shadow:0 1px 3px rgba(0,0,0,.55) }
+
+  /* 展开后文字压在地图上 → 统一转白 */
+  .a.expanded .card-bottom h3{ color:#fff; text-shadow:0 1px 4px rgba(0,0,0,.4) }
+  .a.expanded .card-bottom .coord{ color:rgba(255,255,255,.82); text-shadow:0 1px 3px rgba(0,0,0,.45) }
+  .a.expanded .card-bottom .rule{ background:linear-gradient(90deg, rgba(52,211,153,.95), rgba(52,211,153,.3), transparent) }
+  .a.expanded .card-top .live{ background:rgba(16,16,14,.42); color:#fff; backdrop-filter:blur(6px) }
+  .a.expanded .card-top .live i{ box-shadow:0 0 0 3px rgba(52,211,153,.28) }
+  .a.expanded .map-ico{ filter:drop-shadow(0 1px 4px rgba(0,0,0,.55)) }
+
+  /* 无坐标兜底 */
+  .fallback .map-layer{ background:transparent; opacity:1 }
+  .fallback .fallback-inner{
+    position:absolute; inset:0; z-index:1; opacity:0; transition:opacity .4s ease;
+    display:grid; place-items:center;
+  }
+  .fallback.expanded .fallback-inner{ opacity:1 }
+  .fallback .pin, .fallback .pin-glow{ display:none }
+  .fb-box{ width:132px; height:132px; border-radius:50%; border:1px dashed var(--line-2); position:relative; display:grid; place-items:center }
+  .fb-box::before{ content:''; position:absolute; inset:22px; border-radius:50%; border:1px dashed var(--line) }
+  .fb-box svg{ width:26px; height:26px; color:var(--ink-faint) }
+  .fb-badge{
+    position:absolute; left:12px; bottom:12px; z-index:4;
+    display:none; align-items:center; gap:5px;
+    background:rgba(16,16,14,.55); backdrop-filter:blur(6px); color:#fff;
+    border-radius:999px; padding:5px 10px; font-size:10px; font-weight:600;
+  }
+  .fallback.expanded .fb-badge{ display:inline-flex }
+
+  /* ---------- 方案 A ---------- */
+  .a{ width:240px; height:140px }
+  .a.expanded{ width:360px; height:280px }
+  .a .card-bottom h3{ font-size:14px }
+
+  /* ---------- 方案 B ---------- */
+  .b{ width:100%; height:172px }
+  .b.expanded{ height:420px }
+  .b .card-top{ padding:16px 214px 0 18px }
+  .b .headline{ position:absolute; left:18px; top:46px; right:214px; z-index:3 }
+  .b .headline h3{ font-size:17px; margin:0 0 5px; font-weight:800; letter-spacing:-.01em }
+  .b .headline p{ margin:0; font-size:11px; color:var(--ink-faint) }
+  .b .thumb{
+    position:absolute; right:14px; top:14px; width:190px; height:118px; z-index:2;
+    border-radius:11px; overflow:hidden; border:1px solid var(--line);
+    transition:opacity .3s ease;
+  }
+  .b .thumb img{ position:absolute; width:256px; height:256px }
+  .b .thumb-tag{
+    position:absolute; left:8px; bottom:8px; z-index:2;
+    background:rgba(16,16,14,.55); color:#fff; border-radius:999px; padding:3px 8px;
+    font-size:9px; font-weight:600; backdrop-filter:blur(4px);
+  }
+  .b .row{ position:absolute; left:18px; bottom:16px; z-index:3; display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+  .b .stat{
+    display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-soft);
+    border:1px solid var(--line); background:var(--paper); border-radius:999px; padding:5px 10px;
+  }
+  .b .stat i{ width:7px; height:7px; border-radius:50%; background:var(--c-cloth) }
+  .b .info-bar{
+    position:absolute; left:0; right:0; bottom:0; z-index:5;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:14px 18px;
+    background:linear-gradient(0deg, rgba(12,12,11,.72), rgba(12,12,11,.42) 70%, transparent);
+    color:#fff;
+    opacity:0; transform:translateY(12px); transition:opacity .3s ease .2s, transform .3s ease .2s;
+    pointer-events:none;
+  }
+  .b.expanded .info-bar{ opacity:1; transform:none; pointer-events:auto }
+  .b.expanded .headline, .b.expanded .row, .b.expanded .thumb{ opacity:0; pointer-events:none }
+  .b .info-bar b{ font-size:14px; font-weight:700 }
+  .b .info-bar .c{ font-family:var(--mono); font-size:10.5px; color:rgba(255,255,255,.75) }
+  .b .info-bar .sp{ flex:1 }
+  .b .info-bar{ display:flex; align-items:center; gap:10px; flex-wrap:nowrap; }
+  .b .info-bar .who{ display:flex; flex-direction:column; gap:3px; min-width:0 }
+  .b .info-bar .who b{ font-size:14px; font-weight:700 }
+  .b .info-bar .who .c{ font-family:var(--mono); font-size:10px; color:rgba(255,255,255,.72); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .b .info-bar .sp{ flex:1 }
+  .b .info-bar .btn{ flex:none }
+  .b .btn{
+    border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.12); color:#fff;
+    border-radius:999px; padding:7px 12px; font-size:11.5px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .b .btn.solid{ background:#fff; color:#141412; border-color:#fff }
+  .b .map-meta{ display:none }
+
+  /* 对照表 */
+  .compare{
+    margin-top:30px; width:100%; border-collapse:collapse; background:var(--paper);
+    border:1px solid var(--line); border-radius:16px; overflow:hidden; font-size:12.5px;
+  }
+  .compare th,.compare td{ text-align:left; padding:12px 16px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.65 }
+  .compare thead th{ background:var(--cream); font-size:11px; letter-spacing:.06em; color:var(--ink-soft); font-weight:700 }
+  .compare tbody tr:last-child td{ border-bottom:0 }
+  .compare td:first-child{ font-weight:700; width:150px; white-space:nowrap }
+  .ok{ color:#1E7A4C; font-weight:700 }
+  .warn{ color:#8A6A1F; font-weight:700 }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">V2.41 · 位置显示方案预览</p>
+  <h1>prompt 同款展开卡 + 真实地图</h1>
+  <p class="lead">
+    卡片默认是折叠的「小地图卡」（点阵底 + LIVE + 坐标行），点一下原地展开成真实底图并落钉；
+    鼠标移动带 3D 倾斜。下面两张卡用的是<b>同一份数据</b>（地点 = 图书馆，坐标 = 30.5359°N 114.3610°E 示例），
+    只是信息密度与展开尺寸不同。
+  </p>
+  <p class="lead" style="color:var(--ink-faint);font-size:12.5px">
+    ※ 底图来自高德栅格瓦片（免 key，实测可加载）；示例坐标取武汉大学，实际以你们校区为准。
+  </p>
+
+  <section class="grid">
+    <!-- 方案 A -->
+    <article class="panel">
+      <div class="panel-head">
+        <h2>方案 A · 严格还原 prompt</h2>
+        <span class="tag">240×140 → 360×280</span>
+      </div>
+      <div class="stage">
+        <div class="mapcard a" data-key="a">
+          <div class="grid-bg"></div>
+          <div class="card-top">
+            <svg class="map-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" /><line x1="9" x2="9" y1="3" y2="18" /><line x1="15" x2="15" y1="6" y2="21" />
+            </svg>
+            <span class="live"><i></i>LIVE</span>
+          </div>
+          <div class="map-layer" data-map="a"></div>
+          <span class="pin-glow"></span>
+          <div class="pin">
+            <svg width="34" height="44" viewBox="0 0 34 44">
+              <path d="M17 43C17 43 32 26.5 32 16.5A15 15 0 1 0 2 16.5C2 26.5 17 43 17 43Z" fill="#34D399"/>
+              <circle cx="17" cy="16" r="5.2" fill="#fff"/>
+            </svg>
+          </div>
+          <div class="card-bottom">
+            <h3>图书馆</h3>
+            <p class="coord">30.5359° N, 114.3610° E</p>
+            <div class="rule"></div>
+          </div>
+          <div class="map-meta">
+            <span class="chip plain">© 高德地图</span>
+          </div>
+        </div>
+        <p class="expand-hint">点击展开</p>
+      </div>
+      <p class="note"><b>最接近你给的 prompt：</b>浮卡尺寸、点阵格、LIVE 徽标、坐标行、发光绿钉都在。缺点是 360 宽放不下启事数/复制/去失物墙这些动作，只能塞进弹层里。</p>
+    </article>
+
+    <!-- 方案 B -->
+    <article class="panel">
+      <div class="panel-head">
+        <h2>方案 B · 适配详情页（推荐）</h2>
+        <span class="tag">整列宽 · 172 → 420</span>
+      </div>
+      <div class="stage">
+        <div class="mapcard b" data-key="b">
+          <div class="grid-bg"></div>
+          <div class="card-top">
+            <svg class="map-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" /><line x1="9" x2="9" y1="3" y2="18" /><line x1="15" x2="15" y1="6" y2="21" />
+            </svg>
+            <span class="live"><i></i>LIVE</span>
+          </div>
+          <div class="headline">
+            <h3>图书馆</h3>
+            <p>30.5359° N, 114.3610° E · 教学区</p>
+          </div>
+          <div class="thumb" data-thumb="b"><span class="thumb-tag">真实底图</span></div>
+          <div class="row">
+            <span class="stat"><i></i>衣物饰品</span>
+            <span class="stat">该地点 3 条启事</span>
+          </div>
+          <div class="map-layer" data-map="b"></div>
+          <span class="pin-glow" style="background:rgba(229,72,77,.55);box-shadow:0 0 0 0 rgba(229,72,77,.4)"></span>
+          <div class="pin">
+            <svg width="38" height="48" viewBox="0 0 34 44">
+              <path d="M17 43C17 43 32 26.5 32 16.5A15 15 0 1 0 2 16.5C2 26.5 17 43 17 43Z" fill="#E5484D"/>
+              <circle cx="17" cy="16" r="5.2" fill="#fff"/>
+            </svg>
+          </div>
+          <div class="map-meta"><span class="chip">图书馆 · 30.5359° N, 114.3610° E</span><span class="chip plain">© 高德地图</span></div>
+          <div class="info-bar">
+            <div class="who">
+              <b>图书馆</b>
+              <span class="c">30.5359° N, 114.3610° E · © 高德地图</span>
+            </div>
+            <span class="sp"></span>
+            <button class="btn">复制地点</button>
+            <button class="btn solid">在失物墙看 3 条 →</button>
+          </div>
+        </div>
+        <p class="expand-hint">点击展开真实底图</p>
+      </div>
+      <p class="note"><b>同一套交互，密度更高：</b>折叠态就能看到缩略底图与"3 条启事"，展开后信息条压在图上（复制 / 去失物墙）。图钉取分类色而不是绿色——与全站"分类点是唯一彩色"一致。</p>
+    </article>
+  </section>
+
+  <!-- 兜底状态 -->
+  <section class="panel" style="margin-top:22px">
+    <div class="panel-head">
+      <h2>没有坐标的旧启事（44 条演示数据都是这种）</h2>
+      <span class="tag">fallback</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
+      <div class="stage" style="min-height:220px;flex:1;min-width:320px">
+        <div class="mapcard fallback" data-key="c" style="width:300px;height:170px">
+          <div class="grid-bg"></div>
+          <div class="card-top">
+            <svg class="map-ico" style="color:var(--ink-faint)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>
+            <span class="live"><i></i>估算</span>
+          </div>
+          <div class="fallback-inner">
+            <div class="fb-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+            </div>
+          </div>
+          <span class="fb-badge">未标注精确位置 · 校园示意图</span>
+          <div class="card-bottom" style="position:absolute;z-index:4">
+            <h3>宿舍楼</h3>
+            <p class="coord">没有经纬度 · 仅地点文本</p>
+            <div class="rule" style="width:30%"></div>
+          </div>
+        </div>
+        <p class="expand-hint">点击展开</p>
+      </div>
+      <p class="note" style="flex:1;min-width:280px">
+        数据库里 <b>没有 lat/lng 字段</b>，地点是发布者手填的文本。所以要做到"显示真实位置"，必须新增坐标来源：
+        发布时在地图上选点，或读取浏览器定位。没有坐标的老启事就走这个兜底：<b>不假装精确</b>，标"未标注精确位置"并回到校园示意图。
+      </p>
+    </div>
+  </section>
+
+  <table class="compare">
+    <thead><tr><th>对比</th><th>方案 A（还原 prompt）</th><th>方案 B（适配详情页）</th></tr></thead>
+    <tbody>
+      <tr><td>与 prompt 的接近度</td><td class="ok">高（尺寸、点阵、LIVE、坐标行一致）</td><td>中（保留全部元素，尺寸与信息密度按详情列宽改）</td></tr>
+      <tr><td>展开尺寸</td><td>240×140 → 360×280</td><td>整列宽 → 420 高</td></tr>
+      <tr><td>真实底图可读性</td><td class="warn">360 宽只能看清 2~3 个街区</td><td class="ok">整列宽，能看清楼栋与道路</td></tr>
+      <tr><td>能否放下操作</td><td class="warn">放不下，需要再套一层弹层</td><td class="ok">信息条直接压在图上</td></tr>
+      <tr><td>页内占位</td><td class="ok">小（浮在详情卡内）</td><td>折叠 172 高，展开把下方内容推开</td></tr>
+      <tr><td>实现成本</td><td>低</td><td>中（缩略图 + 展开态切换）</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+/* ---------- 高德栅格瓦片（GCJ-02），免 key ---------- */
+const ZOOM = 16
+const POINT = { lat: 30.5359, lng: 114.3610 }
+
+function project(lng, lat, z) {
+  const n = Math.pow(2, z) * 256
+  const x = (lng + 180) / 360 * n
+  const s = Math.sin(lat * Math.PI / 180)
+  const y = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n
+  return { x, y }
+}
+
+function paint(el, lat, lng, z, sub) {
+  if (!el || !el.clientWidth) return
+  const W = el.clientWidth, H = el.clientHeight
+  const p = project(lng, lat, z)
+  const left = p.x - W / 2, top = p.y - H / 2
+  const x0 = Math.floor(left / 256), x1 = Math.floor((left + W) / 256)
+  const y0 = Math.floor(top / 256), y1 = Math.floor((top + H) / 256)
+  const max = Math.pow(2, z) - 1
+  let html = ''
+  for (let ty = y0; ty <= y1; ty++) {
+    for (let tx = x0; tx <= x1; tx++) {
+      if (ty < 0 || ty > max) continue
+      const X = ((tx % (max + 1)) + max + 1) % (max + 1)
+      const host = 'webrd0' + (1 + Math.abs(tx + ty) % 4) + '.is.autonavi.com'
+      html += `<img src="https://${host}/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x=${X}&y=${ty}&z=${z}"
+        style="left:${tx * 256 - left}px;top:${ty * 256 - top}px" alt="" loading="lazy" />`
+    }
+  }
+  el.innerHTML = html
+}
+
+/* 缩略图：按容器大小单独出图 */
+function paintThumb(el, lat, lng, z) {
+  const box = el.querySelector('img') ? el : el
+  paint(box, lat, lng, z)
+}
+
+/* ---------- 展开 / 倾斜 ---------- */
+document.querySelectorAll('.mapcard').forEach((card) => {
+  const key = card.dataset.key
+  card.addEventListener('pointermove', (e) => {
+    const r = card.getBoundingClientRect()
+    const dx = (e.clientX - r.left - r.width / 2) / (r.width / 2)
+    const dy = (e.clientY - r.top - r.height / 2) / (r.height / 2)
+    card.style.setProperty('--ry', (dx * 4.5).toFixed(2) + 'deg')
+    card.style.setProperty('--rx', (-dy * 3.6).toFixed(2) + 'deg')
+  })
+  card.addEventListener('pointerleave', () => {
+    card.style.setProperty('--ry', '0deg')
+    card.style.setProperty('--rx', '0deg')
+  })
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('.btn')) return
+    card.classList.toggle('expanded')
+    const stage = card.closest('.stage')
+    if (stage) stage.classList.toggle('expanded', card.classList.contains('expanded'))
+    if (card.classList.contains('expanded')) {
+      // 等尺寸动画结束再按最终尺寸铺瓦片
+      setTimeout(() => {
+        if (key === 'a') paint(document.querySelector('[data-map="a"]'), POINT.lat, POINT.lng, ZOOM)
+        if (key === 'b') paint(document.querySelector('[data-map="b"]'), POINT.lat, POINT.lng, ZOOM)
+        if (key === 'c') return
+      }, 460)
+    }
+  })
+})
+
+/* 初始：B 的缩略图直接出图 */
+window.addEventListener('load', () => {
+  paintThumb(document.querySelector('[data-thumb="b"]'), POINT.lat, POINT.lng, 15)
+})
+</script>
+</body>
+</html>

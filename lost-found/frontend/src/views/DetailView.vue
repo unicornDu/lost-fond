@@ -7,6 +7,7 @@ import { api } from '../api'
 import { useUserStore } from '../stores/user'
 import ItemCard from '../components/ItemCard.vue'
 import PosterDialog from '../components/PosterDialog.vue'
+import LocationBlock from '../components/LocationBlock.vue'
 import { assetUrl } from '../utils/asset'
 import { t, catLabel } from '../i18n'
 import { avatarColor, initialOf, statusOf } from '../utils/display'
@@ -33,6 +34,7 @@ const claimForm = ref({ proof: '', contact: '' })
 const claimStep = ref(0)   // 0 核验凭证 → 1 联系方式（对齐整合版 v1 的分步认领）
 const submitting = ref(false)
 const posterVisible = ref(false)
+const locRef = ref(null)   // v2.41.1：位置区块（方案 A 展开卡）
 
 const dmVisible = ref(false)
 const dmText = ref('')
@@ -166,10 +168,11 @@ onMounted(load)
           <div class="ph-fallback">{{ catEmoji(item.category) }}</div>
           <el-image v-if="previewList.length" :src="previewList[mainImg]" :preview-src-list="previewList"
             :initial-index="mainImg" fit="cover" class="ph-img" preview-teleported />
-          <span class="ph-loc">
+          <button v-if="item.location" class="ph-loc" type="button"
+            :title="$t('detail.locLink')" @click="locRef?.open()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
             {{ item.location }}
-          </span>
+          </button>
         </div>
         <div v-if="previewList.length > 1" class="thumbs">
           <img v-for="(u, i) in previewList" :key="i" :src="u" :class="{ on: i === mainImg }" alt="" @click="mainImg = i" />
@@ -181,6 +184,9 @@ onMounted(load)
           <div class="fact"><span>{{ $t('detail.fact.time') }}</span><b>{{ item.time }}</b></div>
           <div class="fact"><span>{{ $t('detail.fact.views') }}</span><b>{{ $t('detail.fact.times', { n: item.views ?? 0 }) }}</b></div>
         </div>
+
+        <!-- 位置（v2.41.1）：prompt 同款展开卡 + 真实坐标 -->
+        <LocationBlock ref="locRef" :item="item" />
 
         <!-- 发布者行 -->
         <div class="d-meta">
@@ -197,6 +203,12 @@ onMounted(load)
           </button>
           <button class="btn-ghost" type="button" @click="dmVisible = true">{{ $t('detail.dm') }}</button>
           <button class="btn-ghost" type="button" @click="posterVisible = true">{{ $t('detail.poster') }}</button>
+          <!-- v2.41：位置入口（文字链，不与三个主操作抢视觉重量） -->
+          <button v-if="item.location" class="loc-link" type="button" @click="locRef?.open()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+            {{ $t('detail.locLink') }}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14m-6-7 7 7-7 7" /></svg>
+          </button>
         </div>
 
         <p class="safe-tip">{{ $t('detail.safe') }}</p>
@@ -341,9 +353,13 @@ onMounted(load)
   display: inline-flex; align-items: center; gap: 5px;
   padding: 7px 11px; border-radius: 999px;
   background: rgba(16, 16, 14, .55); backdrop-filter: blur(6px);
-  color: #fff; font-size: 11.5px; font-weight: 600;
-  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: #fff; font-family: inherit; font-size: 11.5px; font-weight: 600;
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
 }
+.ph-loc:hover { background: rgba(16, 16, 14, .74); border-color: rgba(255, 255, 255, .3); transform: translateY(-1px); }
+.ph-loc:focus-visible { outline: 2px solid rgba(255, 255, 255, .8); outline-offset: 2px; }
 .ph-loc svg { width: 11px; height: 11px; }
 .thumbs { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .thumbs img {
@@ -384,6 +400,21 @@ onMounted(load)
   transition: border-color .18s, background .18s;
 }
 .btn-ghost:hover { border-color: var(--ink-faint); background: var(--cream); }
+
+/* 位置文字链：排在三个按钮之后，靠右收尾 */
+.loc-link {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 10px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--ink-soft);
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  transition: color .16s ease, background-color .16s ease;
+}
+.loc-link svg { width: 14px; height: 14px; flex: none; }
+.loc-link svg:last-child { width: 12px; height: 12px; transition: transform .2s ease; }
+.loc-link:hover { color: var(--ink); background: var(--cream-deep); }
+.loc-link:hover svg:last-child { transform: translateX(2px); }
 
 .safe-tip { margin-top: 14px; font-size: 11.5px; line-height: 1.7; color: var(--ink-faint); }
 
@@ -434,5 +465,7 @@ onMounted(load)
   .d-title { font-size: 21px; }
   .facts { grid-template-columns: 1fr; }
   .d-photo { aspect-ratio: 1.6 / 1; }
+  /* 窄屏三个按钮占满一行，位置链落到第二行时靠左，别孤零零飘在右边 */
+  .loc-link { margin-left: 0; padding-left: 0; }
 }
 </style>
