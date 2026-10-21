@@ -76,7 +76,7 @@ export function offsetToLngLat(px, py, el, lat, lng, zoom) {
   return worldToLngLat(p.x + (px - W / 2), p.y + (py - H / 2), zoom)
 }
 
-/** 格式化：30.5359° N, 114.3610° E（南纬/西经自动换成 S/W）。 */
+/** 格式化：34.86349° N, 113.64764° E（南纬/西经自动换成 S/W）。 */
 export function formatLatLng(lat, lng, digits = 5) {
   if (lat == null || lng == null) return ''
   const la = Math.abs(Number(lat)).toFixed(digits)
@@ -124,5 +124,11 @@ export function wgs84ToGcj02(lat, lng) {
   return { lat: la + dLat, lng: ln + dLng }
 }
 
-/** 默认视野：改成你们校区的真实中心点即可（发布页未定位时用它开场）。 */
-export const CAMPUS_VIEW = { lat: 30.5359, lng: 114.361, zoom: 16 }
+/**
+ * 默认视野：**郑州师范学院 东校区（主校区，惠济区英才街 16 号）**，GCJ-02。
+ * 取点：OSM relation 10414002（郑州师范学院(东区)）中心 34.8643146, 113.6508687（WGS-84），
+ * 再用本文件的 wgs84ToGcj02() 转到 GCJ-02，与高德瓦片同基准。
+ * 西校区（同在北大学城，图书馆/特教楼/怡馨公寓一带）中心约 34.863491, 113.647637；
+ * 要默认看西区就把下面两行换成它。
+ */
+export const CAMPUS_VIEW = { lat: 34.863292, lng: 113.65696, zoom: 17 }
