@@ -7,7 +7,7 @@ import { t } from '../i18n'
 import { assetUrl } from '../utils/asset'
 
 /**
- * v2.20 守望订阅（对齐 Creator/02-过程资料/02-设计prompt/前端/守望订阅.md）。
+ * v2.20 守望订阅（对齐 Creator/过程资料/设计prompt/前端/守望订阅.md）。
  *
  * 设计取用：三档方案卡 + 月付/学期付切换（切换时撒花）+ 热门档抬升并加粗描边 +
  * 侧卡轻微透视收缩；数值权益全部来自 GET /api/watch/plans，文案按 code 走 i18n。

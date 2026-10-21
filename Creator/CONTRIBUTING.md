@@ -22,7 +22,7 @@ git diff --stat               # ② 看规模：多少文件、多少行
 - [ ] 提交信息说清了"改了什么、为什么"
 
 > **禁止裸用 `git add .` 或 `git add -A`。** 请明确到目录：
-> `git add lost-found/backend/src` / `git add "Creator/01-交付文档"`
+> `git add lost-found/backend/src` / `git add "Creator/交付文档"`
 > 确实需要全量时，先 `git status` 审一遍再执行。
 
 ---
@@ -72,9 +72,9 @@ git diff --stat               # ② 看规模：多少文件、多少行
 ```
 version07_文档整理
 
-- 过程资料按用途重组：Prompt/ → Creator/02-过程资料/{01-选题,02-设计prompt,03-迭代记录,04-参考项目}
+- 过程资料按用途重组：Prompt/ → Creator/过程资料/{选题,设计prompt,迭代记录,参考项目}
 - version_01~06 改为语义目录名，6 份废弃版移入 archive/
-- 交付文档提层至 Creator/01-交付文档/（12 篇 + 运行说明 6 篇），同步修正 55 个文件路径引用
+- 交付文档提层至 Creator/交付文档/（12 篇 + 运行说明 6 篇），同步修正 55 个文件路径引用
 - 新增 README.md、CONTRIBUTING.md 与两级索引
 - 删除 65 个 .class、13 个 .DS_Store 与 target/ 构建目录
 ```
