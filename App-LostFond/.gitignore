@@ -1,0 +1,22 @@
+# 依赖与构建产物
+node_modules/
+frontend/dist/
+backend/target/
+
+# Electron 打包中间产物与安装包（安装包走 GitHub Releases）
+build/out/
+build/release/
+build/.icon-ico/
+Softeare/win-unpacked/
+Softeare/*.exe
+Softeare/*.exe.blockmap
+
+# jlink 生成的内置 JRE，按 README 重建
+desktop/runtime/
+
+# 本地运行数据与密钥
+*.log
+jwt.key
+application-local.yml
+*.keystore
+*.jks

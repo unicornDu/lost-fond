@@ -1,65 +1,66 @@
 @echo off
-chcp 65001 >nul
-setlocal enabledelayedexpansion
+setlocal
+title Ê°¹â - ¹«ÍøÁÙÊ±ËíµÀ
+
 rem ============================================================
-rem  æ‹¾å…‰ Â· å…¬ç½‘ä¸´æ—¶éš§é“ï¼ˆCloudflare Tunnelï¼Œå…è´¦å· / å…æµé‡è´¹ï¼‰
-rem  ç”¨æ³•ï¼šå…ˆå¯åŠ¨åç«¯ï¼ˆ:8080ï¼‰ï¼Œå†åŒå‡»æœ¬æ–‡ä»¶ã€‚
-rem  å¯åŠ¨åçª—å£é‡Œä¼šæ‰“å° https://xxxx.trycloudflare.comï¼Œè¿™å°±æ˜¯å…¬ç½‘åœ°å€ã€‚
-rem  å…³æ‰çª—å£ / ç”µè„‘ä¼‘çœ  â†’ åœ°å€å¤±æ•ˆï¼›é‡æ–°è¿è¡Œ â†’ æ¢ä¸€ä¸ªæ–°åœ°å€ã€‚
+rem  Ê°¹â - ¹«ÍøÁÙÊ±ËíµÀ£¨Cloudflare Tunnel£¬ÃâÕËºÅ / ÃâÁ÷Á¿·Ñ£©
+rem  ÓÃ·¨£ºÏÈÆô¶¯ºó¶Ë£¨8080 ¶Ë¿Ú£©£¬ÔÙË«»÷±¾ÎÄ¼ş¡£
+rem  Æô¶¯ºó´°¿ÚÀï»á´òÓ¡ https://xxxx.trycloudflare.com£¬Õâ¾ÍÊÇ¹«ÍøµØÖ·¡£
+rem  ¹Øµô´°¿Ú»òµçÄÔĞİÃßºóµØÖ·Ê§Ğ§£»ÖØĞÂÔËĞĞ»á»»Ò»¸öĞÂµØÖ·¡£
 rem ============================================================
 
 set "PORT=8080"
 set "CF="
-rem ä»“åº“æ ¹ç›®å½•ï¼ˆæœ¬æ–‡ä»¶åœ¨ <ä»“åº“>/web-lostfond/scripts/ ä¸‹ï¼‰
+rem ²Ö¿â¸ùÄ¿Â¼£¨±¾ÎÄ¼şÔÚ <²Ö¿â>/web-lostfond/scripts/ ÏÂ£©
 set "ROOT=%~dp0..\.."
 
-rem â‘  é¡¹ç›®ç»Ÿä¸€è½¯ä»¶ç›®å½•ï¼ˆé¦–é€‰ï¼‰
+rem 1) ÏîÄ¿Í³Ò»Èí¼şÄ¿Â¼£¨Ê×Ñ¡£©
 if exist "%ROOT%\Project_operation_software\cloudflared\cloudflared.exe" set "CF=%ROOT%\Project_operation_software\cloudflared\cloudflared.exe"
 
-rem â‘¡ ç”¨æˆ·ç›®å½•ä¸‹çš„ bin
+rem 2) ÓÃ»§Ä¿Â¼ÏÂµÄ bin
 if not defined CF if exist "%USERPROFILE%\bin\cloudflared.exe" set "CF=%USERPROFILE%\bin\cloudflared.exe"
 
-rem â‘¢ å¸¸è§å®‰è£…ä½ç½®
+rem 3) ³£¼û°²×°Î»ÖÃ
 if not defined CF if exist "%ProgramFiles(x86)%\cloudflared\cloudflared.exe" set "CF=%ProgramFiles(x86)%\cloudflared\cloudflared.exe"
 if not defined CF if exist "%ProgramFiles%\cloudflared\cloudflared.exe" set "CF=%ProgramFiles%\cloudflared\cloudflared.exe"
 
-rem â‘£ æœ€ååœ¨ PATH é‡Œæœ
-if not defined CF set "CF=%~$PATH:cloudflared.exe"
+rem 4) ×îºóÔÚ PATH ÀïÕÒ
+if not defined CF for %%I in (cloudflared.exe) do set "CF=%%~$PATH:I"
 
 if not defined CF (
-  echo [é”™è¯¯] æ²¡æ‰¾åˆ° cloudflared.exeã€‚
-  echo        è¯·å…ˆæŠŠ cloudflared.exe æ”¾åˆ°é¡¹ç›®ç»Ÿä¸€è½¯ä»¶ç›®å½•ï¼š
+  echo [´íÎó] Ã»ÕÒµ½ cloudflared.exe¡£
+  echo        Çë°Ñ cloudflared.exe ·Åµ½ÏîÄ¿Í³Ò»Èí¼şÄ¿Â¼£º
   echo          %ROOT%\Project_operation_software\cloudflared\cloudflared.exe
-  echo        ä¸‹è½½åœ°å€ï¼ˆCloudflare å®˜æ–¹ Releasesï¼‰ï¼š
+  echo        ÏÂÔØµØÖ·£¨Cloudflare ¹Ù·½ Releases£©£º
   echo          https://github.com/cloudflare/cloudflared/releases/latest
-  echo        ï¼ˆä¸‹è½½ cloudflared-windows-amd64.exeï¼Œæ”¹åä¸º cloudflared.exe æ”¾è¿›å»ï¼‰
   echo.
   pause
   exit /b 1
 )
 
-echo ä½¿ç”¨ cloudflared: %CF%
+echo Ê¹ÓÃ cloudflared: %CF%
+echo.
 
-echo [1/2] æ£€æŸ¥æœ¬æœºåç«¯ http://127.0.0.1:%PORT% ...
+echo [1/2] ¼ì²é±¾»úºó¶Ë http://127.0.0.1:%PORT% ...
 curl -s -o nul --max-time 3 "http://127.0.0.1:%PORT%/"
 if errorlevel 1 (
-  echo       [!] è¿ä¸ä¸Šã€‚è¯·å…ˆåœ¨ backend ç›®å½•æ‰§è¡Œ:
+  echo       [!] Á¬²»ÉÏ¡£ÇëÏÈÔÚ backend Ä¿Â¼Ö´ĞĞ:
   echo           java -jar target/lost-found-backend.jar --server.port=%PORT%
-  echo       ç»§ç»­å¯åŠ¨éš§é“ä¹Ÿå¯ä»¥ï¼Œä½†æ‰“å¼€é¡µé¢ä¼š 502ã€‚
+  echo       ¼ÌĞøÆô¶¯ËíµÀÒ²¿ÉÒÔ£¬µ«´ò¿ªÒ³Ãæ»á 502¡£
   echo.
 ) else (
-  echo       åç«¯æ­£å¸¸ã€‚
+  echo       ºó¶ËÕı³£¡£
 )
 
-echo [2/2] æ­£åœ¨ç”³è¯·å…¬ç½‘åœ°å€ï¼ˆé¦–æ¬¡çº¦ 5-10 ç§’ï¼‰...
+echo [2/2] ÕıÔÚÉêÇë¹«ÍøµØÖ·£¨Ê×´ÎÔ¼ 5-10 Ãë£©...
 echo ------------------------------------------------------------
-echo   åœ°å€ä¼šæ‰“å°åœ¨ä¸‹é¢ï¼Œå½¢å¦‚ https://xxx-yyy-zzz.trycloudflare.com
-echo   æŒ‰ Ctrl+C åœæ­¢éš§é“ã€‚
+echo   µØÖ·»á´òÓ¡ÔÚÏÂÃæ£¬ĞÎÈç https://xxx-yyy-zzz.trycloudflare.com
+echo   °´ Ctrl+C Í£Ö¹ËíµÀ¡£
 echo ------------------------------------------------------------
 echo.
 
 "%CF%" tunnel --url "http://127.0.0.1:%PORT%" --no-autoupdate
 
 echo.
-echo éš§é“å·²é€€å‡ºã€‚
+echo ËíµÀÒÑÍË³ö¡£
 pause

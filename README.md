@@ -1,8 +1,12 @@
 # 拾光 · 校园失物招领平台（以图搜图）
 
-> 软件工程课程设计 · **单 Web**：浏览器直接访问（后端同源托管前端），无需安装任何客户端
+> 软件工程课程设计 · **Web 为主**：浏览器直接访问（后端同源托管前端），答辩与部署均以 Web 版为准；另提供 Windows 独立安装包（`App-LostFond`，可选）。
 
 上传一张物品照片，系统在全部已审核启事里找出"同一件东西"的其它照片，不依赖文字描述，也不要求用户手写标签。
+
+> **Windows 安装包**：发布在 [GitHub Releases](https://github.com/unicornDu/lost-fond/releases)。本地构建产物在 `App-LostFond/Softeare/`（安装程序 + 使用说明），因体积大不提交仓库；构建方式见 `App-LostFond/README.md`。该目录独立于 Web 版构建，不影响 Web 版代码与部署。
+
+> 当前迭代：**v2.51**（2026-10-21）——公开首页 02–04 屏标题垂直居中、首页活动天际线月份标签不再被裁切且颜色加深。记录见 `Creator/过程资料/迭代记录/version-2.50/v2.51-MarkDone-首页入口屏标题垂直居中.md`。
 
 ```
 查询图 → pHash（JImageHash）→ 64 位指纹 → MySQL BIT_COUNT(phash ^ q) 汉明距离
@@ -25,7 +29,7 @@
 | 部署 | 单 Web：后端托管 `frontend/dist`，浏览器访问 :8080；可选 cloudflared 临时公网演示 | — |
 | 构建 | JDK 21 · Maven 3.9+ · Node 20+ | — |
 
-规模：45 个 REST 端点 · 141 条接口断言 · 99 个后端单测 · 12 个前端单测 · 32 条缺陷全闭环。
+规模：51 个 REST 端点（另有 2 条 SPA 回退路由）· 141 条接口断言 · 112 个后端单测 · 31 个前端单测（7 个文件）· 32 条缺陷全闭环。
 
 ---
 
@@ -139,11 +143,12 @@ curl "http://localhost:8080/api/items?page=1&size=1"    # 返回 {"code":200,...
 浏览器逐项点一遍：
 
 - [ ] `http://localhost:5173` 落地页有内容、有图（图来自 `web-lostfond/backend/uploads/`）
-- [ ] 登录 管理员 `10000001`（口令 = `application-local.yml` 的 `seed.admin-password`，模板默认 `admin123`），普通用户 `20240001`（`seed.user-password`，模板默认 `user123`）——**以你的本地配置为准，改过就不是默认值**
+- [ ] 登录 管理员 `10000001`（口令 = `application-local.yml` 的 `seed.admin-password`，模板默认 `admin123`），普通用户 `20240001`~`20240020`（`seed.user-password`，模板默认 `user123`）——**以你的本地配置为准，改过就不是默认值**
 - [ ] 失物墙有真实数据（60 条启事）
 - [ ] 以图搜图：上传 `web-lostfond/backend/uploads/_query/q-cup.jpg` → 命中该物品多条启事，相似度 ~100%
 - [ ] 导航栏出现「后台管理」→ 看板 / 审核 / 用户 / 日志 / 运维 五个页面能打开
-- [ ] **导航栏「聊天会话」「通知中心」两个图标各弹右侧抽屉**：聊天抽屉里会话列表 → 点进线程可直接回复（回车发送）；通知抽屉分「认领 / 系统 / 私信」三栏，可逐条已读或一键「全部标为已读」，Esc 或点遮罩关闭
+- [ ] **通知 / 聊天是独立页面**：左侧导航进入 `/notifications`、`/messages`；通知页可逐条已读或一键「全部标为已读」，聊天页从会话列表点进线程可直接回复（回车发送）
+- [ ] **个人中心**：`我的发布 / 我的收藏 / 我的认领 / 收到 / 账号` 五个标签可用；「收到」里可审核认领申请，`账号` 里可改昵称、头像、手机号与密码
 - [ ] **认领进度时间线**：用普通账号对一条招领提交认领（先填凭证 → 再填联系方式两步提交）后，详情页出现四节点进度卡（提交申请 → 发布者审核 → 交付确认 → 已找回），连线会从起点生长到当前进度
 - [ ] **分享海报**：任意启事详情页点「分享海报」→ 弹层出现海报，点「保存图片」能下载 PNG（含二维码图案）
 - [ ] **滚动进场**：首页/失物墙/搜图页向下滚动，各区块与卡片网格依次淡入上浮；导航栏滚离顶部后出现阴影
@@ -154,28 +159,57 @@ curl "http://localhost:8080/api/items?page=1&size=1"    # 返回 {"code":200,...
 cd web-lostfond/backend
 python scripts/test_api.py                        # 141 断言，幂等，跑完八表回基线
 python scripts/eval_recall.py --min-recall 0.75   # 召回门禁 85.7%
-mvn test                                          # 99 用例
+mvn test                                          # 112 用例
 ```
 
 ---
 
-## 五、公网访问（可选）
+## 五、手机 / 公网访问（可选）
 
-本机跑起来后，想让别人从外网访问，用 Cloudflare 临时隧道，免费、不限流量、自带 HTTPS：
+后端 `:8080` 已经同时托管 `frontend/dist`，手机访问只需要这一个端口，不需要另外开 Vite。
 
-```bash
-# 1) 确认 cloudflared.exe 已在（仓库已备好一份，二进制走 Releases）
-#    Project_operation_software/cloudflared/cloudflared.exe
-#    需自行下载时：https://github.com/cloudflare/cloudflared/releases（选 windows-amd64.exe）
-#    （花生壳 vicp.fun 免费版已停用，不再使用）
+> 通过 `:8080` 看到的是构建产物：改过前端代码后，先在 `web-lostfond/frontend` 执行 `npm run build`，手机刷新才是新版本。
 
-# 2) 直接双击
-#    web-lostfond/scripts/tunnel.bat
+| 场景 | 手机打开 | 前提 |
+|---|---|---|
+| 同一 Wi-Fi / 热点 | `http://<电脑局域网 IP>:8080/` | 同一网络、电脑不休眠、后端在跑 |
+| 任意网络（手机流量） | `https://xxx.trycloudflare.com` | 运行 Cloudflare 临时隧道 |
+
+### 方式 A：同一 Wi-Fi / 热点
+
+1. 电脑和手机连接同一个 Wi-Fi 或热点；
+2. 电脑执行 `ipconfig`，取当前网卡的 IPv4 地址（例如 `172.20.10.2`，以实际为准；
+   `172.26.16.1` 是 WSL 虚拟网卡，`169.254.x.x` 是未连接网卡，不要用）；
+3. 手机浏览器打开 `http://<IPv4>:8080/`。
+
+打不开时依次检查：后端窗口是否还在运行、Windows 防火墙是否放行 Java/8080、热点是否开了「AP 隔离/访客隔离」、电脑是否休眠。需要新增放行规则时（管理员权限）：
+
+```bat
+netsh advfirewall firewall add rule name="拾光 8080" dir=in action=allow protocol=TCP localport=8080
 ```
 
-它会先探测 8080 是否活着，然后打印一个 `https://xxx-yyy-zzz.trycloudflare.com` 地址，把这个地址发给别人即可。
+> 局域网走的是 HTTP，不是安全上下文，「使用当前位置」定位和剪贴板 API 可能不可用；需要这些能力请用方式 B 的 HTTPS 地址。
 
-注意：**免账号隧道的域名每次重启都会变**；电脑休眠 / 关掉窗口 / 后端停止，地址立即失效。
+### 方式 B：Cloudflare 临时隧道
+
+仓库已备好 `Project_operation_software/cloudflared/cloudflared.exe`，直接双击 `web-lostfond/scripts/tunnel.bat` 即可：
+
+```text
+[1/2] 检查后端 8080 → [2/2] 申请地址 → 打印 https://xxx-yyy-zzz.trycloudflare.com
+```
+
+把打印出的 HTTPS 地址发给对方，手机流量也能访问。首次运行如遇 SmartScreen，点「更多信息 → 仍要运行」。
+
+**关闭**：在隧道窗口按 `Ctrl+C` 或直接关闭窗口；只最小化不算关闭。关闭后旧地址再打开会返回 530，可用 `tasklist | findstr cloudflared` 确认没有残留进程。
+
+注意：
+
+- **免账号隧道的域名每次启动都会变**；电脑休眠 / 关窗口 / 后端停止，地址立即失效；
+- 链接**任何拿到的人都能打开**，包含演示数据与注册登录，只发给需要演示的人；
+- 国内访问 `trycloudflare.com` 偶尔不稳，重开一次即可；
+- `tunnel.bat` 必须保持 **GBK/ANSI + CRLF**，用 UTF-8 或 LF 重新保存会导致双击闪退。
+
+> 完整的开启、关闭、排错与验证记录见 `web-lostfond/scripts/MarkDone-公网访问开启与关闭.md`。
 
 ---
 
@@ -189,6 +223,9 @@ mvn test                                          # 99 用例
 | 前端页面白屏（生产构建） | 改过 `vite.config.js` 的 `manualChunks` 后必须 `npm run build` 冒烟验证，dev 正常 ≠ build 正常 |
 | 搜图结果全 100% 或全空 | pHash 未算，`POST /api/search/reindex` 重算 |
 | 401 / 403 | token 过期、账号被封禁或权限不足，重新登录 |
+| 双击 `tunnel.bat` 窗口一闪而过 | 文件被保存成了 UTF-8/LF；必须用 GBK(ANSI) + CRLF，详见 `web-lostfond/scripts/MarkDone-公网访问开启与关闭.md` |
+| 手机打不开局域网地址 | 确认手机与电脑同一网络、后端在 `0.0.0.0:8080`、防火墙放行、热点未开 AP 隔离、电脑未休眠 |
+| 手机页面部分内容显示不全 | 后台表格在窄屏保留横向滚动，可左右滑动查看其余列；个人中心标签在窄屏用左右箭头切换 |
 | `npm install` 卡住 | 换镜像 `npm config set registry https://registry.npmmirror.com` |
 
 ---
@@ -207,16 +244,24 @@ mvn test                                          # 99 用例
 │   ├── 过程资料/                    过程留痕（不交作业）
 │   │   ├── 选题/                    选题论证、五人分工、准备清单
 │   │   ├── 设计prompt/              页面设计 prompt（含已归档的多端方案）
-│   │   ├── 迭代记录/                version-0~2.40/（历史 8 批）+ version-2.10 / 2.20 / 2.41
+│   │   ├── 迭代记录/                version-0~2.40/（历史 8 批）+ version-2.10 / 2.20 / 2.41 / 2.50（当前 v2.51）
 │   │   └── 参考项目/                三个上游开源项目离线副本
 │   └── Knowledge_List/              答辩复习知识清单（8 份 · 208 个自测点；`多端与工程化` 已随单 Web 收敛归档）
 │
 ├── Project_operation_software/      运行期软件（二进制走 Releases，仓库只留台账）
 ├── assets/演示图/                   演示物品图 6 张
 │
-└── web-lostfond/                      代码仓
-    ├── backend/                     Spring Boot（:8080）
-    └── frontend/                    Vue3（:5173）
+├── web-lostfond/                     Web 版代码仓（答辩版，保持原样）
+│   ├── backend/                     Spring Boot（:8080）
+│   ├── frontend/                    Vue3（:5173）
+│   └── scripts/                     tunnel.bat、公网访问开启与关闭 MarkDone
+│
+└── App-LostFond/                    Windows 桌面版（独立构建）
+    ├── backend/                     Spring Boot + H2（独立版 profile）
+    ├── frontend/                    Vue3（Electron 共用）
+    ├── desktop/                     Electron 壳 + 内置 JRE
+    ├── build/                       图标生成脚本、构建产物
+    └── Softeare/                    安装包（走 Releases，不入库）、SHA256SUMS、使用说明
 ```
 
 `*.keystore`、`application-local.yml`、`node_modules/`、`dist/` 等本机产物已被 `.gitignore` 排除，**不在仓库里**。
@@ -255,7 +300,7 @@ mvn test                                          # 99 用例
 | 换肤方式 | 颜色全部集中在 `frontend/src/styles/main.css` 的 `:root`；**旧令牌名保留并映射新色值**（`--orange*` → 近黑），改一处即可全站换肤。公开页用自己的 `--w-*` 作用域，互不污染 |
 | 骨架 | `AppShell`（三栏 + 右栏折叠 + 移动顶栏）/ `AppSidebar`（竖导航、失物/招领分高亮、未读角标、发布 CTA；不含个人中心，点头像进入）/ `FeedRail`（pHash 推广、找回战报、热门启事、为你推荐） |
 | 卡片 | `FeedCard`（分类点 + 状态淡彩 pill + 2.35:1 图 + 地点 pill + meta 行）/ `ItemCard`（1.45:1 网格卡） |
-| 页面 | 首页 = **信息总览（活动天际线，2D 热力图 ⇄ 3D）** + 工具条 + 单列信息流（最新/最热、全部/寻物/招领、列表-网格、加载更多）；失物墙 = 工具条 + 胶囊搜索 + 网格/列表；详情 = 白卡 + 三格事实卡 + **位置展开卡（v2.41.1 真实坐标 + 高德底图）** + 认领流程步骤；公开首页 = 固定舞台 4 屏翻页 + 信息弹层；登录页 = 左紫插图 + 右表单；通知 / 聊天 = 独立页；守望订阅 = 三档方案卡 + 月/学期切换 + 我的守望位 |
+| 页面 | 首页 = **信息总览（活动天际线，2D 热力图 ⇄ 3D）** + 工具条 + 单列信息流（最新/最热、全部/寻物/招领、列表-网格、加载更多）；失物墙 = 工具条 + 胶囊搜索 + 网格/列表；详情 = 白卡 + 三格事实卡 + **位置展开卡（v2.41.1 真实坐标 + 高德底图）** + 认领流程步骤；公开首页 = 固定舞台 4 屏翻页 + 信息弹层；登录页 = 左紫插图 + 右表单；通知 / 聊天 = 独立页；守望订阅 = 三档方案卡 + 月/学期切换 + 我的守望位；v2.51 起入口屏 02–04 标题垂直居中，活动天际线月份标签完整显示 |
 | 响应式 | ≤1080px 收右栏；≤860px 收左栏改顶栏 + 抽屉；≤640px 首页头收为全屏菜单 |
 | 动效 | 卡片 hover 位移/封面缩放、抽屉与弹层 `cubic-bezier(.22,1,.36,1)`、落地页 expo-out 视差；全部尊重 `prefers-reduced-motion` |
 | 主题 | 亮/暗双主题（`composables/useTheme.js` + `html[data-theme="dark"]` 令牌 + EP 暗色变量），记忆与跟随系统 |
@@ -272,20 +317,4 @@ mvn test                                          # 99 用例
   以图搜图/通知/聊天/守望订阅/个人中心/登录注册/404/海报；分类与状态在显示层映射，用户发布的标题与描述保持原文。
   浏览器标题随语言切换，Element Plus 分页/空态文案由 `el-config-provider` 跟随。
 
-> 公开首页 4 张轮播图已压到 1600px（`assets/img/01-1600.jpg`…，合计约 0.76 MB，原图保留为母版），`dist` 约 3.1 MB。
-
----
-
-## 十、继续深挖
-
-| 我想…… | 看这里 |
-|---|---|
-| 逐条勾选的启动排查（含验收与排错） | `Creator/交付文档/运行说明/01-启动步骤.md` |
-| 需求 / UML / 接口 / 数据库设计 | `Creator/交付文档/01`、`02`、`04`、`06` |
-| 测试计划 / 用例 / 缺陷 / 报告 | `Creator/交付文档/07~10` |
-| pHash 为什么这么调参 | `Creator/交付文档/11-以图搜图准确率实验报告-v1.0.md` |
-| 部署到服务器 / 备份恢复 | `Creator/交付文档/12-部署手册-v1.0.md` |
-| 已下线的桌面/移动端方案 | `Creator/过程资料/迭代记录/version-0~2.40/version06/archive-多端/` |
-| 改代码前先看历史决策 | `Creator/过程资料/迭代记录/` |
-| 答辩复习 / 问答话术 | `Creator/Knowledge_List/00-使用说明与复习路线.md` |
-| 提交代码前 | `Creator/CONTRIBUTING.md` |
+> 公开首页 4 张轮播图已压到 1600px（`assets/img/01-1600.jpg`…，合计约 0.76 MB，原图保留为母版），`dist` 约 3.2 MB。

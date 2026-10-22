@@ -68,7 +68,7 @@ function readTheme() {
   const bg = readColor('--cream', [250, 250, 248])
   COL = HEAT_RAMP.map((c, i) => readColor(`--heat-${i}`, c))
   EDGE = COL.map((c) => c.map((v) => v * 0.9))
-  MUTED = mix(bg, INK, 0.52)
+  MUTED = mix(bg, INK, 0.72)
   eng.colDirty = true
 }
 
@@ -91,7 +91,8 @@ function layout() {
   eng.weeks = weeks
   width.value = W
   eng.gutter = W < 560 ? 0 : 34
-  eng.H2 = Math.round(26 + (7 / weeks) * (W - eng.gutter) + 16)
+  // 2D 高度 = 网格 + 上下留白 + 16px 月份标签带（与下面的 top 增量配对，保持格子尺寸不变）
+  eng.H2 = Math.round(26 + (7 / weeks) * (W - eng.gutter) + 16 + 16)
   eng.H3 = Math.round(Math.min(Math.max(W * 0.44, 200), 330))
   eng.dpr = Math.min(2, window.devicePixelRatio || 1)
   const canvas = canvasEl.value
@@ -171,7 +172,7 @@ function draw() {
   const b = extent(cam, eng.zs, false)
   const pad = lerp(6, 18, e)
   const left = pad + eng.gutter * (1 - e)
-  const top = pad + 18 * (1 - e)
+  const top = pad + (18 + 16) * (1 - e)
   const aw = eng.W - left - pad
   const ah = Hc - top - pad
   const bw = Math.max(1e-6, b.maxx - b.minx)

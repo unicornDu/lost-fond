@@ -1,0 +1,57 @@
+# =============================================================
+# 拾光 App 独立版 profile：内置 H2 文件数据库，不依赖 MySQL
+# 由 Electron 主进程启动：java -jar app.jar --spring.profiles.active=app
+# 手机端也可以直接连接该服务（默认 0.0.0.0:18080）。
+# =============================================================
+server:
+  port: ${SERVER_PORT:18080}
+  address: ${SERVER_ADDRESS:0.0.0.0}
+
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    # APP_DATA_DIR 由 Electron 指向 %APPDATA%\Shiguang；手动运行可自行设置
+    url: jdbc:h2:file:${APP_DATA_DIR:./app-data}/db/lost_found;MODE=MySQL;DATABASE_TO_LOWER=TRUE;NON_KEYWORDS=USER,VALUE,TYPE,STATUS,ACTION,CYCLE,KEY;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+      schema-locations: classpath:db/schema-h2.sql
+  h2:
+    console:
+      enabled: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 20MB
+
+file:
+  upload-dir: ${APP_DATA_DIR:./app-data}/uploads
+
+# Capacitor Android 的 WebView 源是 http://localhost；Electron 走同源。
+web:
+  cors:
+    allowed-origins: ${WEB_CORS_ALLOWED_ORIGINS:http://localhost,http://127.0.0.1,capacitor://localhost,https://localhost}
+
+# 独立版内置演示账号，首次启动自动播种
+seed:
+  admin-password: ${SEED_ADMIN_PASSWORD:Admin@2026}
+  user-password: ${SEED_USER_PASSWORD:Demo@2026}
+
+# Electron 每次安装生成随机密钥并通过 JWT_SECRET 传入；手动运行时必须提供
+jwt:
+  secret: ${JWT_SECRET:}
+
+knife4j:
+  enable: false
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    com.shiguang.lostfound: info

@@ -1,0 +1,23 @@
+# 生产 profile：关闭接口文档暴露（审查 2.42 ①）
+# 启动方式：java -jar xxx.jar --spring.profiles.active=prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+knife4j:
+  enable: false
+  production: true   # 屏蔽 /doc.html
+
+# 修复 Z-08：生产禁止 /api/search/image 的 threshold/topN 入参覆盖，检索语义只由 application.yml 决定
+image-search:
+  allow-override: false
+
+# 修复 Z-03：同源部署（Nginx 反代）留空 = 不放行任何跨域来源；确有跨域需求再用环境变量显式列出
+web:
+  cors:
+    allowed-origins: ${WEB_CORS_ALLOWED_ORIGINS:}
+
+logging:
+  level:
+    com.shiguang.lostfound: warn

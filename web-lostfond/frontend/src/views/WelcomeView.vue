@@ -670,7 +670,17 @@ onBeforeUnmount(() => {
   66% { opacity: 1; }
   100% { transform: translateY(22%) scaleY(.9); opacity: 0; }
 }
-.slide.link .slide-in { transition: transform .8s var(--w-expo-out); }
+.slide.link .slide-in {
+  /* 02–04 入口屏只有一句标题：垂直居中，避免压在下三分之一 */
+  align-content: center;
+  padding-bottom: calc(var(--w-head) + 1rem);
+  background:
+    radial-gradient(80% 62% at 50% 50%,
+      hsl(23 26% 12% / .74) 0%, hsl(23 26% 14% / .44) 48%, hsl(23 26% 14% / 0) 78%),
+    /* 底部留一层薄暗，压住 02 屏那种浅色桌面，保证页脚反白可读 */
+    linear-gradient(180deg, transparent 82%, hsl(23 26% 10% / .46) 100%);
+  transition: transform .8s var(--w-expo-out);
+}
 .slide.link:hover .slide-in { transform: scale(1.012); }
 .arrow {
   margin-left: auto;
