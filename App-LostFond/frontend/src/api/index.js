@@ -23,6 +23,11 @@ http.interceptors.request.use((config) => {
 function clearSession() {
   localStorage.removeItem('shiguang_token')
   localStorage.removeItem('shiguang_user')
+  // 桌面端由主进程关闭主窗口并唤回原生登录页
+  if (window.shiguangDesktop?.isDesktop) {
+    window.shiguangDesktop.logout()
+    return
+  }
   // 审查 2.14：跳转登录页并记录来源（已在登录页则不跳，避免死循环）
   const atAuth = isAppTarget()
     ? location.hash.startsWith('#/auth')

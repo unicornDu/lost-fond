@@ -5,8 +5,12 @@ backend/target/
 
 # Electron 打包中间产物与安装包（安装包走 GitHub Releases）
 build/out/
-build/release/
+build/release*/
 build/.icon-ico/
+build/icon-concepts/
+build/icon-redesign/
+build/icon-light/
+build/icon-refresh/
 Softeare/win-unpacked/
 Softeare/*.exe
 Softeare/*.exe.blockmap

@@ -589,3 +589,19 @@ p { margin: 0; }
 .st-lost { background: var(--st-lost-bg); color: var(--st-lost-ink); }
 .st-found { background: var(--st-found-bg); color: var(--st-found-ink); }
 .st-done { background: var(--st-done-bg); color: var(--st-done-ink); }
+
+/* ============================================================
+   Electron 自绘标题栏：窗口顶栏 44px，内容整体下移
+   ============================================================ */
+html.desktop { --dtb-h: 44px; }
+html.desktop, html.desktop body { overflow-x: clip; }
+html.desktop body { padding-top: var(--dtb-h); }
+html.desktop .app-main { min-height: calc(100vh - var(--dtb-h)); }
+html.desktop .shell { min-height: calc(100vh - var(--dtb-h)); }
+html.desktop .side,
+html.desktop .rail-col { top: var(--dtb-h); height: calc(100vh - var(--dtb-h)); }
+html.desktop .rail-toggle { top: calc(var(--dtb-h) + 14px); }
+html.desktop .m-bar { top: var(--dtb-h); }
+html.desktop .w { height: calc(100svh - var(--dtb-h)); }
+html.desktop .w-head { top: var(--dtb-h); }
+html.desktop .deck { top: var(--dtb-h); }

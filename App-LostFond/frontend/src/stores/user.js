@@ -75,6 +75,8 @@ export const useUserStore = defineStore('user', {
       this.info = null
       localStorage.removeItem(TK)
       localStorage.removeItem(UK)
+      // 桌面端退出后回到原生登录窗口，而不是网页登录页
+      if (window.shiguangDesktop?.isDesktop) window.shiguangDesktop.logout()
     },
   },
 })

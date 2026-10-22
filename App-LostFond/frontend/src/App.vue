@@ -5,6 +5,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import zhTw from 'element-plus/es/locale/lang/zh-tw'
 import en from 'element-plus/es/locale/lang/en'
 import AppShell from './components/AppShell.vue'
+import DesktopTitleBar from './components/DesktopTitleBar.vue'
 import { locale, t } from './i18n'
 import { useUserStore } from './stores/user'
 
@@ -34,6 +35,8 @@ onMounted(() => {
 
 <template>
   <el-config-provider :locale="epLocale">
+  <DesktopTitleBar />
+
   <AppShell v-if="!route.meta.public">
     <router-view v-slot="{ Component }">
       <transition name="page" mode="out-in">

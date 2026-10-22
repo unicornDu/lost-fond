@@ -13,6 +13,9 @@ import { initTheme } from './composables/useTheme'
 import { t, locale, setLocale } from './i18n'
 import './styles/main.css'
 
+// Electron 版为无边框窗口，预留自绘标题栏高度（浏览器访问时不生效）
+if (window.shiguangDesktop?.isDesktop) document.documentElement.classList.add('desktop')
+
 // 主题必须在挂载前落到 <html>，否则暗色用户会先看到一帧亮色
 initTheme()
 setLocale(locale.value)   // 同步 <html lang>，并校验本地存储里的语言

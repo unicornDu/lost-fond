@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, shell } = require('electron')
+const { app, BrowserWindow, Menu, dialog, shell, ipcMain, safeStorage, screen } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -29,20 +29,29 @@ const SEED = app.isPackaged
   ? path.join(process.resourcesPath, 'seed')
   : path.resolve(__dirname, '..', 'backend', 'uploads', 'seed')
 const ICON = path.join(__dirname, 'build', 'icon.png')
+const LOGIN_PAGE = path.join(__dirname, 'login', 'index.html')
+const LOGIN_PRELOAD = path.join(__dirname, 'preload', 'login.js')
+const MAIN_PRELOAD = path.join(__dirname, 'preload', 'main.js')
 
 const DATA_ROOT = path.join(app.getPath('userData'), 'data')
 const UPLOAD_DIR = path.join(DATA_ROOT, 'uploads')
 const LOG_DIR = path.join(app.getPath('userData'), 'logs')
 const LOG_FILE = path.join(LOG_DIR, 'backend.log')
 const SECRET_FILE = path.join(app.getPath('userData'), 'jwt.key')
+const SESSION_FILE = path.join(app.getPath('userData'), 'session.bin')
+const FIRST_RUN_FILE = path.join(app.getPath('userData'), 'first-run-done')
 const DEMO_ADMIN = 'Admin@2026'
 const DEMO_USER = 'Demo@2026'
 
 let child = null
+let loginWindow = null
 let mainWindow = null
-let splash = null
 let stopping = false
+let switching = false
+let loginPending = false
 let servicePort = 18080
+let backendState = 'starting'
+let session = null
 
 function log(line) {
   const text = `[${new Date().toISOString()}] ${line}\n`
@@ -81,6 +90,25 @@ async function pickPort(start = 18080) {
     if (await isPortFree(p)) return p
   }
   throw new Error('18080-18099 端口都被占用')
+}
+
+function waitForServer(port, timeoutMs = 90000) {
+  const deadline = Date.now() + timeoutMs
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      if (stopping) return reject(new Error('stopped'))
+      if (child && child.exitCode !== null) return reject(new Error('backend exited'))
+      if (Date.now() > deadline) return reject(new Error('backend timeout'))
+      const req = http.get(`http://127.0.0.1:${port}/api/stats`, (res) => {
+        res.resume()
+        if (res.statusCode === 200) resolve(port)
+        else setTimeout(tick, 400)
+      })
+      req.on('error', () => setTimeout(tick, 400))
+      req.setTimeout(3000, () => req.destroy())
+    }
+    tick()
+  })
 }
 
 function startBackend() {
@@ -125,89 +153,90 @@ function startBackend() {
   })
 }
 
-function waitForServer(port, timeoutMs = 90000) {
-  const deadline = Date.now() + timeoutMs
-  return new Promise((resolve, reject) => {
-    const tick = () => {
-      if (stopping) return reject(new Error('stopped'))
-      if (child && child.exitCode !== null) return reject(new Error('backend exited'))
-      if (Date.now() > deadline) return reject(new Error('backend timeout'))
-      const req = http.get(`http://127.0.0.1:${port}/api/stats`, (res) => {
-        res.resume()
-        if (res.statusCode === 200) resolve(port)
-        else setTimeout(tick, 400)
+function apiRequest(port, method, urlPath, { body, token, timeout = 30000 } = {}) {
+  return new Promise((resolve) => {
+    const payload = body ? Buffer.from(JSON.stringify(body)) : null
+    const headers = { Accept: 'application/json' }
+    if (payload) {
+      headers['Content-Type'] = 'application/json'
+      headers['Content-Length'] = payload.length
+    }
+    if (token) headers.Authorization = `Bearer ${token}`
+    const req = http.request({ host: '127.0.0.1', port, path: urlPath, method, headers }, (res) => {
+      let raw = ''
+      res.setEncoding('utf8')
+      res.on('data', (chunk) => { raw += chunk })
+      res.on('end', () => {
+        let data = null
+        try { data = JSON.parse(raw) } catch (e) {}
+        resolve({ status: res.statusCode || 0, body: data })
       })
-      req.on('error', () => setTimeout(tick, 400))
-      req.setTimeout(3000, () => req.destroy())
-    }
-    tick()
+    })
+    req.setTimeout(timeout, () => req.destroy(new Error('timeout')))
+    req.on('error', (e) => resolve({ status: 0, body: null, error: e.message }))
+    if (payload) req.write(payload)
+    req.end()
   })
 }
 
-function splashHtml() {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
-    *{box-sizing:border-box}html,body{height:100%;margin:0}
-    body{display:grid;place-items:center;background:#161614;color:#FAFAF8;
-      font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif}
-    .wrap{text-align:center}.mark{width:86px;height:86px;margin:0 auto 22px;border-radius:24px;
-      background:#FAFAF8;color:#161614;display:grid;place-items:center;font-size:44px;font-weight:700}
-    h1{margin:0;font-size:22px;font-weight:600;letter-spacing:.08em}
-    p{margin:10px 0 0;font-size:12px;color:#9A9A93;letter-spacing:.06em}
-    .bar{width:180px;height:2px;margin:26px auto 0;background:#2C2C29;overflow:hidden}
-    .bar i{display:block;width:60px;height:100%;background:#E8823A;animation:run 1.1s infinite ease-in-out}
-    @keyframes run{0%{transform:translateX(-60px)}100%{transform:translateX(180px)}}
-  </style></head><body><div class="wrap"><div class="mark">拾</div>
-  <h1>拾光</h1><p>正在启动本地服务…</p><div class="bar"><i></i></div></div></body></html>`
-}
-
-function openSplash() {
-  splash = new BrowserWindow({
-    width: 420, height: 300, frame: false, resizable: false,
-    alwaysOnTop: true, backgroundColor: '#161614',
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
-  })
-  splash.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(splashHtml()))
-  splash.on('closed', () => { splash = null })
-}
-
-function createWindow(port) {
-  mainWindow = new BrowserWindow({
-    width: 1280, height: 860, minWidth: 980, minHeight: 680,
-    show: false, backgroundColor: '#FAFAF8', icon: ICON,
-    title: '拾光 · 校园失物招领平台',
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
-  })
-  mainWindow.loadURL(`http://127.0.0.1:${port}/`)
-  mainWindow.once('ready-to-show', () => {
-    if (splash) splash.close()
-    mainWindow.show()
-  })
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/i.test(url)) shell.openExternal(url)
-    return { action: 'deny' }
-  })
-  mainWindow.webContents.on('will-navigate', (e, url) => {
-    if (!url.startsWith(`http://127.0.0.1:${port}`)) {
-      e.preventDefault()
-      shell.openExternal(url)
-    }
-  })
-  mainWindow.webContents.on('did-fail-load', (e, code, desc) => {
-    log(`page load failed: ${code} ${desc}`)
-  })
-  mainWindow.on('closed', () => { mainWindow = null })
-}
-
-function lanAddresses() {
-  const out = []
-  for (const [name, list] of Object.entries(os.networkInterfaces())) {
-    for (const item of list || []) {
-      if (item.family === 'IPv4' && !item.internal) {
-        out.push({ name, address: item.address })
-      }
-    }
+function loadSessionFromDisk() {
+  try {
+    if (!fs.existsSync(SESSION_FILE) || !safeStorage.isEncryptionAvailable()) return null
+    const data = JSON.parse(safeStorage.decryptString(fs.readFileSync(SESSION_FILE)))
+    return data?.token && data?.user ? data : null
+  } catch (e) {
+    log(`read session failed: ${e.message}`)
+    return null
   }
-  return out
+}
+
+function saveSessionToDisk() {
+  try {
+    if (!session || !safeStorage.isEncryptionAvailable()) return
+    fs.writeFileSync(SESSION_FILE, safeStorage.encryptString(JSON.stringify({ token: session.token, user: session.user })))
+  } catch (e) {
+    log(`save session failed: ${e.message}`)
+  }
+}
+
+function clearSessionFile() {
+  try {
+    if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE)
+  } catch (e) {
+    log(`clear session failed: ${e.message}`)
+  }
+}
+
+async function restoreSession(port) {
+  const stored = loadSessionFromDisk()
+  if (!stored) return false
+  const res = await apiRequest(port, 'GET', '/api/auth/me', { token: stored.token })
+  if (res.status === 200 && res.body?.code === 200 && res.body.data) {
+    session = { token: stored.token, user: res.body.data, rememberMe: true }
+    saveSessionToDisk()
+    return true
+  }
+  clearSessionFile()
+  return false
+}
+
+function backendSnapshot() {
+  return {
+    state: backendState,
+    port: backendState === 'ready' || backendState === 'restoring' ? servicePort : null,
+    version: app.getVersion(),
+  }
+}
+
+function sendBackendState() {
+  if (loginWindow && !loginWindow.isDestroyed()) {
+    loginWindow.webContents.send('backend:state', backendSnapshot())
+  }
+}
+
+function setBackendState(state) {
+  backendState = state
+  sendBackendState()
 }
 
 function serviceInfo() {
@@ -231,8 +260,8 @@ function serviceInfo() {
   ].join('\n')
 }
 
-function showServiceInfo() {
-  dialog.showMessageBox(mainWindow || undefined, {
+function showServiceInfo(parent) {
+  dialog.showMessageBox(parent || undefined, {
     type: 'info',
     title: '服务信息',
     message: `拾光服务运行中 · 端口 ${servicePort}`,
@@ -242,62 +271,258 @@ function showServiceInfo() {
   })
 }
 
-function buildMenu() {
-  const template = [
-    {
-      label: '应用',
-      submenu: [
-        { label: '服务信息 / 局域网地址', click: showServiceInfo },
-        { label: '打开数据目录', click: () => shell.openPath(DATA_ROOT) },
-        { type: 'separator' },
-        { label: '退出', role: 'quit' },
-      ],
-    },
-    {
-      label: '编辑',
-      submenu: [
-        { label: '撤销', role: 'undo' },
-        { label: '重做', role: 'redo' },
-        { type: 'separator' },
-        { label: '剪切', role: 'cut' },
-        { label: '复制', role: 'copy' },
-        { label: '粘贴', role: 'paste' },
-        { label: '全选', role: 'selectAll' },
-      ],
-    },
-    {
-      label: '视图',
-      submenu: [
-        { label: '重新加载', role: 'reload' },
-        { label: '开发者工具', role: 'toggleDevTools' },
-        { type: 'separator' },
-        { label: '实际大小', role: 'resetZoom' },
-        { label: '放大', role: 'zoomIn' },
-        { label: '缩小', role: 'zoomOut' },
-        { type: 'separator' },
-        { label: '全屏', role: 'togglefullscreen' },
-      ],
-    },
-    {
-      label: '帮助',
-      submenu: [
-        {
-          label: '使用说明',
-          click: () => dialog.showMessageBox(mainWindow || undefined, {
-            type: 'info',
-            title: '拾光 Windows 版',
-            message: '拾光 · 校园失物招领平台',
-            detail: '内置后端与 H2 数据库，无需安装 MySQL / Java。\n首次启动会播种演示数据，约需 10 秒。\n同一局域网内的其他设备可用浏览器访问「应用 → 服务信息」中的地址。',
-            buttons: ['知道了'],
-            noLink: true,
-          }),
-        },
-        { label: '打开日志', click: () => shell.openPath(LOG_DIR) },
-      ],
-    },
-  ]
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+function showAbout(parent) {
+  dialog.showMessageBox(parent || undefined, {
+    type: 'info',
+    title: '关于拾光',
+    message: `拾光 · 校园失物招领平台`,
+    detail: [
+      `Windows 桌面版 ${app.getVersion()}`,
+      `Electron + 内置 Java 运行环境 + Spring Boot + H2`,
+      ``,
+      `数据保存在本机：${DATA_ROOT}`,
+      `不需要安装 MySQL / JDK，也不需要云服务器。`,
+    ].join('\n'),
+    buttons: ['知道了'],
+    noLink: true,
+  })
 }
+
+function openAppMenu(win) {
+  if (!win || win.isDestroyed()) return
+  const menu = Menu.buildFromTemplate([
+    { label: '服务信息 / 局域网地址', click: () => showServiceInfo(win) },
+    { label: '打开数据目录', click: () => shell.openPath(DATA_ROOT) },
+    { label: '打开日志', click: () => shell.openPath(LOG_DIR) },
+    { type: 'separator' },
+    { label: '退出登录', click: () => switchToLogin() },
+    { label: '退出拾光', click: () => app.quit() },
+  ])
+  menu.popup({ window: win })
+}
+
+function lanAddresses() {
+  const out = []
+  for (const [name, list] of Object.entries(os.networkInterfaces())) {
+    for (const item of list || []) {
+      if (item.family === 'IPv4' && !item.internal) {
+        out.push({ name, address: item.address })
+      }
+    }
+  }
+  return out
+}
+
+function windowSize(preferred, min, margin = 40) {
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize
+  return {
+    width: Math.max(min.width, Math.min(preferred.width, width - margin)),
+    height: Math.max(min.height, Math.min(preferred.height, height - margin)),
+  }
+}
+
+function createLoginWindow() {
+  if (loginWindow && !loginWindow.isDestroyed()) {
+    if (loginWindow.isMinimized()) loginWindow.restore()
+    loginWindow.show()
+    loginWindow.focus()
+    return loginWindow
+  }
+  // 与 Qoder 登录页截图保持同一窗口尺寸（1042×673）
+  const size = windowSize({ width: 1042, height: 673 }, { width: 860, height: 560 })
+  loginWindow = new BrowserWindow({
+    ...size,
+    minWidth: 860,
+    minHeight: 560,
+    frame: false,
+    show: false,
+    center: true,
+    backgroundColor: '#F6F4EF',
+    icon: ICON,
+    title: '拾光 · 登录',
+    webPreferences: {
+      preload: LOGIN_PRELOAD,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  loginWindow.loadFile(LOGIN_PAGE)
+  loginWindow.once('ready-to-show', () => {
+    if (loginWindow && !loginWindow.isDestroyed()) loginWindow.show()
+  })
+  loginWindow.on('closed', () => { loginWindow = null })
+  loginWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/i.test(url)) shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  loginWindow.webContents.on('will-navigate', (e) => e.preventDefault())
+  loginWindow.webContents.on('did-finish-load', sendBackendState)
+  loginWindow.webContents.on('did-fail-load', (e, code, desc) => {
+    log(`login page load failed: ${code} ${desc}`)
+  })
+  return loginWindow
+}
+
+function createMainWindow(port) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+    return mainWindow
+  }
+  const size = windowSize({ width: 1360, height: 900 }, { width: 1100, height: 720 })
+  mainWindow = new BrowserWindow({
+    ...size,
+    minWidth: 1100,
+    minHeight: 720,
+    frame: false,
+    show: false,
+    center: true,
+    backgroundColor: '#FAFAF8',
+    icon: ICON,
+    title: '拾光 · 校园失物招领平台',
+    webPreferences: {
+      preload: MAIN_PRELOAD,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  mainWindow.loadURL(`http://127.0.0.1:${port}/#/home`)
+  mainWindow.once('ready-to-show', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    mainWindow.show()
+    if (loginWindow && !loginWindow.isDestroyed()) loginWindow.close()
+    switching = false
+    if (!fs.existsSync(FIRST_RUN_FILE)) {
+      fs.writeFileSync(FIRST_RUN_FILE, new Date().toISOString())
+      setTimeout(() => showServiceInfo(mainWindow), 1200)
+    }
+  })
+  mainWindow.on('maximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('window:maximized', true)
+  })
+  mainWindow.on('unmaximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('window:maximized', false)
+  })
+  mainWindow.on('closed', () => { mainWindow = null })
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/i.test(url)) shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    if (!url.startsWith(`http://127.0.0.1:${port}`)) {
+      e.preventDefault()
+      shell.openExternal(url)
+    }
+  })
+  mainWindow.webContents.on('did-fail-load', (e, code, desc) => {
+    log(`page load failed: ${code} ${desc}`)
+  })
+  log(`main window ready on port ${port}`)
+  return mainWindow
+}
+
+function switchToLogin() {
+  if (switching) return
+  switching = true
+  session = null
+  clearSessionFile()
+  backendState = 'ready'
+  const currentMain = mainWindow
+  if (!loginWindow || loginWindow.isDestroyed()) createLoginWindow()
+  else {
+    if (loginWindow.isMinimized()) loginWindow.restore()
+    loginWindow.show()
+    loginWindow.focus()
+    sendBackendState()
+  }
+  if (currentMain && !currentMain.isDestroyed()) {
+    currentMain.webContents.executeJavaScript(
+      "try{localStorage.removeItem('shiguang_token');localStorage.removeItem('shiguang_user')}catch(e){}"
+    ).catch(() => {})
+    setTimeout(() => {
+      if (currentMain && !currentMain.isDestroyed()) currentMain.close()
+      switching = false
+    }, 120)
+  } else {
+    switching = false
+  }
+}
+
+async function doLogin(payload) {
+  if (backendState !== 'ready') return { ok: false, message: '本地服务正在启动，请稍候…' }
+  if (loginPending) return { ok: false, message: '正在登录，请稍候…' }
+  if (mainWindow && !mainWindow.isDestroyed()) return { ok: false, message: '已登录' }
+  const account = String(payload?.account || '').trim()
+  const password = String(payload?.password || '')
+  const rememberMe = payload?.rememberMe !== false
+  if (!/^\d{6,12}$/.test(account)) return { ok: false, message: '请输入 6–12 位学号' }
+  if (password.length < 6) return { ok: false, message: '密码至少 6 位' }
+  loginPending = true
+  try {
+    const res = await apiRequest(servicePort, 'POST', '/api/auth/login', {
+      body: { account, password, rememberMe },
+    })
+    if (res.status === 200 && res.body?.code === 200 && res.body.data?.token) {
+      session = { token: res.body.data.token, user: res.body.data.user, rememberMe }
+      if (rememberMe) saveSessionToDisk()
+      else clearSessionFile()
+      log(`login ok: ${account}`)
+      switching = true
+      setTimeout(() => {
+        if (!mainWindow || mainWindow.isDestroyed()) createMainWindow(servicePort)
+      }, 350)
+      return { ok: true, user: session.user }
+    }
+    const message = res.body?.msg
+      || (res.status === 0 ? '无法连接本地服务，请稍候重试' : '登录失败，请重试')
+    log(`login failed: ${account} ${res.status} ${message}`)
+    return { ok: false, message }
+  } catch (e) {
+    log(`login error: ${e.message}`)
+    return { ok: false, message: '登录失败，请重试' }
+  } finally {
+    loginPending = false
+  }
+}
+
+ipcMain.on('session:get', (event) => {
+  event.returnValue = session
+    ? { token: session.token, user: session.user }
+    : null
+})
+ipcMain.handle('backend:get-state', () => backendSnapshot())
+ipcMain.handle('auth:login', (event, payload) => doLogin(payload))
+ipcMain.handle('window:is-maximized', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  return !!win && win.isMaximized()
+})
+ipcMain.on('window:minimize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win) win.minimize()
+})
+ipcMain.on('window:toggle-maximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (!win) return
+  if (win.isMaximized()) win.unmaximize()
+  else win.maximize()
+})
+ipcMain.on('window:close', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win) win.close()
+})
+ipcMain.on('desktop:logout', () => switchToLogin())
+ipcMain.on('desktop:service-info', (event) => {
+  showServiceInfo(BrowserWindow.fromWebContents(event.sender))
+})
+ipcMain.on('desktop:about', (event) => {
+  showAbout(BrowserWindow.fromWebContents(event.sender))
+})
+ipcMain.on('desktop:open-app-menu', (event) => {
+  openAppMenu(BrowserWindow.fromWebContents(event.sender))
+})
 
 function shutdownBackend() {
   if (!child) return
@@ -311,27 +536,38 @@ function shutdownBackend() {
 }
 
 app.on('second-instance', () => {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
+  const win = mainWindow || loginWindow
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
   }
 })
 
 app.whenReady().then(async () => {
-  buildMenu()
-  openSplash()
+  Menu.setApplicationMenu(null)
+  createLoginWindow()
   try {
     const port = await startBackend()
-    createWindow(port)
-    log(`app ready on port ${port}`)
-    const flag = path.join(app.getPath('userData'), 'first-run-done')
-    if (!fs.existsSync(flag)) {
-      fs.writeFileSync(flag, new Date().toISOString())
-      setTimeout(showServiceInfo, 1200)
+    backendState = 'restoring'
+    sendBackendState()
+    const restored = await restoreSession(port)
+    if (restored) {
+      backendState = 'ready'
+      sendBackendState()
+      switching = true
+      createMainWindow(port)
+      log(`session restored, app ready on port ${port}`)
+    } else {
+      backendState = 'ready'
+      sendBackendState()
+      log(`login window ready on port ${port}`)
     }
   } catch (e) {
     log(`startup failed: ${e.message}`)
-    if (splash) splash.close()
+    backendState = 'error'
+    sendBackendState()
+    if (loginWindow && !loginWindow.isDestroyed()) loginWindow.close()
     dialog.showErrorBox(
       '拾光启动失败',
       `${e.message}\n\n请查看日志：${LOG_FILE}`
@@ -346,5 +582,5 @@ app.on('before-quit', () => {
 })
 
 app.on('window-all-closed', () => {
-  app.quit()
+  if (!switching) app.quit()
 })

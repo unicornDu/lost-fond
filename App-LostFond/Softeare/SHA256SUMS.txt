@@ -1,1 +1,1 @@
-6e303dc2e5574c6fc0e7e7b9826a5356f6fcc1098143438eb77b24538bd1094c *Shiguang-Windows-Setup-1.0.2.exe
+ca7bdf70e9d6740dd5e07513194a290accfffe9c67a5008703f651750e625449 *Shiguang-Windows-Setup-1.1.2.exe

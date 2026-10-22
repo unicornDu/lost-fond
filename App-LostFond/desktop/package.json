@@ -1,6 +1,6 @@
 {
   "name": "shiguang-desktop",
-  "version": "1.0.2",
+  "version": "1.1.2",
   "description": "拾光 · 校园失物招领平台 Windows 独立版（Electron + 内置 Spring Boot/H2）",
   "main": "main.js",
   "author": "Shiguang",
@@ -19,11 +19,13 @@
     "executableName": "shiguang",
     "copyright": "拾光 · 校园失物招领平台",
     "directories": {
-      "output": "../build/release",
+      "output": "../build/release-1.1.2",
       "buildResources": "build"
     },
     "files": [
       "main.js",
+      "preload/**",
+      "login/**",
       "package.json",
       "build/icon.png"
     ],
@@ -60,13 +62,16 @@
       "artifactName": "Shiguang-Windows-Setup-${version}.${ext}"
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
-      "allowElevation": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "拾光",
-      "installerLanguages": ["zh_CN"],
+      "installerLanguages": [
+        "zh_CN"
+      ],
       "language": "2052"
     }
   }

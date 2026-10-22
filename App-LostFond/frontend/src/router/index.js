@@ -80,6 +80,11 @@ const isAdmin = () => {
 }
 
 router.beforeEach((to) => {
+  // Windows 桌面端只使用原生登录窗口：网页登录/落地页一旦进入就唤回原生登录
+  if (window.shiguangDesktop?.isDesktop && (to.name === 'welcome' || to.name === 'auth')) {
+    window.shiguangDesktop.logout()
+    return false
+  }
   // Android 包必须先在 /server 填服务器地址；Electron/Web 同源，无需配置
   if (isAndroidTarget() && to.name !== 'server' && !hasServer()) {
     return { name: 'server', query: { redirect: to.fullPath } }

@@ -11,5 +11,5 @@ execSync('npm run build:electron', { cwd: resolve(root, 'frontend'), stdio: 'inh
 execSync('npx electron-builder --win nsis', { cwd: here, stdio: 'inherit' })
 
 const name = `Shiguang-Windows-Setup-${pkg.version}.exe`
-copyFileSync(resolve(root, 'build', 'release', name), resolve(root, 'Softeare', name))
+copyFileSync(resolve(root, 'build', `release-${pkg.version}`, name), resolve(root, 'Softeare', name))
 console.log(`copied -> Softeare/${name}`)

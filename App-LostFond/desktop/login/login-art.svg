@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1280" viewBox="0 0 1024 1280" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4EFE1"/>
+      <stop offset="0.38" stop-color="#DDE3D1"/>
+      <stop offset="0.68" stop-color="#A9BAA1"/>
+      <stop offset="1" stop-color="#5C7863"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#F8D09B" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#F1B675" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#F1B675" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hillMid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8CA58A"/>
+      <stop offset="1" stop-color="#5D7A64"/>
+    </linearGradient>
+    <linearGradient id="hillBack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#47624D"/>
+      <stop offset="1" stop-color="#2A4033"/>
+    </linearGradient>
+    <linearGradient id="hillFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2C4536"/>
+      <stop offset="1" stop-color="#12231A"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF6DE" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFF6DE" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F8C08C"/>
+      <stop offset="0.5" stop-color="#E8823A"/>
+      <stop offset="1" stop-color="#C95C22"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+    <filter id="softer" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1280" fill="url(#sky)"/>
+  <circle cx="704" cy="330" r="330" fill="url(#sunGlow)"/>
+  <circle cx="704" cy="330" r="74" fill="#F6C487" opacity="0.78" filter="url(#soft)"/>
+
+  <path d="M300 0 L520 0 L250 1280 L80 1280 Z" fill="url(#beam)" opacity="0.35" filter="url(#soft)"/>
+  <path d="M600 0 L700 0 L830 1280 L690 1280 Z" fill="url(#beam)" opacity="0.2" filter="url(#soft)"/>
+
+  <path d="M0 748 C 150 690 286 748 430 716 C 590 680 742 720 1024 640 L1024 1280 L0 1280 Z" fill="url(#hillMid)"/>
+  <path d="M0 862 C 150 790 300 858 472 820 C 650 780 820 828 1024 760 L1024 1280 L0 1280 Z" fill="url(#hillBack)"/>
+
+  <g opacity="0.58" fill="#233B2C">
+    <path d="M118 760 L136 760 L128 1200 L110 1200 Z"/>
+    <ellipse cx="126" cy="690" rx="88" ry="150" fill="#3F5D47" opacity="0.55" filter="url(#softer)"/>
+    <path d="M214 772 L228 772 L222 1200 L208 1200 Z"/>
+    <ellipse cx="221" cy="714" rx="64" ry="120" fill="#35503C" opacity="0.5" filter="url(#softer)"/>
+    <path d="M846 670 L892 670 L872 1280 L822 1280 Z"/>
+    <ellipse cx="856" cy="552" rx="178" ry="270" fill="#1E3527" opacity="0.62" filter="url(#soft)"/>
+    <path d="M934 760 L958 760 L950 1280 L922 1280 Z"/>
+    <ellipse cx="944" cy="690" rx="96" ry="176" fill="#1C3123" opacity="0.55" filter="url(#softer)"/>
+  </g>
+
+  <path d="M0 1010 C 140 930 300 1000 472 952 C 664 898 832 970 1024 900 L1024 1280 L0 1280 Z" fill="url(#hillFront)"/>
+  <path d="M0 1136 C 176 1084 318 1132 506 1094 C 718 1050 854 1120 1024 1058 L1024 1280 L0 1280 Z" fill="#0B1912" opacity="0.72"/>
+
+  <g fill="none" stroke="#F8EA9F" stroke-linecap="round" opacity="0.34">
+    <path d="M120 1040 C 240 980 380 1032 510 988 C 660 936 810 1000 966 944" stroke-width="2"/>
+    <path d="M56 1090 C 220 1028 372 1090 520 1042 C 692 986 850 1044 1000 994" stroke-width="1.4"/>
+    <path d="M180 1150 C 300 1112 420 1148 556 1110 C 710 1066 858 1118 994 1074" stroke-width="1.2"/>
+  </g>
+
+  <g transform="translate(790 214)" opacity="0.95">
+    <path d="M0 -46 C 6 -16 16 -6 46 0 C 16 6 6 16 0 46 C -6 16 -16 6 -46 0 C -16 -6 -6 -16 0 -46 Z" fill="url(#spark)"/>
+    <circle cx="58" cy="-38" r="5" fill="#FFF8E8" opacity="0.75"/>
+  </g>
+  <circle cx="206" cy="350" r="3.5" fill="#FFF8E8" opacity="0.6"/>
+  <circle cx="262" cy="286" r="2.2" fill="#FFF8E8" opacity="0.5"/>
+  <circle cx="882" cy="420" r="2.8" fill="#FFF8E8" opacity="0.55"/>
+
+  <g fill="#F8F3E7" font-family="'Microsoft YaHei','PingFang SC','Segoe UI',sans-serif">
+    <text x="76" y="1108" font-size="45" font-weight="600" letter-spacing="2">让每一件失物</text>
+    <text x="76" y="1168" font-size="45" font-weight="600" letter-spacing="2">都能回家</text>
+    <text x="79" y="1216" font-size="16" letter-spacing="6" opacity="0.62">拾光 · LOST &amp; FOUND</text>
+  </g>
+</svg>

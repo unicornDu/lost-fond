@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self';">
+  <title>拾光 · 登录</title>
+  <link rel="stylesheet" href="./login.css">
+</head>
+<body>
+  <header class="titlebar">
+    <div class="titlebar-drag"></div>
+    <div class="window-controls">
+      <button id="win-min" class="win-btn" type="button" title="最小化" aria-label="最小化">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" /></svg>
+      </button>
+      <button id="win-close" class="win-btn win-close" type="button" title="关闭" aria-label="关闭">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2 2 8 8M10 2l-8 8" /></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="login-shell">
+    <section class="stage">
+      <div class="pane welcome-pane on" id="pane-welcome">
+        <div class="brand-row">
+          <img class="brand-icon" src="../build/icon.png" alt="拾光">
+          <div class="brand-word">
+            <b>拾光</b>
+            <span>LOST &amp; FOUND</span>
+          </div>
+        </div>
+
+        <div class="welcome-copy">
+          <h1>欢迎你，我的朋友 <span class="wave">👋</span></h1>
+          <p>校园失物招领平台<br>让每一件失物都能找到回家的路<br>登录后开始你的拾光之旅</p>
+        </div>
+
+        <div class="welcome-bottom">
+          <div class="service-state" id="service-state">
+            <span class="state-dot"></span>
+            <span id="state-text">正在启动本地服务…</span>
+          </div>
+          <button class="primary-btn" id="enter-login" type="button" disabled>立即登录</button>
+          <div class="foot-links">
+            <button id="help-open" type="button">无法登录？查看帮助</button>
+            <button id="service-info" type="button">服务信息</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane form-pane" id="pane-form">
+        <div class="brand-row compact">
+          <img class="brand-icon" src="../build/icon.png" alt="拾光">
+          <div class="brand-word">
+            <b>拾光</b>
+            <span>LOST &amp; FOUND</span>
+          </div>
+        </div>
+
+        <button class="back-btn" id="back-welcome" type="button" aria-label="返回欢迎页">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" /></svg>
+          返回
+        </button>
+
+        <div class="form-head">
+          <h1>登录拾光</h1>
+          <p>使用校园学号与密码登录 Windows 桌面端</p>
+        </div>
+
+        <form class="login-form" id="login-form" novalidate>
+          <label class="field">
+            <span>学号</span>
+            <input id="account" name="account" type="text" inputmode="numeric" autocomplete="username"
+                   placeholder="请输入 6–12 位学号" maxlength="12" spellcheck="false">
+          </label>
+
+          <label class="field">
+            <span>密码</span>
+            <span class="pwd-wrap">
+              <input id="password" name="password" type="password" autocomplete="current-password"
+                     placeholder="请输入密码" maxlength="64">
+              <button class="pwd-toggle" id="pwd-toggle" type="button" aria-label="显示密码" title="显示密码">
+                <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/>
+                  <circle cx="12" cy="12" r="2.8"/>
+                </svg>
+                <svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-2.2 2.9M6.3 7.4A17.4 17.4 0 0 0 2.5 12s3.5 6 9.5 6a9.5 9.5 0 0 0 4.1-.9M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+                </svg>
+              </button>
+            </span>
+          </label>
+
+          <div class="form-row">
+            <label class="remember">
+              <input id="remember" type="checkbox" checked>
+              <span>记住登录状态</span>
+            </label>
+            <button class="text-link" id="demo-open" type="button">演示账号</button>
+          </div>
+
+          <p class="form-error" id="form-error" role="alert"></p>
+          <button class="primary-btn submit-btn" id="login-submit" type="submit" disabled>登录</button>
+        </form>
+
+        <div class="form-bottom">
+          <div class="service-state" id="service-state-form">
+            <span class="state-dot"></span>
+            <span id="state-text-form">正在启动本地服务…</span>
+          </div>
+          <div class="foot-links">
+            <button id="help-open-form" type="button">登录帮助</button>
+            <button id="service-info-form" type="button">服务信息</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="art-wrap">
+        <img class="login-art" src="./login-art.svg" alt="拾光登录插画占位，后续可替换" draggable="false">
+      </aside>
+    </section>
+  </main>
+
+  <div class="modal" id="help-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="modal-close" id="help-close" type="button" aria-label="关闭帮助">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 3 10 10M13 3 3 13"/></svg>
+      </button>
+      <h2 id="help-title">登录帮助</h2>
+      <p class="modal-lead">拾光桌面版使用本机内置数据库，不需要联网。首次启动会创建演示数据，请等待下方状态变为“本地服务已就绪”后再登录。</p>
+
+      <h3>演示账号</h3>
+      <div class="demo-table">
+        <div><span>管理员</span><code>10000001</code><code>Admin@2026</code></div>
+        <div><span>普通用户</span><code>20240001</code><code>Demo@2026</code></div>
+      </div>
+      <div class="demo-actions">
+        <button class="ghost-btn" id="fill-demo-user" type="button">填入演示用户</button>
+        <button class="ghost-btn" id="fill-demo-admin" type="button">填入管理员</button>
+      </div>
+
+      <h3>仍然无法登录？</h3>
+      <ul class="help-list">
+        <li>确认密码正确；连续输错会临时锁定 10 分钟。</li>
+        <li>如果忘记了密码，请联系本机管理员重置账号。</li>
+        <li>数据文件损坏时，可退出应用后备份并删除 <code>%APPDATA%\Shiguang\data</code>，再重新启动生成演示数据。</li>
+      </ul>
+      <p class="modal-note">登录状态只保存在本机，勾选“记住登录状态”后下次启动会自动进入。</p>
+    </div>
+  </div>
+
+  <script src="./login.js"></script>
+</body>
+</html>
