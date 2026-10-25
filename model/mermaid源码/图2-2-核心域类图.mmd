@@ -1,0 +1,94 @@
+classDiagram
+  class User {
+    +Long id
+    +String account
+    +String password
+    +String nickname
+    +Integer role
+    +Integer status
+  }
+  class Item {
+    +Long id
+    +String type
+    +String title
+    +String category
+    +String location
+    +String status
+    +Integer auditStatus
+    +Long userId
+  }
+  class ItemImage {
+    +Long id
+    +Long itemId
+    +String imgUrl
+    +Long phash
+  }
+  class ClaimRecord {
+    +Long id
+    +Long itemId
+    +Long claimantId
+    +String proof
+    +String contact
+    +String status
+    +String reply
+  }
+  class Message {
+    +Long id
+    +Long userId
+    +String type
+    +String title
+    +Integer isRead
+  }
+  class AdminLog {
+    +Long id
+    +Long adminId
+    +String action
+    +Long targetId
+  }
+  class Favorite {
+    +Long id
+    +Long userId
+    +Long itemId
+  }
+  class Delivery {
+    +Long id
+    +Long userId
+    +String bizType
+    +Long bizId
+    +String filePath
+    +String mimeType
+    +Integer status
+  }
+  class WatchSubscription {
+    +Long id
+    +Long userId
+    +String planCode
+    +String cycle
+    +Integer status
+    +LocalDateTime expireTime
+  }
+  class WatchTarget {
+    +Long id
+    +Long userId
+    +Long phash
+    +String label
+    +String imgUrl
+    +Integer status
+    +Integer hitCount
+    +Long lastHitItemId
+  }
+  User "1" --> "*" Item : 发布
+  Item "1" --> "*" ItemImage : 含图(带pHash)
+  Item "1" --> "*" ClaimRecord : 被申请
+  User "1" --> "*" ClaimRecord : 发起
+  User "1" --> "*" Message : 接收
+  User "1" --> "*" AdminLog : 留痕
+  User "1" --> "*" Favorite : 收藏
+  Item "1" --> "*" Favorite : 被收藏
+  User "1" --> "*" Delivery : 接收交付
+  Item "1" --> "*" Delivery : 产出交付
+  User "1" --> "1" WatchSubscription : 订阅(一人一条)
+  User "1" --> "*" WatchTarget : 守望
+  note for ItemImage "phash: BIGINT 存 64位指纹\n检索: BIT_COUNT(phash^q)"
+  note for Delivery "业务只声明→落 delivery 表→UI 读表\n文件走受控下载/桌面 IPC 原生打开"
+  note for WatchTarget "phash 与 item_image 同口径\n招领审核通过时反查命中(v2.20)"

@@ -54,5 +54,12 @@ heapdump*
 
 # --- 项目运行软件：二进制走 GitHub Releases，仓库只留台账 README ---
 # 下载页：https://github.com/unicornDu/lost-fond/releases
-Project_operation_software/*/*.exe
-Project_operation_software/*/*.zip
+other/Project_operation_software/*/*.exe
+other/Project_operation_software/*/*.zip
+
+# --- 演示视频：大文件本地保留（提交时直接放入"第x组.zip"的 other/ 目录，不入 git）---
+other/演示视频/*.mp4
+other/演示视频/*.mov
+other/演示视频/*.avi
+other/演示视频/*.mkv
+other/演示视频/*.flv

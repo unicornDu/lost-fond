@@ -1,0 +1,15 @@
+graph TD
+  S([开始]) --> F[填写表单+选图]
+  F --> V{前端校验<br/>必填/图片≥1/≤5MB}
+  V -- 不过 --> F
+  V -- 通过 --> SUB[POST /api/items multipart]
+  SUB --> AUTH{JWT 鉴权?}
+  AUTH -- 401 --> L[跳登录页]
+  AUTH -- 通过 --> MAGIC{魔数/扩展名校验}
+  MAGIC -- 假图 --> E1[400 文件内容不是图片]
+  MAGIC -- 真图 --> SAVE[字节落盘+生成缩略图]
+  SAVE --> HASH[计算 pHash 入库]
+  HASH --> P[创建 Item audit_status=0 待审核]
+  P --> W{管理员审核}
+  W -- 通过 --> PUB([前台可见/可搜])
+  W -- 驳回 --> C([已关闭])

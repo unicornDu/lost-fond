@@ -1,0 +1,29 @@
+sequenceDiagram
+  participant U as 用户（以图搜图页）
+  participant WC as WatchController
+  participant WS as WatchService
+  participant PU as PHashUtil
+  participant A as 管理员
+  participant IS as ItemService(审核)
+  participant MG as MessageMapper
+
+  U->>WC: POST /api/watch/targets (file, label?)
+  WC->>WS: addTarget(userId, file, label)
+  WS->>WS: 校验图片 + 守望位配额（方案 quota）
+  WS->>PU: hash(守望照片字节)
+  PU-->>WS: 64位 pHash（与检索同口径）
+  WS->>WS: 落库 watch_target（status=1，到期=保留天数）
+  WS-->>U: 200 WatchTargetVO（占用 1 个守望位）
+
+  Note over U,MG: ……等待新招领启事……
+
+  A->>IS: POST /api/admin/items/{id}/audit approve=true（招领）
+  IS->>WS: matchOnApprove(item)
+  WS->>WS: 遍历生效 watch_target（排除本人/已过期）<br/>dist = min(BIT_COUNT(t.phash ^ 启事各图 phash))
+  alt dist ≤ 守望人方案阈值（轻守10/长守12/众守14）
+    WS->>MG: INSERT message type=watch（相似度% + 启事ID）
+    WS->>WS: hit_count+1，记录 last_hit_item_id
+    MG-->>U: 通知页/角标 →「查看启事」
+  else dist > 阈值
+    WS-->>WS: 跳过该守望位
+  end

@@ -1,0 +1,26 @@
+flowchart TB
+  subgraph CLIENT["客户端"]
+    FE["Vue 3 SPA<br/>Element Plus · Pinia · Vue Router · ECharts<br/>（可选：Windows 桌面壳 Electron）"]
+  end
+  subgraph SERVER["Spring Boot 3.3 后端（:8080 单进程）"]
+    STATIC["静态资源托管<br/>frontend/dist + /uploads 图片"]
+    INTERCEPTOR["JwtInterceptor<br/>/api/** 统一鉴权 · UserContext"]
+    subgraph CTRL["Controller 层（8 个）"]
+      C1["Auth · Item · Search · Claim<br/>User · Admin · Watch · File"]
+    end
+    subgraph SVC["Service 层（13 个）"]
+      S1["业务：Item · Search · Claim · Watch<br/>Message · Favorite · Admin · Stats"]
+      S2["支撑：Auth · User · FileStorage<br/>FileDelivery · Pdf"]
+    end
+    UTIL["PHashUtil（JImageHash pHash）"]
+    MAPPER["MyBatis-Plus Mapper（10 个）"]
+  end
+  DB[("MySQL 8 · lost_found<br/>十表 · InnoDB · utf8mb4")]
+  FS[("文件系统 uploads/<br/>原图 · 480px 缩略图 · 交付 PDF/CSV")]
+
+  FE -->|"HTTPS/HTTP · JSON + Bearer JWT"| STATIC
+  STATIC --> INTERCEPTOR --> CTRL
+  CTRL --> SVC
+  SVC --> MAPPER --> DB
+  SVC --> UTIL
+  SVC --> FS

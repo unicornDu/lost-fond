@@ -1,0 +1,22 @@
+sequenceDiagram
+  participant B as 认领人B
+  participant CC as ClaimController
+  participant CS as ClaimService
+  participant A as 发布者A
+
+  B->>CC: POST /items/{id}/claim {proof, contact}
+  CC->>CS: apply(...)
+  CS->>CS: 守卫：仅 寻找中/待认领 可申请；重复拦截
+  CS-->>B: 200（物品→认领申请中，通知A）
+  A->>CC: GET /claims/received
+  CC-->>A: 含 申请人/凭证/联系方式（防盲审）
+  A->>CC: POST /claims/{id}/audit {approve}
+  CC->>CS: audit(...)
+  alt 通过
+    CS->>CS: 物品→已找回/已认领
+    CS->>CS: 其余"审核中"申请→已拒绝+逐个通知
+    CS-->>B: 消息：认领已通过
+  else 拒绝
+    CS->>CS: 若无其他审核中申请→回退物品状态
+    CS-->>B: 消息：未通过(附理由)
+  end

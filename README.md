@@ -4,9 +4,10 @@
 
 上传一张物品照片，系统在全部已审核启事里找出"同一件东西"的其它照片，不依赖文字描述，也不要求用户手写标签。
 
-> **Windows 安装包**：发布在 [GitHub Releases](https://github.com/unicornDu/lost-fond/releases)。本地构建产物在 `App-LostFond/Softeare/`（安装程序 + 使用说明），因体积大不提交仓库；构建方式见 `App-LostFond/README.md`。该目录独立于 Web 版构建，不影响 Web 版代码与部署。
+> **Windows 安装包**：发布在 [GitHub Releases](https://github.com/unicornDu/lost-fond/releases)。本地构建产物在 `src/App-LostFond/Softeare/`（安装程序 + 使用说明），因体积大不提交仓库；构建方式见 `src/App-LostFond/README.md`。该目录独立于 Web 版构建，不影响 Web 版代码与部署。
 
-> 当前迭代：**v2.51**（2026-10-21）——公开首页 02–04 屏标题垂直居中、首页活动天际线月份标签不再被裁切且颜色加深。记录见 `Creator/过程资料/迭代记录/version-2.50/v2.51-MarkDone-首页入口屏标题垂直居中.md`。
+> 当前迭代：**v4.00**（2026-10-25）——按课程提交要求重组为 doc/model/src/other 四目录结构，补可行性研究报告、软件设计文档、11 张模型图、安装说明书、宣传彩页等提交物；Web 版代码本体最新为 v2.51，桌面版 1.1.2（v3.10）。记录见 `other/Creator/过程资料/迭代记录/version-4.00/v4.00-MarkDone-按课程提交要求重组四目录结构.md`。
+> 仓库结构：**按课程提交要求组织为 `doc/ model/ src/ other/` 四目录**（打包命名"第x组.zip"，规则见根目录《提交与命名规则.md》）。
 
 ```
 查询图 → pHash（JImageHash）→ 64 位指纹 → MySQL BIT_COUNT(phash ^ q) 汉明距离
@@ -15,7 +16,7 @@
 
 实测 56 个查询变体：召回 **48/56 = 85.7%**，误检 **0**，单张平均约 **54 ms**。
 
-**本文只讲一件事：怎么从零把这套系统部署到自己电脑上跑起来。** 设计文档、迭代记录、答辩材料都在 `Creator/` 下，见文末导航。
+**本文只讲一件事：怎么从零把这套系统部署到自己电脑上跑起来。** 设计文档在 `doc/`，迭代记录与答辩材料在 `other/Creator/` 下，见文末导航。
 
 ---
 
@@ -25,7 +26,7 @@
 |---|---|---|
 | 后端 | Spring Boot 3.3.5 · MyBatis-Plus 3.5.7 · JJWT 0.12.6 · JImageHash 1.0.0 · Knife4j · OpenPDF | `:8080` |
 | 前端 | Vue 3.5 · Vite 6 · Pinia · Element Plus · ECharts 6 · **设计系统 v3（登录前：北欧编辑风；登录后：Digg 信息流三栏）** | `:5173` |
-| 数据库 | MySQL 8+（库名 `lost_found`，八表：user / item / item_image / claim_record / message / admin_log / favorite / delivery） | `:3306` |
+| 数据库 | MySQL 8+（库名 `lost_found`，十表：user / item / item_image / claim_record / message / admin_log / favorite / delivery / watch_subscription / watch_target） | `:3306` |
 | 部署 | 单 Web：后端托管 `frontend/dist`，浏览器访问 :8080；可选 cloudflared 临时公网演示 | — |
 | 构建 | JDK 21 · Maven 3.9+ · Node 20+ | — |
 
@@ -62,13 +63,13 @@ cd 软件工程
 **A. 首次初始化 / 已有库补表（推荐，可重复执行、不清数据）：**
 
 ```bash
-mysql -u root -p < web-lostfond/backend/src/main/resources/db/schema-init.sql
+mysql -u root -p < src/web-lostfond/backend/src/main/resources/db/schema-init.sql
 ```
 
 **B. 彻底重置（⚠️ 会 DROP 全部 8 张表并清空数据，仅开发环境使用）：**
 
 ```bash
-mysql -u root -p < web-lostfond/backend/src/main/resources/db/schema.sql
+mysql -u root -p < src/web-lostfond/backend/src/main/resources/db/schema.sql
 ```
 
 > 2026-10-18 修复：`schema.sql` 每张表前都有 `DROP TABLE IF EXISTS`，**执行即清库**；日常请用 `schema-init.sql`（`CREATE TABLE IF NOT EXISTS`）。已有数据升级前先跑 `backend/scripts/backup.sh` 备份。
@@ -83,7 +84,7 @@ mysql -u root -p -e "USE lost_found; SHOW TABLES;"
 ### 第 3 步：生成本地配置
 
 ```bash
-cd web-lostfond/backend
+cd src/web-lostfond/backend
 cp application-local.yml.example application-local.yml
 # Windows cmd 用：copy application-local.yml.example application-local.yml
 ```
@@ -102,7 +103,7 @@ cp application-local.yml.example application-local.yml
 ### 第 4 步：启动后端（窗口 1）
 
 ```bash
-cd web-lostfond/backend
+cd src/web-lostfond/backend
 mvn spring-boot:run
 ```
 
@@ -110,7 +111,7 @@ mvn spring-boot:run
 
 两个要点：
 
-- **必须在 `web-lostfond/backend` 目录下启动** —— 上传目录 `./uploads` 是相对工作目录的路径，换目录会另建空目录导致图片 404；
+- **必须在 `src/web-lostfond/backend` 目录下启动** —— 上传目录 `./uploads` 是相对工作目录的路径，换目录会另建空目录导致图片 404；
 - **首次启动自动播种** 60 条演示启事、120 条图片引用、认领与消息记录，并重算 pHash，不用手工导 SQL 数据。
 
 想打成 jar 长期跑：
@@ -123,7 +124,7 @@ java -jar target/lost-found-backend.jar
 ### 第 5 步：启动前端（窗口 2）
 
 ```bash
-cd web-lostfond/frontend
+cd src/web-lostfond/frontend
 npm install        # 仅第一次
 npm run dev
 ```
@@ -142,10 +143,10 @@ curl "http://localhost:8080/api/items?page=1&size=1"    # 返回 {"code":200,...
 
 浏览器逐项点一遍：
 
-- [ ] `http://localhost:5173` 落地页有内容、有图（图来自 `web-lostfond/backend/uploads/`）
+- [ ] `http://localhost:5173` 落地页有内容、有图（图来自 `src/web-lostfond/backend/uploads/`）
 - [ ] 登录 管理员 `10000001`（口令 = `application-local.yml` 的 `seed.admin-password`，模板默认 `admin123`），普通用户 `20240001`~`20240020`（`seed.user-password`，模板默认 `user123`）——**以你的本地配置为准，改过就不是默认值**
 - [ ] 失物墙有真实数据（60 条启事）
-- [ ] 以图搜图：上传 `web-lostfond/backend/uploads/_query/q-cup.jpg` → 命中该物品多条启事，相似度 ~100%
+- [ ] 以图搜图：上传 `src/web-lostfond/backend/uploads/_query/q-cup.jpg` → 命中该物品多条启事，相似度 ~100%
 - [ ] 导航栏出现「后台管理」→ 看板 / 审核 / 用户 / 日志 / 运维 五个页面能打开
 - [ ] **通知 / 聊天是独立页面**：左侧导航进入 `/notifications`、`/messages`；通知页可逐条已读或一键「全部标为已读」，聊天页从会话列表点进线程可直接回复（回车发送）
 - [ ] **个人中心**：`我的发布 / 我的收藏 / 我的认领 / 收到 / 账号` 五个标签可用；「收到」里可审核认领申请，`账号` 里可改昵称、头像、手机号与密码
@@ -156,7 +157,7 @@ curl "http://localhost:8080/api/items?page=1&size=1"    # 返回 {"code":200,...
 自动化自测（可选，需要 Python 3 + `pip install pillow requests`）：
 
 ```bash
-cd web-lostfond/backend
+cd src/web-lostfond/backend
 python scripts/test_api.py                        # 141 断言，幂等，跑完八表回基线
 python scripts/eval_recall.py --min-recall 0.75   # 召回门禁 85.7%
 mvn test                                          # 112 用例
@@ -168,7 +169,7 @@ mvn test                                          # 112 用例
 
 后端 `:8080` 已经同时托管 `frontend/dist`，手机访问只需要这一个端口，不需要另外开 Vite。
 
-> 通过 `:8080` 看到的是构建产物：改过前端代码后，先在 `web-lostfond/frontend` 执行 `npm run build`，手机刷新才是新版本。
+> 通过 `:8080` 看到的是构建产物：改过前端代码后，先在 `src/web-lostfond/frontend` 执行 `npm run build`，手机刷新才是新版本。
 
 | 场景 | 手机打开 | 前提 |
 |---|---|---|
@@ -192,7 +193,7 @@ netsh advfirewall firewall add rule name="拾光 8080" dir=in action=allow proto
 
 ### 方式 B：Cloudflare 临时隧道
 
-仓库已备好 `Project_operation_software/cloudflared/cloudflared.exe`，直接双击 `web-lostfond/scripts/tunnel.bat` 即可：
+仓库已备好 `other/Project_operation_software/cloudflared/cloudflared.exe`，直接双击 `src/web-lostfond/scripts/tunnel.bat` 即可：
 
 ```text
 [1/2] 检查后端 8080 → [2/2] 申请地址 → 打印 https://xxx-yyy-zzz.trycloudflare.com
@@ -209,7 +210,7 @@ netsh advfirewall firewall add rule name="拾光 8080" dir=in action=allow proto
 - 国内访问 `trycloudflare.com` 偶尔不稳，重开一次即可；
 - `tunnel.bat` 必须保持 **GBK/ANSI + CRLF**，用 UTF-8 或 LF 重新保存会导致双击闪退。
 
-> 完整的开启、关闭、排错与验证记录见 `web-lostfond/scripts/MarkDone-公网访问开启与关闭.md`。
+> 完整的开启、关闭、排错与验证记录见 `src/web-lostfond/scripts/MarkDone-公网访问开启与关闭.md`。
 
 ---
 
@@ -219,11 +220,11 @@ netsh advfirewall firewall add rule name="拾光 8080" dir=in action=allow proto
 |---|---|
 | 启动报连不上数据库 | `application-local.yml` 没生成或口令不对；或 MySQL 服务没起 |
 | 端口 8080 / 5173 被占用 | `netstat -ano \| findstr :8080` 找 PID 结束进程，或改 `application.yml` / `vite.config.js` 的端口 |
-| 图片全部 404 | 没有在 `web-lostfond/backend` 目录下启动后端（`uploads` 是相对路径） |
+| 图片全部 404 | 没有在 `src/web-lostfond/backend` 目录下启动后端（`uploads` 是相对路径） |
 | 前端页面白屏（生产构建） | 改过 `vite.config.js` 的 `manualChunks` 后必须 `npm run build` 冒烟验证，dev 正常 ≠ build 正常 |
 | 搜图结果全 100% 或全空 | pHash 未算，`POST /api/search/reindex` 重算 |
 | 401 / 403 | token 过期、账号被封禁或权限不足，重新登录 |
-| 双击 `tunnel.bat` 窗口一闪而过 | 文件被保存成了 UTF-8/LF；必须用 GBK(ANSI) + CRLF，详见 `web-lostfond/scripts/MarkDone-公网访问开启与关闭.md` |
+| 双击 `tunnel.bat` 窗口一闪而过 | 文件被保存成了 UTF-8/LF；必须用 GBK(ANSI) + CRLF，详见 `src/web-lostfond/scripts/MarkDone-公网访问开启与关闭.md` |
 | 手机打不开局域网地址 | 确认手机与电脑同一网络、后端在 `0.0.0.0:8080`、防火墙放行、热点未开 AP 隔离、电脑未休眠 |
 | 手机页面部分内容显示不全 | 后台表格在窄屏保留横向滚动，可左右滑动查看其余列；个人中心标签在窄屏用左右箭头切换 |
 | `npm install` 卡住 | 换镜像 `npm config set registry https://registry.npmmirror.com` |
@@ -232,39 +233,51 @@ netsh advfirewall firewall add rule name="拾光 8080" dir=in action=allow proto
 
 ## 七、目录地图
 
+按课程提交要求组织为四目录（`doc / model / src / other`），打包与命名规则见根目录《提交与命名规则.md》。
+
 ```
-软件工程/
+软件工程/（仓库根 = 提交包内容）
 ├── README.md                        ← 本文件（部署指南）
+├── 提交与命名规则.md                 ← 打包命名/排除清单/格式转换计划/提交检查单
 │
-├── Creator/                         文档与过程资料
-│   ├── README.md                    本目录说明
-│   ├── CONTRIBUTING.md              git 协作规范与提交前检查单
-│   ├── 交付文档/                    课程交付物：01-12 全套
-│   │   └── 运行说明/                环境、启动、项目结构、新手版
-│   ├── 过程资料/                    过程留痕（不交作业）
-│   │   ├── 选题/                    选题论证、五人分工、准备清单
-│   │   ├── 设计prompt/              页面设计 prompt（含已归档的多端方案）
-│   │   ├── 迭代记录/                version-0~2.40/（历史 8 批）+ version-2.10 / 2.20 / 2.41 / 2.50（当前 v2.51）
-│   │   └── 参考项目/                三个上游开源项目离线副本
-│   └── Knowledge_List/              答辩复习知识清单（8 份 · 208 个自测点；`多端与工程化` 已随单 Web 收敛归档）
+├── doc/                             各类文档（课程交付物）
+│   ├── 可行性研究报告-v1.0.md        五维可行性论证（F1，2026-10-25 新增）
+│   ├── 软件设计文档-v1.0.md          总设计：体系结构/技术决策/模块划分（D1，新增）
+│   ├── 01-需求规格说明书 ~ 12-部署手册  全套 12 份（FR-1~7 含守望订阅；接口 51 端点；十表）
+│   └── 运行说明/                     环境、启动、项目结构、新手版（4 篇）
 │
-├── Project_operation_software/      运行期软件（二进制走 Releases，仓库只留台账）
-├── assets/演示图/                   演示物品图 6 张
+├── model/                           模型图文件（导出 PNG，逐图命名）
+│   ├── 图2-1~图2-7-*.png             UML 七图（用例/类图/时序×3/活动/状态）
+│   ├── 图3-x-*.png                   WBS 分解图、甘特图
+│   ├── 图6-1-数据库ER图.png           E-R 图（十实体）
+│   ├── 图SD-1-系统体系结构图.png      体系结构图
+│   └── mermaid源码/                   对应 .mmd 源文件（可再渲染）
 │
-├── web-lostfond/                     Web 版代码仓（答辩版，保持原样）
-│   ├── backend/                     Spring Boot（:8080）
-│   ├── frontend/                    Vue3（:5173）
-│   └── scripts/                     tunnel.bat、公网访问开启与关闭 MarkDone
+├── src/                             源程序代码
+│   ├── web-lostfond/                 Web 版代码仓（答辩版）
+│   │   ├── backend/                  Spring Boot（:8080）
+│   │   ├── frontend/                 Vue3（:5173）
+│   │   └── scripts/                  tunnel.bat、test_api.py、eval_recall.py
+│   └── App-LostFond/                 Windows 桌面版（独立构建，不影响 Web 版）
+│       ├── backend/                  Spring Boot + H2（独立版 profile）
+│       ├── frontend/                 Vue3（Electron 共用）
+│       ├── desktop/                  Electron 壳 + 内置 JRE
+│       ├── build/                    图标生成脚本、构建产物
+│       └── Softeare/                 安装包（走 Releases 不入库）、SHA256SUMS、使用说明
 │
-└── App-LostFond/                    Windows 桌面版（独立构建）
-    ├── backend/                     Spring Boot + H2（独立版 profile）
-    ├── frontend/                    Vue3（Electron 共用）
-    ├── desktop/                     Electron 壳 + 内置 JRE
-    ├── build/                       图标生成脚本、构建产物
-    └── Softeare/                    安装包（走 Releases，不入库）、SHA256SUMS、使用说明
+└── other/                           其他资料
+    ├── README.md                     本目录说明（含参考项目声明，供老师了解构建过程）
+    ├── 软件安装说明书-v1.0.md         Word 版安装说明的底稿（提交前转 .docx 放本目录）
+    ├── 宣传彩页/                     宣传彩页.html（浏览器打开 → Ctrl+P → 另存为 PDF）
+    ├── 演示视频/                     演示视频（待补：占位说明 + 录制大纲）
+    ├── 演示图/                       演示物品图 6 张
+    ├── Project_operation_software/   cloudflared 网络穿透工具（公网演示用，exe 不入库）
+    └── Creator/                      项目构建过程资料
+        ├── 过程资料/                 选题 / 设计prompt / 迭代记录（version-0~3.10）/ 参考项目
+        └── Knowledge_List/           答辩复习知识清单（8 份 · 208 个自测点）
 ```
 
-`*.keystore`、`application-local.yml`、`node_modules/`、`dist/` 等本机产物已被 `.gitignore` 排除，**不在仓库里**。
+`*.keystore`、`application-local.yml`、`node_modules/`、`dist/`、`target/`、`uploads/`、桌面安装包与 `cloudflared.exe` 等本机产物已被 `.gitignore` 排除，**不在仓库里**（提交包同口径排除，见规则文件）。
 
 ---
 
@@ -306,7 +319,7 @@ netsh advfirewall firewall add rule name="拾光 8080" dir=in action=allow proto
 | 主题 | 亮/暗双主题（`composables/useTheme.js` + `html[data-theme="dark"]` 令牌 + EP 暗色变量），记忆与跟随系统 |
 | 语言 | 简/繁/EN（`i18n/index.js`，539 词条 × 3），左栏切换，标题与 EP 内置文案同步 |
 | 已退役 | v2「方案G 编辑叙事」（翡翠绿 + 顶部横向导航）与 v1「暖光手账风」；旧组件 `NavBar` / `GooeyNav` / `SplitText` 已删除，可在 git 历史找回 |
-| 落地记录 | `Creator/过程资料/迭代记录/version-0~2.40/version08/v3落地记录-Digg信息流与北欧编辑风.md`；设计规范见 `Creator/交付文档/05-UI设计稿与规范-v1.0.md` 第 0 节 |
+| 落地记录 | `other/Creator/过程资料/迭代记录/version-0~2.40/version08/v3落地记录-Digg信息流与北欧编辑风.md`；设计规范见 `doc/05-UI设计稿与规范-v1.0.md` 第 0 节 |
 
 **主题与语言**：左栏底部设置区提供「亮色/暗色」与「简/繁/EN」两个控件。
 

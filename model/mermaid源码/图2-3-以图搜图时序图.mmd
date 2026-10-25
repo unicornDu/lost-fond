@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant FE as 前端 SearchImageView
+  participant SC as SearchController
+  participant SS as SearchService
+  participant PU as PHashUtil(JImageHash)
+  participant IM as ItemImageMapper
+  participant DB as MySQL
+
+  FE->>SC: POST /api/search/image (multipart file)
+  SC->>SS: searchByImage(file)
+  SS->>PU: hash(查询图字节)
+  PU-->>SS: q (64位 pHash)
+  SS->>IM: searchByHash(q, 10, 6)
+  IM->>DB: SELECT item_id, MIN(BIT_COUNT(phash^q)) dist<br/>JOIN item(仅audit=1且未下架)<br/>GROUP BY item_id HAVING dist<=10 ORDER BY dist LIMIT 6
+  DB-->>IM: [{itemId, dist}]
+  IM-->>SS: List~ImageMatch~
+  SS->>SS: 转 ItemVO + similarity=(1-dist/64)*100
+  SS-->>SC: List~ItemVO~（相似度降序）
+  SC-->>FE: Result{data: Top-N}

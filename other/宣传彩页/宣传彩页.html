@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>拾光 · 校园失物招领平台 — 宣传彩页</title>
+<!--
+  ═══════════════════════════════════════════════════════
+  拾光 · 宣传彩页（A4 单页）
+  导出成品：用浏览器（Chrome/Edge）打开本文件 → Ctrl+P
+           → 目标打印机选「另存为 PDF」→ 边距选「默认」
+           → 勾选「背景图形」→ 保存，即得 PDF 成品。
+  配色：设计系统 v3 —— 纸白 #FAFAF8 / 近黑 #141412 /
+        深棕 CTA #594037 / 六分类彩色圆点。
+  ═══════════════════════════════════════════════════════
+-->
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #e8e8e4; }
+  body { font-family: "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif; color: #141412; }
+  .sheet {
+    width: 210mm; min-height: 297mm; margin: 8mm auto; background: #FAFAF8;
+    padding: 14mm 14mm 10mm; display: flex; flex-direction: column;
+    box-shadow: 0 2px 18px rgba(0,0,0,.14);
+  }
+  @media print {
+    body { background: none; }
+    .sheet { margin: 0; box-shadow: none; }
+    .no-print { display: none; }
+  }
+  .serif { font-family: "Source Han Serif SC", "Noto Serif SC", "SimSun", serif; }
+
+  /* ── 头部品牌区 ── */
+  header { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 2px solid #141412; padding-bottom: 6mm; }
+  .brand { display: flex; align-items: center; gap: 6mm; }
+  .logo { width: 20mm; height: 20mm; border-radius: 50%; background: #594037; color: #FAFAF8;
+          display: flex; align-items: center; justify-content: center; font-size: 12mm; font-weight: 600; }
+  .brand h1 { font-size: 13mm; font-weight: 600; letter-spacing: 2px; line-height: 1; }
+  .brand .sub { font-size: 3.6mm; letter-spacing: 4px; color: #6b6b66; margin-top: 2.2mm; }
+  .badge { text-align: right; font-size: 3.4mm; color: #6b6b66; line-height: 1.8; }
+  .badge b { color: #141412; }
+
+  /* ── 主标语 ── */
+  .slogan { margin: 9mm 0 7mm; display: flex; align-items: baseline; gap: 5mm; }
+  .slogan .big { font-size: 9.5mm; font-weight: 600; letter-spacing: 1px; }
+  .slogan .small { font-size: 4.2mm; color: #6b6b66; }
+  .dots { margin-left: auto; display: flex; gap: 2.4mm; align-items: center; }
+  .dots i { width: 3.6mm; height: 3.6mm; border-radius: 50%; display: inline-block; }
+
+  /* ── 三大亮点 ── */
+  .features { display: flex; gap: 4mm; }
+  .feature { flex: 1; border: 0.5mm solid #d9d9d2; border-radius: 2.4mm; padding: 5mm 4.5mm; background: #fff; }
+  .feature .num { font-size: 3.2mm; letter-spacing: 2px; color: #594037; font-weight: 700; }
+  .feature h2 { font-size: 5.2mm; margin: 2mm 0 2.4mm; font-weight: 600; }
+  .feature p { font-size: 3.5mm; line-height: 1.75; color: #3d3d38; }
+  .feature .kpi { margin-top: 3mm; font-size: 7mm; font-weight: 700; color: #141412; }
+  .feature .kpi small { font-size: 3.2mm; color: #6b6b66; font-weight: 400; margin-left: 1mm; }
+
+  /* ── 数据带 ── */
+  .stats { display: flex; margin: 6mm 0; background: #141412; border-radius: 2.4mm; color: #FAFAF8; }
+  .stats div { flex: 1; text-align: center; padding: 4.2mm 0; }
+  .stats div + div { border-left: 0.35mm solid rgba(250,250,248,.25); }
+  .stats b { display: block; font-size: 6.4mm; font-weight: 700; }
+  .stats span { font-size: 3.1mm; color: #bcbcb4; letter-spacing: 1px; }
+
+  /* ── 三步流程 ── */
+  .section-title { display: flex; align-items: center; gap: 3mm; margin: 2mm 0 4mm; }
+  .section-title::after { content: ""; flex: 1; height: 0.4mm; background: #d9d9d2; }
+  .section-title b { font-size: 4.6mm; font-weight: 600; }
+  .section-title span { font-size: 3mm; color: #9a9a92; letter-spacing: 2px; }
+  .steps { display: flex; gap: 4mm; margin-bottom: 6mm; }
+  .step { flex: 1; display: flex; gap: 3.2mm; align-items: flex-start; }
+  .step .n { width: 8mm; height: 8mm; border-radius: 50%; background: #FAFAF8; border: 0.5mm solid #141412;
+             display: flex; align-items: center; justify-content: center; font-size: 4.2mm; font-weight: 700; flex-shrink: 0; }
+  .step h3 { font-size: 4.2mm; margin-bottom: 1.4mm; }
+  .step p { font-size: 3.4mm; color: #3d3d38; line-height: 1.7; }
+
+  /* ── 底部：入口 + 团队 ── */
+  footer { margin-top: auto; border-top: 0.5mm solid #d9d9d2; padding-top: 4.5mm; display: flex; gap: 6mm; align-items: center; }
+  .qr { width: 26mm; height: 26mm; border: 0.5mm dashed #9a9a92; border-radius: 1.6mm;
+        display: flex; align-items: center; justify-content: center; text-align: center;
+        font-size: 3mm; color: #9a9a92; line-height: 1.6; flex-shrink: 0; }
+  .entry { flex: 1; }
+  .entry .row { font-size: 3.6mm; line-height: 2.1; color: #3d3d38; }
+  .entry .row b { color: #141412; }
+  .entry .url { font-size: 5mm; font-weight: 700; letter-spacing: 0.5px; }
+  .team { text-align: right; }
+  .team .t { font-size: 3mm; color: #9a9a92; letter-spacing: 2px; margin-bottom: 1.6mm; }
+  .team p { font-size: 3.3mm; line-height: 1.9; color: #3d3d38; }
+  .course { margin-top: 3.5mm; font-size: 2.9mm; color: #9a9a92; text-align: right; letter-spacing: 1px; }
+
+  .no-print { position: fixed; left: 0; right: 0; bottom: 0; background: #141412; color: #FAFAF8;
+              text-align: center; padding: 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    <div class="brand">
+      <div class="logo serif">拾</div>
+      <div>
+        <h1 class="serif">拾光</h1>
+        <div class="sub">SHIGUANG · 校园失物招领平台</div>
+      </div>
+    </div>
+    <div class="badge">
+      软件工程课程设计 · B24 软工班<br>
+      <b>以图搜图</b> · 感知哈希 pHash
+    </div>
+  </header>
+
+  <div class="slogan">
+    <span class="big serif">一张照片，找回你丢失的时光。</span>
+    <span class="small">不写标签、不拼文字 —— 拍照即搜，秒级匹配</span>
+    <div class="dots">
+      <i style="background:#E8833A"></i><i style="background:#7BA05B"></i><i style="background:#5E8BAC"></i>
+      <i style="background:#C0605E"></i><i style="background:#B78F4E"></i><i style="background:#8C7BA9"></i>
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <div class="num">01 · 核心</div>
+      <h2>以图搜图</h2>
+      <p>上传物品照片，系统用 64 位感知哈希在全部已审核启事中找出"同一件东西"，按相似度返回 Top-10。缩放、裁剪、亮度变化都不怕。</p>
+      <div class="kpi">85.7%<small>召回 · 0 误检 · 约 54ms</small></div>
+    </div>
+    <div class="feature">
+      <div class="num">02 · 特色</div>
+      <h2>守望订阅</h2>
+      <p>这次没搜到？挂一张守望照片就走。之后只要有匹配的招领启事通过审核，系统立即站内推送"守望命中"，附相似度直达启事。</p>
+      <div class="kpi">3 档<small>轻守免费 · 长守 · 众守</small></div>
+    </div>
+    <div class="feature">
+      <div class="num">03 · 闭环</div>
+      <h2>审核 · 认领 · 交付</h2>
+      <p>发布先审后上墙；认领填"只有失主知道的特征"防冒领；审核通过自动生成认领证明 PDF，双方消息中心直接下载。</p>
+      <div class="kpi">32<small>条缺陷全闭环 · 全流程留痕</small></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div><b>10</b><span>数据库表</span></div>
+    <div><b>51</b><span>REST 接口</span></div>
+    <div><b>112+31</b><span>后端/前端单测</span></div>
+    <div><b>141</b><span>接口断言</span></div>
+    <div><b>3 语</b><span>简 / 繁 / EN</span></div>
+    <div><b>3 端</b><span>Web · 手机 · 桌面</span></div>
+  </div>
+
+  <div class="section-title"><b>三步找回</b><span>HOW IT WORKS</span></div>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div><h3>拍照上传</h3><p>捡到东西随手拍、丢失物品找张照片，发布或搜索都可以，无需填标签。</p></div></div>
+    <div class="step"><div class="n">2</div><div><h3>秒级匹配</h3><p>pHash 指纹汉明距离比对，相似度百分比一目了然，支持守望持续反查。</p></div></div>
+    <div class="step"><div class="n">3</div><div><h3>认领找回</h3><p>填凭证申请认领，发布者审核通过即生成认领证明 PDF，物品回家。</p></div></div>
+  </div>
+
+  <div class="section-title"><b>立即体验</b><span>DEMO</span></div>
+  <footer>
+    <div class="qr">演示二维码<br>（粘贴公网演示<br>地址二维码）</div>
+    <div class="entry">
+      <div class="url">http://localhost:8080</div>
+      <div class="row">管理员：<b>10000001 / admin123</b>　演示用户：<b>20240001 ~ 20240020 / user123</b></div>
+      <div class="row">公网演示地址见答辩现场公布（cloudflared 临时隧道，或 Releases 下载 Windows 桌面版）</div>
+    </div>
+    <div class="team">
+      <div class="t">开发团队</div>
+      <p>张庆宏 244215322026 · 杜林峰 244215322039<br>张家豪 244215322032 · 赵豪杰 244215322020 · 牛贺群 244215322017</p>
+      <div class="course">拾光 SHIGUANG · 2026</div>
+    </div>
+  </footer>
+
+</div>
+<div class="no-print">导出成品：浏览器 Ctrl+P → 另存为 PDF → 勾选「背景图形」（此提示条不会出现在打印件中）</div>
+</body>
+</html>

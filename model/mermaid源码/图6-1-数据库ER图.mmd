@@ -1,0 +1,105 @@
+erDiagram
+    USER ||--o{ ITEM : "发布"
+    ITEM ||--o{ ITEM_IMAGE : "含图片(带pHash)"
+    ITEM ||--o{ CLAIM_RECORD : "被认领申请"
+    USER ||--o{ CLAIM_RECORD : "发起认领"
+    USER ||--o{ MESSAGE : "接收通知"
+    USER ||--o{ ADMIN_LOG : "操作留痕"
+    USER ||--o{ FAVORITE : "收藏"
+    ITEM ||--o{ FAVORITE : "被收藏"
+    USER ||--o{ DELIVERY : "接收交付"
+    ITEM ||--o{ DELIVERY : "产出交付"
+    USER ||--|| WATCH_SUBSCRIPTION : "订阅(一人一条)"
+    USER ||--o{ WATCH_TARGET : "守望"
+
+    USER {
+        bigint id PK
+        varchar account UK "学号"
+        varchar password "BCrypt"
+        varchar nickname
+        varchar avatar
+        tinyint role "0用户 1管理员"
+        tinyint status "1正常 0封禁"
+    }
+    ITEM {
+        bigint id PK
+        varchar type "lost/found"
+        varchar title
+        varchar category
+        varchar location
+        datetime happen_time
+        varchar status "业务状态机"
+        varchar cover_img
+        int views
+        bigint user_id FK
+        tinyint audit_status "0待审 1通过 2驳回"
+    }
+    ITEM_IMAGE {
+        bigint id PK
+        bigint item_id FK
+        varchar img_url
+        bigint phash "64位感知哈希(核心)"
+        int sort
+    }
+    CLAIM_RECORD {
+        bigint id PK
+        bigint item_id FK
+        bigint claimant_id FK
+        varchar proof "认领凭证"
+        varchar status "审核中/已通过/已拒绝"
+        varchar reply
+    }
+    MESSAGE {
+        bigint id PK
+        bigint user_id FK
+        varchar type
+        varchar title
+        bigint ref_id
+        tinyint is_read
+    }
+    ADMIN_LOG {
+        bigint id PK
+        bigint admin_id FK
+        varchar action
+        varchar target_type
+        bigint target_id
+    }
+    FAVORITE {
+        bigint id PK
+        bigint user_id FK
+        bigint item_id FK
+        datetime create_time
+    }
+    DELIVERY {
+        bigint id PK
+        bigint user_id FK "接收人"
+        varchar biz_type "CLAIM_CERT/REPORT_CSV/MATCH_REPORT"
+        bigint biz_id "关联启事(可空)"
+        varchar title
+        varchar file_path "相对 uploads 根"
+        varchar file_name
+        varchar mime_type
+        bigint file_size
+        tinyint status "1有效 0失效"
+    }
+    WATCH_SUBSCRIPTION {
+        bigint id PK
+        bigint user_id UK "一人一条"
+        varchar plan_code "light/steady/crowd"
+        varchar cycle "month/semester"
+        tinyint status "1生效 0已取消"
+        datetime start_time
+        datetime expire_time "NULL=长期有效"
+    }
+    WATCH_TARGET {
+        bigint id PK
+        bigint user_id FK "守望人"
+        bigint phash "64位感知哈希(与item_image同口径)"
+        varchar label "守望照片备注"
+        varchar img_url "缩略图相对路径"
+        bigint source_item_id "来源启事(可空)"
+        tinyint status "1守望中 0已结束"
+        int hit_count "命中次数"
+        bigint last_hit_item_id "最近命中启事"
+        datetime expire_time "NULL=不过期"
+    }
